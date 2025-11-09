@@ -153,8 +153,8 @@ class Forward_Layer(nn.Module):
     
 if __name__ == "__main__":
     
-    from encoders.encode_image import Encode_Image
-    from decoders.decode_image import Decode_Image
+    from general_FEP_RL.encoders.encode_image import Encode_Image
+    from general_FEP_RL.decoders.decode_image import Decode_Image
     
     hidden_state_size = 128
     
