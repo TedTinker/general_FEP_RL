@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torchinfo import summary
 from torch.profiler import profile, record_function, ProfilerActivity
 
-from utils_torch import init_weights, model_start, model_end, mu_std
+from general_FEP_RL.utils_torch import init_weights, model_start, model_end, mu_std
 
 
 
