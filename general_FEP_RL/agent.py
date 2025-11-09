@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from buffer import RecurrentReplayBuffer
-from forward_model import Forward_Model
-from actor_critic import Actor, Critic
+from general_FEP_RL.buffer import RecurrentReplayBuffer
+from general_FEP_RL.forward_model import Forward_Model
+from general_FEP_RL.actor_critic import Actor, Critic
 
 
 

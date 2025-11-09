@@ -4,7 +4,7 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary as torch_summary
 
-from utils_torch import init_weights
+from general_FEP_RL.utils_torch import init_weights
 
 
 

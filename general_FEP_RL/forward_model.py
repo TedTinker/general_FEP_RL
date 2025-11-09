@@ -4,8 +4,8 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary
 
-from utils_torch import init_weights, var, sample, calculate_dkl, generate_dummy_inputs
-from mtrnn import MTRNN
+from general_FEP_RL.utils_torch import init_weights, var, sample, calculate_dkl, generate_dummy_inputs
+from general_FEP_RL.mtrnn import MTRNN
 
 
 

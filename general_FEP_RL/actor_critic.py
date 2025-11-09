@@ -6,7 +6,7 @@ import torch
 from torch import nn 
 from torchinfo import summary
 
-from utils_torch import init_weights, generate_dummy_inputs
+from general_FEP_RL.utils_torch import init_weights, generate_dummy_inputs
 
         
 
