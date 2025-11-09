@@ -1,9 +1,3 @@
-import os
-
-# Your file-location here.
-file_location = r"C:\Users\Ted\OneDrive\Desktop\general_FEP_RL"
-os.chdir(file_location)
-
 import datetime  
 import random
 import matplotlib

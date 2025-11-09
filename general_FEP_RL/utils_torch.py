@@ -1,8 +1,3 @@
-import os 
-from utils import file_location
-
-os.chdir(file_location)
-
 from math import exp
 import copy
 

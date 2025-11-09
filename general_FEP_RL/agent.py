@@ -1,11 +1,5 @@
 #%%
 
-import os
-
-# Your file-location here.
-file_location = r"C:\Users\Ted\OneDrive\Desktop\general_FEP_RL"
-os.chdir(file_location)
-
 import torch
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
