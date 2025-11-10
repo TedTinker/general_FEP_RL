@@ -261,6 +261,7 @@ class Forward_Model(nn.Module):
     def action_in(self, action):
         encoded_action = {}
         for key, value in action.items():
+            print(key, value.shape)
             encoded_action[key] = self.action_dict[key]["encoder"](value)
         return(encoded_action)
     
