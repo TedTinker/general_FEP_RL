@@ -225,7 +225,6 @@ class Forward_Model(nn.Module):
         for key in action_dict.keys():
             self.action_dict[key] = nn.ModuleDict()
             self.action_dict[key]["encoder"] = action_dict[key]["encoder"](verbose = verbose)
-            self.action_dict[key]["decoder"] = action_dict[key]["decoder"](hidden_state_size, entropy = True, verbose = verbose)
         
         encoded_action_size = 0 
         for key, value in self.action_dict.items():
