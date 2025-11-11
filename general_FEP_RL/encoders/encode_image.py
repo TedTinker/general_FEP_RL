@@ -66,8 +66,9 @@ class Encode_Image(nn.Module):
         
         
     def forward(self, image):
+        print("BEFORE:", image.shape)
         episodes, steps, [image] = model_start([(image, "cnn")])
-        print("HERE:", image.shape)
+        print("AFTER:", image.shape)
         a = self.a(image)
         a = a.reshape(image.shape[0], 64 * 28 * 28)
         output = self.b(a)
