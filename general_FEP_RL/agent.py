@@ -257,18 +257,14 @@ if __name__ == "__main__":
             "decoder" : Decode_Image,
             "accuracy_scaler" : 1,                               
             "complexity_scaler" : 1,                                 
-            "eta" : 1  
-            }
-        }
+            "eta" : 1  }}
     
     action_dict = {
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
             "target_entropy" : 1,
-            "alpha_normal" : 1
-            }
-        }
+            "alpha_normal" : 1}}
     
     
     

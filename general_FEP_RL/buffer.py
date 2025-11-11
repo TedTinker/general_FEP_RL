@@ -38,6 +38,7 @@ class RecurrentReplayBuffer:
         # Actions
         self.action_buffers = {}
         for key, value in act_dict.items():
+            print(key)
             self.action_buffers[key] = VariableBuffer(capacity, max_steps, shape=value["decoder"].example_output.shape[2:])
 
         # Scalars
