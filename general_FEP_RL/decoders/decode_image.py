@@ -70,7 +70,7 @@ class Decode_Image(nn.Module):
         print("BEFORE IN DECODER:", output.shape)
         [output, log_prob] = model_end(episodes, steps, [(output, "cnn"), (log_prob, "cnn")])
         print("IN DECODER:", output.shape)
-        a = a.reshape(episodes * steps, 28, 28, 1)
+        a = a.reshape(episodes, steps, 28, 28, 1)
         return(output, log_prob)
     
     
