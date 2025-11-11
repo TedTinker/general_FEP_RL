@@ -281,6 +281,8 @@ if __name__ == "__main__":
         max_steps = 32)
     
     dummies = generate_dummy_inputs(agent.forward_model.observation_dict, agent.forward_model.action_dict, agent.hidden_state_size)
+    print(dummies["obs_enc_in"]["see_image"].shape)
+    # It seems like the image's shape is wrong the second time. Where is that?
     dummy_inputs = dummies["obs_enc_in"]
         
     agent.step_in_episode(dummy_inputs)
