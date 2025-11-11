@@ -68,6 +68,7 @@ class Decode_Image(nn.Module):
         output, log_prob = self.mu_std(a)
         output = (output + 1) / 2
         [output, log_prob] = model_end(episodes, steps, [(output, "cnn"), (log_prob, "cnn")])
+        print("IN DECODER:", output.shape)
         return(output, log_prob)
     
     
