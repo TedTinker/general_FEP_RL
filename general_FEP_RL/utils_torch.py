@@ -161,4 +161,4 @@ class mu_std(nn.Module):
         value, log_prob = recurrent_logprob(mu, std)
         if(not self.entropy):
             value = mu
-        return value, torch.mean(log_prob, dim = 2)
+        return value, log_prob
