@@ -67,6 +67,7 @@ class Decode_Image(nn.Module):
         a = a.reshape(episodes * steps, 16, 28, 28)
         output, log_prob = self.mu_std(a)
         output = (output + 1) / 2
+        print("BEFORE IN DECODER:", output.shape)
         [output, log_prob] = model_end(episodes, steps, [(output, "cnn"), (log_prob, "cnn")])
         print("IN DECODER:", output.shape)
         return(output, log_prob)
