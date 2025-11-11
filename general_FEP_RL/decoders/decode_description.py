@@ -8,14 +8,14 @@ from general_FEP_RL.utils_torch import init_weights, model_start, model_end, mu_
 
 
 
-# Decode Image (di).
-class Decode_Image(nn.Module):
+# Decode Description (dd).
+class Decode_Description(nn.Module):
     def __init__(self, hidden_state_size, encoded_action_size = 0, entropy = False, verbose = False):
-        super(Decode_Image, self).__init__()
+        super(Decode_Description, self).__init__()
                 
-        self.example_input = torch.zeros(32, 16, hidden_state_size + encoded_action_size)
+        self.example_input = torch.zeros(99, 98, hidden_state_size + encoded_action_size)
         if(verbose): 
-            print("\nDI Start:", self.example_input.shape)
+            print("\nDD Start:", self.example_input.shape)
 
         episodes, steps, [example] = model_start([(self.example_input, "lin")])
         if(verbose): 
@@ -24,20 +24,20 @@ class Decode_Image(nn.Module):
         self.a = nn.Sequential(
             nn.Linear(
                 in_features = hidden_state_size,
-                out_features = 16 * 28 * 28),
+                out_features = 16 * 16 * 16),
             nn.PReLU())
         
         example = self.a(example)
         if(verbose): 
             print("\ta:", example.shape)
-        example = example.reshape(example.shape[0], 16, 28, 28)
+        example = example.reshape(example.shape[0], 16, 16, 16)
         if(verbose): 
             print("\tReshaped:", example.shape)
                 
         mu = nn.Sequential(
             nn.Conv2d(
                 in_channels = 16, 
-                out_channels = 1,
+                out_channels = 3,
                 kernel_size = 3,
                 padding = 1,
                 padding_mode = "reflect"),
@@ -53,7 +53,7 @@ class Decode_Image(nn.Module):
         [example_output, example_log_prob] = model_end(episodes, steps, [(example_output, "cnn"), (example_log_prob, "cnn")])
         self.example_output = example_output
         if(verbose): 
-            print("DI End:")
+            print("DD End:")
             print("\toutput:", example_output.shape)
             print("\tlog_prob:", example_log_prob.shape, "\n")
         
@@ -64,7 +64,7 @@ class Decode_Image(nn.Module):
     def forward(self, hidden_state):
         episodes, steps, [hidden_state] = model_start([(hidden_state, "lin")])
         a = self.a(hidden_state)
-        a = a.reshape(episodes * steps, 16, 28, 28)
+        a = a.reshape(episodes * steps, 16, 16, 16)
         output, log_prob = self.mu_std(a)
         output = (output + 1) / 2
         [output, log_prob] = model_end(episodes, steps, [(output, "cnn"), (log_prob, "cnn")])
@@ -80,33 +80,23 @@ class Decode_Image(nn.Module):
     
 # Let's check it out!
 if(__name__ == "__main__"):
-    di = Decode_Image(hidden_state_size = 128)
+    dd = Decode_Description(hidden_state_size = 128)
     print("\n\n")
-    print(di)
+    print(dd)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(summary(di, di.example_input.shape))
+            print(summary(dd, dd.example_input.shape))
     #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     
 
-    di = Decode_Image(hidden_state_size = 128, entropy = True)
+    dd = Decode_Description(hidden_state_size = 128, entropy = True)
     print("\n\n")
-    print(di)
+    print(dd)
     print()
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(summary(di, di.example_input.shape))
+            print(summary(dd, dd.example_input.shape))
     #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-    
-    
-    
-    example_dict = {
-        "decoder" : di,
-        "target_entropy" : 1,
-        "accuracy_scaler" : 1,                               
-        "complexity_scaler" : 1,                                 
-        "eta" : 1                                   
-        }
     

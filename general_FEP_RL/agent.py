@@ -245,7 +245,7 @@ class Agent:
         
 if __name__ == "__main__":
     
-    
+    from general_FEP_RL.utils_torch import generate_dummy_inputs
     from general_FEP_RL.encoders.encode_image import Encode_Image
     from general_FEP_RL.decoders.decode_image import Decode_Image
     
@@ -272,26 +272,6 @@ if __name__ == "__main__":
     
     
     
-    
-    # Keys: observation_names
-    # Values: 
-        # encoder
-            # example_input
-            # example_output
-            # out_features
-        # decoder
-            # example_input
-            # example_output
-            # loss_func
-        # target_entropy
-        # alpha_normal
-        # accuracy_scaler
-        # complexity_scaler
-        # eta
-    
-    
-    
-    
     agent = Agent(
         hidden_state_size = 128,
         observation_dict = observation_dict,       
@@ -303,8 +283,11 @@ if __name__ == "__main__":
         gamma = .99,
         capacity = 128, 
         max_steps = 32)
+    
+    dummies = generate_dummy_inputs(agent.forward_model.observation_dict, agent.forward_model.action_dict, agent.hidden_state_size)
+    dummy_inputs = dummies["obs_enc_in"]
         
-        
+    agent.step_in_episode(dummy_inputs)
         
         
         
