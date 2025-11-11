@@ -50,7 +50,7 @@ class Decode_Image(nn.Module):
             print("\toutput:", example_output.shape)
             print("\tlog_prob:", example_log_prob.shape)
         
-        [example_output, example_log_prob] = model_end(episodes, steps, [(example_output, "cnn"), (example_log_prob, "cnn")])
+        [example_output, example_log_prob] = model_end(episodes, steps, [(example_output, "cnn"), (example_log_prob, "lin")])
         self.example_output = example_output
         if(verbose): 
             print("DI End:")
@@ -67,7 +67,7 @@ class Decode_Image(nn.Module):
         a = a.reshape(episodes * steps, 16, 28, 28)
         output, log_prob = self.mu_std(a)
         output = (output + 1) / 2
-        [output] = model_end(episodes, steps, [(output, "cnn")])
+        [output] = model_end(episodes, steps, [(output, "cnn"), (log_prob, "lin")])
         print("output:", output.shape) # I THINK THIS IS BAD. It should be (episodes, steps, 1)
         print("log_prob:", log_prob.shape) # I THINK THIS IS BAD. It should be (episodes, steps, 1)
         output = output.reshape(episodes, steps, 28, 28, 1)
