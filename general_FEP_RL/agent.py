@@ -107,6 +107,7 @@ class Agent:
                 values.append(value)
             self.prev_action = new_action_dict
         return {
+            "obs" = obs,
             "action" : new_action_dict,
             "log_prob" : new_log_prob_dict,
             "values" : values,
