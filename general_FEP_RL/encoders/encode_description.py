@@ -54,7 +54,9 @@ class Encode_Description(nn.Module):
         
         
     def forward(self, description):
+        print("DESC:", description.shape)
         episodes, steps, [description] = model_start([(description, "lin")])
+        print("AFTER:", description.shape)
         a = self.a(description)
         output = self.b(a)
         [output] = model_end(episodes, steps, [(output, "lin")])
