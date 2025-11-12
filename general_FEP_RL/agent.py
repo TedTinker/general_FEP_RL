@@ -98,7 +98,7 @@ class Agent:
     def step_in_episode(self, obs, posterior = True):
         with torch.no_grad():
             self.eval()
-            self.hp, self.hq, inner_state_list, pred_obs_p, pred_obs_q = self.forward_model(self.hq if posterior else self.hp, obs, self.prev_action)
+            self.hp, self.hq, inner_state_dict, pred_obs_p, pred_obs_q = self.forward_model(self.hq if posterior else self.hp, obs, self.prev_action)
             new_action_dict, new_log_prob_dict = self.actor(self.hq if posterior else self.hp) 
             values = []
             for i in range(len(self.critics)):
@@ -109,7 +109,7 @@ class Agent:
             "action" : new_action_dict,
             "log_prob" : new_log_prob_dict,
             "values" : values,
-            "inner_state_list" : inner_state_list,
+            "inner_state_dict" : inner_state_dict,
             "pred_obs_p" : pred_obs_p,
             "pred_obs_q" : pred_obs_q}
         
