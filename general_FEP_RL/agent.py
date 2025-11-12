@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
+from general_FEP_RL.util_torch import tile_batch_dim
 from general_FEP_RL.buffer import RecurrentReplayBuffer
 from general_FEP_RL.forward_model import Forward_Model
 from general_FEP_RL.actor_critic import Actor, Critic
@@ -88,8 +89,7 @@ class Agent:
         self.prev_action = {} 
         for key, value in self.forward_model.action_dict.items(): 
             action = 0 * self.forward_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0)
-            action = [batch_size] + [1] * (len(list(action.shape)) - 1)
-            self.prev_action[key] = action
+            self.prev_action[key] = tile_batch_dim(action, batch_size)
         self.hp = torch.zeros((batch_size, 1, self.hidden_state_size)) 
         self.hq = torch.zeros((batch_size, 1, self.hidden_state_size))
         

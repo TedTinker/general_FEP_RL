@@ -24,6 +24,12 @@ def pad_zeros(value, length):
     value = torch.cat([value, padding], dim=-2)
     return value
 
+# Expanding tensor to batch size.
+def tile_batch_dim(tensor, batch_size):
+    shape = list(tensor.shape)
+    repeat_pattern = [batch_size] + [1] * (len(shape) - 1)
+    return tensor.repeat(*repeat_pattern)
+
 # Calculating Kullback-Leibler divergence.
 def calculate_dkl(mu_1, std_1, mu_2, std_2):
     std_1 = std_1**2
