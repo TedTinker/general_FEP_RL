@@ -161,6 +161,7 @@ class mu_std(nn.Module):
         value, log_prob = recurrent_logprob(mu, std)
         if(not self.entropy):
             value = mu
+        print(value.shape, log_prob.shape)
         if log_prob.ndim > 2:
             log_prob = log_prob.mean(axis=tuple(range(log_prob.ndim - 2)))
         print(value.shape, log_prob.shape)
