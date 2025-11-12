@@ -271,7 +271,8 @@ class Forward_Model(nn.Module):
         hidden_states_and_action = torch.cat([hidden_state] + [v for v in encoded_action.values()], dim=-1)
         predicted_obs = {}
         for key, value in self.observation_dict.items():
-            predicted_obs[key] = self.observation_dict[key]["decoder"](hidden_states_and_action)
+            prediction, log_prob = self.observation_dict[key]["decoder"](hidden_states_and_action)
+            predicted_obs[key] = prediction
         return(predicted_obs)
     
     

@@ -85,6 +85,7 @@ class Agent:
         
         
         
+    # I THINK BEGIN AND STEP_IN)_EPISODE SHOULD WORK WITH MULTIPLE STEPS
     def begin(self, batch_size = 1):
         self.prev_action = {} 
         for key, value in self.forward_model.action_dict.items(): 
