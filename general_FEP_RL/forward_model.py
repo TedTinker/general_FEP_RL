@@ -286,7 +286,7 @@ class Forward_Model(nn.Module):
     
     
     
-    def forward(self, prev_hidden_states, obs, prev_action):
+    def forward(self, prev_hidden_state, obs, prev_action):
                         
         for (key, value) in obs.items():    
             episodes, steps = value.shape[0], value.shape[1]
@@ -312,7 +312,7 @@ class Forward_Model(nn.Module):
                 step_prev_action[key] = value[:,step].unsqueeze(1)
                             
             print("HERE!", prev_hidden_state.shape)
-            step_hidden_state = prev_hidden_states[:,step].unsqueeze(1)
+            step_hidden_state = prev_hidden_state[:,step].unsqueeze(1)
             
             new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
                 self.bottom_to_top_step(step_hidden_state, step_obs, step_prev_action)
