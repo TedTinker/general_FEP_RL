@@ -103,7 +103,7 @@ class Agent:
             values = []
             for i in range(len(self.critics)):
                 value = self.critics[i](self.hq, new_action_dict) 
-                values.append(round(value.item(), 3))
+                values.append(value)
             self.prev_action = new_action_dict
         return {
             "action" : new_action_dict,
