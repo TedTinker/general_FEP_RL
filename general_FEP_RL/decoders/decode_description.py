@@ -24,24 +24,18 @@ class Decode_Description(nn.Module):
         self.a = nn.Sequential(
             nn.Linear(
                 in_features = hidden_state_size,
-                out_features = 16 * 28 * 28),
+                out_features = 128),
             nn.PReLU())
         
         example = self.a(example)
         if(verbose): 
             print("\ta:", example.shape)
-        example = example.reshape(example.shape[0], 16, 28, 28)
-        if(verbose): 
-            print("\tReshaped:", example.shape)
                 
         mu = nn.Sequential(
-            nn.Conv2d(
-                in_channels = 16, 
-                out_channels = 1,
-                kernel_size = 3,
-                padding = 1,
-                padding_mode = "reflect"),
-            nn.Tanh())
+            nn.Linear(
+                in_features = 128,
+                out_features = 128),
+            nn.PReLU())
         
         self.mu_std = mu_std(mu, entropy = entropy)
         
@@ -50,8 +44,7 @@ class Decode_Description(nn.Module):
             print("\toutput:", example_output.shape)
             print("\tlog_prob:", example_log_prob.shape)
         
-        [example_output, example_log_prob] = model_end(episodes, steps, [(example_output, "cnn"), (example_log_prob, "lin")])
-        example_output = example_output.reshape(episodes, steps, 28, 28, 1)
+        [example_output, example_log_prob] = model_end(episodes, steps, [(example_output, "lin"), (example_log_prob, "lin")])
         self.example_output = example_output
         if(verbose): 
             print("DD End:")
@@ -65,11 +58,8 @@ class Decode_Description(nn.Module):
     def forward(self, hidden_state):
         episodes, steps, [hidden_state] = model_start([(hidden_state, "lin")])
         a = self.a(hidden_state)
-        a = a.reshape(episodes * steps, 16, 28, 28)
         output, log_prob = self.mu_std(a)
-        output = (output + 1) / 2
-        [output, log_prob] = model_end(episodes, steps, [(output, "cnn"), (log_prob, "lin")])
-        output = output.reshape(episodes, steps, 28, 28, 1)
+        [output, log_prob] = model_end(episodes, steps, [(output, "lin"), (log_prob, "lin")])
         return(output, log_prob)
     
     

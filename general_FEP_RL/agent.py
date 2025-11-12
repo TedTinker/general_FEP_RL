@@ -88,6 +88,7 @@ class Agent:
         self.prev_action = {} 
         for key, value in self.forward_model.action_dict.items(): 
             print("IN BEGIN:", key)
+            print("SHAPE:", self.forward_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0).shape)
             self.prev_action[key] = 0 * self.forward_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0)
         self.hp = torch.zeros((1, 1, self.hidden_state_size)) 
         self.hq = torch.zeros((1, 1, self.hidden_state_size))
