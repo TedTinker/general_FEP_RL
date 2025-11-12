@@ -15,35 +15,23 @@ class Encode_Description(nn.Module):
         
         self.out_features = 64
                 
-        self.example_input = torch.zeros(99, 98, 16, 16, 3)
+        self.example_input = torch.zeros(99, 98, 128)
         if(verbose):
-            print("\nDI Start:", self.example_input.shape)
+            print("\nED Start:", self.example_input.shape)
 
-        episodes, steps, [example] = model_start([(self.example_input, "cnn")])
+        episodes, steps, [example] = model_start([(self.example_input, "lin")])
         if(verbose): 
             print("\tReshaped:", example.shape)
         
         self.a = nn.Sequential(
-            nn.Conv2d(
-                in_channels = 3, 
-                out_channels = 64, 
-                kernel_size = 3, 
-                stride=1, 
-                padding=1, 
-                dilation=1, 
-                groups=1, 
-                bias=True, 
-                padding_mode='reflect', 
-                device=None, 
-                dtype=None),
+            nn.Linear(
+                in_features = example.shape[-1],
+                out_features = 128),
             nn.PReLU())
         
         example = self.a(example)
         if(verbose): 
             print("\ta:", example.shape)
-        example = example.reshape(example.shape[0], 64 * 16 * 16)
-        if(verbose): 
-            print("\tReshaped:", example.shape)
                 
         self.b = nn.Sequential(
             nn.Linear(
@@ -58,17 +46,16 @@ class Encode_Description(nn.Module):
         [example] = model_end(episodes, steps, [(example, "lin")])
         self.example_output = example
         if(verbose):
-            print("EI End:")
+            print("ED End:")
             print("\toutput:", example.shape, "\n")
         
         self.apply(init_weights)
         
         
         
-    def forward(self, hidden_state):
-        episodes, steps, [hidden_state] = model_start([(hidden_state, "cnn")])
-        a = self.a(hidden_state)
-        a = a.reshape(hidden_state.shape[0], 64 * 16 * 16)
+    def forward(self, description):
+        episodes, steps, [description] = model_start([(description, "lin")])
+        a = self.a(description)
         output = self.b(a)
         [output] = model_end(episodes, steps, [(output, "lin")])
         return(output)

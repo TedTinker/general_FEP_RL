@@ -249,10 +249,37 @@ if __name__ == "__main__":
     from general_FEP_RL.utils_torch import generate_dummy_inputs
     from general_FEP_RL.encoders.encode_image import Encode_Image
     from general_FEP_RL.decoders.decode_image import Decode_Image
+    from general_FEP_RL.encoders.encode_description import Encode_Description
+    from general_FEP_RL.decoders.decode_description import Decode_Description
     
     
     
+    # This works!
+    """observation_dict = {
+        "see_image" : {
+            "encoder" : Encode_Image,
+            "decoder" : Decode_Image,
+            "accuracy_scaler" : 1,                               
+            "complexity_scaler" : 1,                                 
+            "eta" : 1}}
+    
+    action_dict = {
+        "make_image" : {
+            "encoder" : Encode_Image,
+            "decoder" : Decode_Image,
+            "target_entropy" : 1,
+            "alpha_normal" : 1}}"""
+    
+    
+    
+    # This doesn't!
     observation_dict = {
+        "see_description" : {
+            "encoder" : Encode_Description,
+            "decoder" : Decode_Description,
+            "accuracy_scaler" : 1,                               
+            "complexity_scaler" : 1,                                 
+            "eta" : 1  },
         "see_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
@@ -261,6 +288,12 @@ if __name__ == "__main__":
             "eta" : 1  }}
     
     action_dict = {
+        "make_description" : {
+            "encoder" : Encode_Description,
+            "decoder" : Decode_Description,
+            "accuracy_scaler" : 1,                               
+            "complexity_scaler" : 1,                                 
+            "eta" : 1  },
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
