@@ -319,6 +319,7 @@ if __name__ == "__main__":
     dummies = generate_dummy_inputs(agent.forward_model.observation_dict, agent.forward_model.action_dict, agent.hidden_state_size, batch=1, steps=1)
     dummy_inputs = dummies["obs_enc_in"]
         
+    # PROBLEM: How do we make the log_prob (batch * steps, 1) in mu_std?
     agent.step_in_episode(dummy_inputs)
         
         

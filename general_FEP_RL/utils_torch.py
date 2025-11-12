@@ -162,4 +162,4 @@ class mu_std(nn.Module):
         if(not self.entropy):
             value = mu
         print("IN MU STD:", log_prob.shape)
-        return value, torch.mean(log_prob, dim = 2)
+        return value, log_prob
