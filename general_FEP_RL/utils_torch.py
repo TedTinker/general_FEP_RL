@@ -163,4 +163,5 @@ class mu_std(nn.Module):
             value = mu
         if log_prob.ndim > 2:
             log_prob = log_prob.mean(axis=tuple(range(log_prob.ndim - 2)))
+        print(value.shape, log_prob.shape)
         return value, log_prob
