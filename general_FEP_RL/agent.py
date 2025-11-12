@@ -7,7 +7,7 @@ import torch.optim as optim
 
 from general_FEP_RL.utils_torch import tile_batch_dim
 from general_FEP_RL.buffer import RecurrentReplayBuffer
-from general_FEP_RL.forward_model import Forward_Model
+from general_FEP_RL.forward_model import World_Model
 from general_FEP_RL.actor_critic import Actor, Critic
 
 
@@ -58,8 +58,8 @@ class Agent:
         self.action_dict = action_dict
         self.hidden_state_size = hidden_state_size
 
-        self.forward_model = Forward_Model(hidden_state_size, observation_dict, action_dict)
-        self.forward_model_opt = optim.Adam(self.forward_model.parameters(), lr = lr, weight_decay = weight_decay)
+        self.world_model = World_Model(hidden_state_size, observation_dict, action_dict)
+        self.world_model_opt = optim.Adam(self.world_model.parameters(), lr = lr, weight_decay = weight_decay)
                            
         self.actor = Actor(hidden_state_size, action_dict)
         self.actor_opt = optim.Adam(self.actor.parameters(), lr = lr, weight_decay = weight_decay) 
@@ -79,7 +79,7 @@ class Agent:
         
         self.tau = tau
         self.gamma = gamma
-        self.buffer = RecurrentReplayBuffer(self.forward_model.observation_dict, self.forward_model.action_dict, capacity, max_steps)
+        self.buffer = RecurrentReplayBuffer(self.world_model.observation_dict, self.world_model.action_dict, capacity, max_steps)
         
         self.begin()
         
@@ -88,8 +88,8 @@ class Agent:
     # I THINK BEGIN AND STEP_IN)_EPISODE SHOULD WORK WITH MULTIPLE STEPS
     def begin(self, batch_size = 1):
         self.prev_action = {} 
-        for key, value in self.forward_model.action_dict.items(): 
-            action = 0 * self.forward_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0)
+        for key, value in self.world_model.action_dict.items(): 
+            action = 0 * self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0)
             self.prev_action[key] = tile_batch_dim(action, batch_size)
         self.hp = torch.zeros((batch_size, 1, self.hidden_state_size)) 
         self.hq = torch.zeros((batch_size, 1, self.hidden_state_size))
@@ -99,7 +99,7 @@ class Agent:
     def step_in_episode(self, obs, posterior = True):
         with torch.no_grad():
             self.eval()
-            self.hp, self.hq, inner_state_dict, pred_obs_p, pred_obs_q = self.forward_model(self.hq if posterior else self.hp, obs, self.prev_action)
+            self.hp, self.hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(self.hq if posterior else self.hp, obs, self.prev_action)
             new_action_dict, new_log_prob_dict = self.actor(self.hq if posterior else self.hp) 
             values = []
             for i in range(len(self.critics)):
@@ -128,8 +128,8 @@ class Agent:
         mask = batch["mask"]
         complete_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1)
                         
-        # Train forward_model
-        hp, hq, inner_states, pred_obs_p, pred_obs_q = self.forward_model(None, obs, action)
+        # Train world_model
+        hp, hq, inner_states, pred_obs_p, pred_obs_q = self.world_model(None, obs, action)
 
         accuracy = torch.zeros((1,)).requires_grad_()
         for true_obs, pred_obs, obs_dict in zip(obs.values(), pred_obs_q.values(), self.observation_dict.values()):
@@ -145,9 +145,9 @@ class Agent:
             complexity += dkl.mean()
             obs_complexities[key] = dkl[:,1:]
                                 
-        self.forward_model_opt.zero_grad()
+        self.world_model_opt.zero_grad()
         (accuracy + complexity).backward()
-        self.forward_model_opt.step()
+        self.world_model_opt.step()
                 
 
         
@@ -233,14 +233,14 @@ class Agent:
 
     # These need to be changed!
     def eval(self):
-        self.forward_model.eval()
+        self.world_model.eval()
         self.actor.eval()
         for i in range(len(self.critics)):
             self.critics[i].eval()
             self.critic_targets[i].eval()
 
     def train(self):
-        self.forward_model.train()
+        self.world_model.train()
         self.actor.train()
         for i in range(len(self.critics)):
             self.critics[i].train()
@@ -318,7 +318,7 @@ if __name__ == "__main__":
         capacity = 128, 
         max_steps = 32)
     
-    dummies = generate_dummy_inputs(agent.forward_model.observation_dict, agent.forward_model.action_dict, agent.hidden_state_size, batch=1, steps=1)
+    dummies = generate_dummy_inputs(agent.world_model.observation_dict, agent.world_model.action_dict, agent.hidden_state_size, batch=1, steps=1)
     dummy_inputs = dummies["obs_enc_in"]
         
     # PROBLEM: How do we make the log_prob (batch * steps, 1) in mu_std?

@@ -91,7 +91,7 @@ if(__name__ == "__main__"):
 
 
 # Making prior and posterior inner states for each portion of the sensation.
-class Forward_Layer(nn.Module):
+class World_Model_Layer(nn.Module):
     
     def __init__(
             self, 
@@ -100,7 +100,7 @@ class Forward_Layer(nn.Module):
             action_dict, 
             time_scale = 1, 
             verbose = False):
-        super(Forward_Layer, self).__init__()
+        super(World_Model_Layer, self).__init__()
                 
         total_action_size = sum(action_dict[key]["encoder"].example_output.shape[-1] for key in action_dict.keys())
 
@@ -180,7 +180,7 @@ if __name__ == "__main__":
             }
         }
     
-    fl = Forward_Layer(
+    fl = World_Model_Layer(
         hidden_state_size = hidden_state_size,
         observation_dict = observation_dict, 
         action_dict = action_dict, 
@@ -209,7 +209,7 @@ if __name__ == "__main__":
         
 
 # Combining the above modules to make a model in the style of a PVRNN.
-class Forward_Model(nn.Module):
+class World_Model(nn.Module):
     
     def __init__(
             self, 
@@ -217,7 +217,7 @@ class Forward_Model(nn.Module):
             observation_dict, 
             action_dict,
             verbose = False):
-        super(Forward_Model, self).__init__()
+        super(World_Model, self).__init__()
                 
         self.hidden_state_size = hidden_state_size 
         self.example_input = torch.zeros((32, 16, hidden_state_size))
@@ -238,7 +238,7 @@ class Forward_Model(nn.Module):
             self.observation_dict[key]["encoder"] = observation_dict[key]["encoder"](verbose = verbose)
             self.observation_dict[key]["decoder"] = observation_dict[key]["decoder"](hidden_state_size + encoded_action_size, verbose = verbose)
                
-        self.fl = Forward_Layer(
+        self.fl = World_Model_Layer(
             hidden_state_size = hidden_state_size,
             observation_dict = self.observation_dict, 
             action_dict = self.action_dict,
@@ -357,7 +357,7 @@ if __name__ == "__main__":
             }
         }
     
-    fm = Forward_Model(            
+    fm = World_Model(            
         hidden_state_size = hidden_state_size,
         observation_dict = observation_dict, 
         action_dict = action_dict,
