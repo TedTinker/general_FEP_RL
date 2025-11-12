@@ -23,7 +23,7 @@ class VariableBuffer:
 
 
 class RecurrentReplayBuffer:
-    def __init__(self, obs_dict, act_dict, capacity, max_steps):
+    def __init__(self, observation_dict, action_dict, capacity, max_steps):
         self.capacity = capacity
         self.max_episode_len = max_steps
         self.num_episodes = 0
@@ -31,13 +31,13 @@ class RecurrentReplayBuffer:
         self.time_ptr = 0
 
         # Observations
-        self.obs_buffers = {}
-        for key, value in obs_dict.items():
-            self.obs_buffers[key] = VariableBuffer(capacity, max_steps, shape=value["encoder"].example_input.shape[2:], before_and_after=True)
+        self.observation_buffers = {}
+        for key, value in observation_dict.items():
+            self.observation_buffers[key] = VariableBuffer(capacity, max_steps, shape=value["encoder"].example_input.shape[2:], before_and_after=True)
 
         # Actions
         self.action_buffers = {}
-        for key, value in act_dict.items():
+        for key, value in action_dict.items():
             self.action_buffers[key] = VariableBuffer(capacity, max_steps, shape=value["decoder"].example_output.shape[2:])
 
         # Scalars
@@ -50,14 +50,14 @@ class RecurrentReplayBuffer:
                     self.reward, self.done, self.mask]:
             buf.reset_episode(self.episode_ptr)
 
-    def push(self, obs, action, reward, next_obs, done):
+    def push(self, observation_dict, action_dict, reward, next_observation_dict, done):
         if self.time_ptr == 0:
             self.reset_episode()
 
-        for k, v in obs.items():
+        for k, v in observation_dict.items():
             self.obs_buffers[k].push(self.episode_ptr, self.time_ptr, v)
 
-        for k, v in action.items():
+        for k, v in action_dict.items():
             self.act_buffers[k].push(self.episode_ptr, self.time_ptr, v)
 
         self.reward.push(self.episode_ptr, self.time_ptr, reward)
@@ -66,8 +66,8 @@ class RecurrentReplayBuffer:
         self.time_ptr += 1
 
         if done or self.time_ptr >= self.max_episode_len:
-            for k, v in next_obs.items():
-                self.obs_buffers[k].push(self.episode_ptr, self.time_ptr, v)
+            for k, v in next_observation_dict.items():
+                self.observation_buffers[k].push(self.episode_ptr, self.time_ptr, v)
 
             self.episode_ptr = (self.episode_ptr + 1) % self.capacity
             self.time_ptr = 0
