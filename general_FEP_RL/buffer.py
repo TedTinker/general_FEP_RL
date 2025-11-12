@@ -32,11 +32,13 @@ class RecurrentReplayBuffer:
 
         # Observations
         self.observation_buffers = {}
+        print("obs buffer:", observation_dict.keys())
         for key, value in observation_dict.items():
             self.observation_buffers[key] = VariableBuffer(capacity, max_steps, shape=value["encoder"].example_input.shape[2:], before_and_after=True)
 
         # Actions
         self.action_buffers = {}
+        print("act buffer:", action_dict.keys())
         for key, value in action_dict.items():
             self.action_buffers[key] = VariableBuffer(capacity, max_steps, shape=value["decoder"].example_output.shape[2:])
 
