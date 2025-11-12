@@ -292,7 +292,7 @@ class Forward_Model(nn.Module):
             episodes, steps = value.shape[0], value.shape[1]
             break
         if(prev_hidden_state == None):
-            prev_hidden_states = torch.zeros(episodes, 1, self.hidden_state_size)
+            prev_hidden_state = torch.zeros(episodes, 1, self.hidden_state_size)
             
         encoded_obs = self.obs_in(obs)
         encoded_prev_action = self.action_in(prev_action)
