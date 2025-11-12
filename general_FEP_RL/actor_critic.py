@@ -41,12 +41,12 @@ class Actor(nn.Module):
 
     def forward(self, hidden_state):
         action = {}
+        log_prob = {}
         for key, model in self.action_dict.items():
-            a, log_pos = self.action_dict[key]["decoder"](hidden_state)
-            action[key] = {}
-            action[key]["action"] = a
-            action[key]["log_pos"] = log_pos
-        return(action)
+            a, lp = self.action_dict[key]["decoder"](hidden_state)
+            action[key] = a
+            log_prob[key] = lp
+        return(action, log_prob)
     
     
     
