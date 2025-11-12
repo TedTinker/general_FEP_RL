@@ -84,12 +84,14 @@ class Agent:
         
         
         
-    def begin(self):
+    def begin(self, batch_size = 1):
         self.prev_action = {} 
         for key, value in self.forward_model.action_dict.items(): 
-            self.prev_action[key] = 0 * self.forward_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0)
-        self.hp = torch.zeros((1, 1, self.hidden_state_size)) 
-        self.hq = torch.zeros((1, 1, self.hidden_state_size))
+            action = 0 * self.forward_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0)
+            action = [batch_size] + [1] * (len(list(action.shape)) - 1)
+            self.prev_action[key] = action
+        self.hp = torch.zeros((batch_size, 1, self.hidden_state_size)) 
+        self.hq = torch.zeros((batch_size, 1, self.hidden_state_size))
         
         
     
