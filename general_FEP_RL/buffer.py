@@ -46,7 +46,7 @@ class RecurrentReplayBuffer:
         self.mask = VariableBuffer(capacity, max_steps)
 
     def reset_episode(self):
-        for buf in [*self.obs_buffers.values(), *self.act_buffers.values(),
+        for buf in [*self.observation_buffers.values(), *self.action_buffers.values(),
                     self.reward, self.done, self.mask]:
             buf.reset_episode(self.episode_ptr)
 
