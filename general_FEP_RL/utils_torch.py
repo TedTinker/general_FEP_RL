@@ -30,6 +30,21 @@ def tile_batch_dim(tensor, batch_size):
     repeat_pattern = [batch_size] + [1] * (len(shape) - 1)
     return tensor.repeat(*repeat_pattern)
 
+def print_step_in_episode(step_dict):
+        for key, value in step_dict.items():
+            if(type(value) == dict):
+                for sub_key, sub_value in value.items():
+                    if(type(sub_value) == torch.Tensor):
+                        print(f"{key}:\t{sub_key}:\t{list(sub_value.shape)}")
+                    elif(type(sub_value) == dict):
+                        for sub_sub_key, sub_sub_value in sub_value.items():
+                            print(f"{key}:\t{sub_key}:\t{sub_sub_key}:\t{list(sub_sub_value.shape)}")
+                    else:
+                        print(f"{key}:\t{type(sub_value)}")
+            elif(type(value) == list):
+                for sub_value in value:
+                    print(f"{key}:\t{list(sub_value.shape)}")
+
 # Calculating Kullback-Leibler divergence.
 def calculate_dkl(mu_1, std_1, mu_2, std_2):
     std_1 = std_1**2
