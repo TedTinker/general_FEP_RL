@@ -87,6 +87,7 @@ class Agent:
     def begin(self):
         self.prev_action = {} 
         for key, value in self.forward_model.action_dict.items(): 
+            print("IN BEGIN:", key)
             self.prev_action[key] = 0 * self.forward_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0)
         self.hp = torch.zeros((1, 1, self.hidden_state_size)) 
         self.hq = torch.zeros((1, 1, self.hidden_state_size))
@@ -279,13 +280,13 @@ if __name__ == "__main__":
             "decoder" : Decode_Description,
             "accuracy_scaler" : 1,                               
             "complexity_scaler" : 1,                                 
-            "eta" : 1  },
+            "eta" : 1},
         "see_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
             "accuracy_scaler" : 1,                               
             "complexity_scaler" : 1,                                 
-            "eta" : 1  }}
+            "eta" : 1}}
     
     action_dict = {
         "make_description" : {
@@ -293,7 +294,7 @@ if __name__ == "__main__":
             "decoder" : Decode_Description,
             "accuracy_scaler" : 1,                               
             "complexity_scaler" : 1,                                 
-            "eta" : 1  },
+            "eta" : 1},
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
