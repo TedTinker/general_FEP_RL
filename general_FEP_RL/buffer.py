@@ -55,10 +55,10 @@ class RecurrentReplayBuffer:
             self.reset_episode()
 
         for k, v in observation_dict.items():
-            self.obs_buffers[k].push(self.episode_ptr, self.time_ptr, v)
+            self.observation_buffers[k].push(self.episode_ptr, self.time_ptr, v)
 
         for k, v in action_dict.items():
-            self.act_buffers[k].push(self.episode_ptr, self.time_ptr, v)
+            self.action_buffers[k].push(self.episode_ptr, self.time_ptr, v)
 
         self.reward.push(self.episode_ptr, self.time_ptr, reward)
         self.done.push(self.episode_ptr, self.time_ptr, done)
@@ -83,8 +83,8 @@ class RecurrentReplayBuffer:
             indices = torch.arange(batch_size)
 
         batch = {
-            "obs": {k: buf.sample(indices) for k, buf in self.obs_buffers.items()},
-            "action": {k: buf.sample(indices) for k, buf in self.act_buffers.items()},
+            "obs": {k: buf.sample(indices) for k, buf in self.observation_buffers.items()},
+            "action": {k: buf.sample(indices) for k, buf in self.action_buffers.items()},
             "reward": self.reward.sample(indices),
             "done": self.done.sample(indices),
             "mask": self.mask.sample(indices),
