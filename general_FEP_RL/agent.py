@@ -7,7 +7,7 @@ import torch.optim as optim
 
 from general_FEP_RL.utils_torch import tile_batch_dim
 from general_FEP_RL.buffer import RecurrentReplayBuffer
-from general_FEP_RL.forward_model import World_Model
+from general_FEP_RL.world_model import World_Model
 from general_FEP_RL.actor_critic import Actor, Critic
 
 
