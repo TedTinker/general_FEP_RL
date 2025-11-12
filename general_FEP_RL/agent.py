@@ -79,7 +79,7 @@ class Agent:
         
         self.tau = tau
         self.gamma = gamma
-        self.memory = RecurrentReplayBuffer(self.forward_model.observation_dict, self.forward_model.action_dict, capacity, max_steps)
+        self.buffer = RecurrentReplayBuffer(self.forward_model.observation_dict, self.forward_model.action_dict, capacity, max_steps)
         
         self.begin()
         
@@ -119,7 +119,7 @@ class Agent:
     def epoch(self, batch_size):
         self.train()
                                 
-        batch = self.memory.sample(batch_size)
+        batch = self.buffer.sample(batch_size)
         obs = batch["obs"]
         action = batch["action"] # Don't forget to add an empty "first" action.
         reward = batch["reward"]
