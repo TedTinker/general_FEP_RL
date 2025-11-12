@@ -280,7 +280,7 @@ if __name__ == "__main__":
         capacity = 128, 
         max_steps = 32)
     
-    dummies = generate_dummy_inputs(agent.forward_model.observation_dict, agent.forward_model.action_dict, agent.hidden_state_size)
+    dummies = generate_dummy_inputs(agent.forward_model.observation_dict, agent.forward_model.action_dict, agent.hidden_state_size, batch=1, steps=1)
     # It seems like the image's shape is wrong the second time. Where is that?
     dummy_inputs = dummies["obs_enc_in"]
         
