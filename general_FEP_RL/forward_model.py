@@ -219,6 +219,7 @@ class Forward_Model(nn.Module):
             verbose = False):
         super(Forward_Model, self).__init__()
                 
+        self.hidden_state_size = hidden_state_size 
         self.example_input = torch.zeros((32, 16, hidden_state_size))
         
         self.action_dict = nn.ModuleDict()
