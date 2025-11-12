@@ -65,7 +65,7 @@ class Decode_Description(nn.Module):
     
     
     def loss_func(self, true_values, predicted_values):
-        loss_value = F.mse_loss(predicted_values, true_values)
+        loss_value = F.mse_loss(predicted_values, true_values, reduction = None)
         return loss_value
     
     
