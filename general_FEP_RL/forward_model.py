@@ -131,9 +131,7 @@ class Forward_Layer(nn.Module):
             zq_inputs = reshape(zq_inputs, episodes, steps)
             inner_states = z_func(zp_inputs, zq_inputs)
             return(inner_states)
-        
-        print(prev_hidden_state.shape, [v.shape for v in encoded_prev_action.values()])
-        
+                
         zp_inputs = torch.cat([prev_hidden_state] + [v for v in encoded_prev_action.values()], dim=-1)
         zq_inputs_dict = {key : torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in encoded_obs.items()}              
         episodes, steps = zp_inputs.shape[0], zp_inputs.shape[1]
@@ -263,7 +261,6 @@ class Forward_Model(nn.Module):
     def action_in(self, action):
         encoded_action = {}
         for key, value in action.items():
-            print("Action in:", key, value.shape)
             encoded_action[key] = self.action_dict[key]["encoder"](value)
         return(encoded_action)
     

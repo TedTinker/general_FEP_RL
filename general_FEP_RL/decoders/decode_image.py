@@ -70,7 +70,6 @@ class Decode_Image(nn.Module):
         output = (output + 1) / 2
         [output, log_prob] = model_end(episodes, steps, [(output, "cnn"), (log_prob, "lin")])
         output = output.reshape(episodes, steps, 28, 28, 1)
-        print("Decode image out:", output.shape)
         return(output, log_prob)
     
     

@@ -87,7 +87,7 @@ class Agent:
     def begin(self):
         self.prev_action = {} 
         for key, value in self.forward_model.action_dict.items(): 
-            self.prev_action[key] = 0 * self.forward_model.action_dict[key]["decoder"].example_output
+            self.prev_action[key] = 0 * self.forward_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0)
         self.hp = torch.zeros((1, 1, self.hidden_state_size)) 
         self.hq = torch.zeros((1, 1, self.hidden_state_size))
         
@@ -97,6 +97,7 @@ class Agent:
         with torch.no_grad():
             self.eval()
             self.hp, self.hq, inner_state_list, pred_obs_p, pred_obs_q = self.forward_model(self.hq if posterior else self.hp, obs, self.prev_action)
+            print("HERE!")
             new_action_dict, new_log_prob_dict = self.actor(self.hq if posterior else self.hp) 
             values = []
             for i in range(len(self.critics)):
@@ -281,7 +282,6 @@ if __name__ == "__main__":
         max_steps = 32)
     
     dummies = generate_dummy_inputs(agent.forward_model.observation_dict, agent.forward_model.action_dict, agent.hidden_state_size, batch=1, steps=1)
-    # It seems like the image's shape is wrong the second time. Where is that?
     dummy_inputs = dummies["obs_enc_in"]
         
     agent.step_in_episode(dummy_inputs)
