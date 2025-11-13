@@ -294,6 +294,9 @@ class World_Model(nn.Module):
             if(prev_hidden_state == None):
                 prev_hidden_state = torch.zeros(episodes, 1, self.hidden_state_size)
             break
+        
+        for (key, value) in prev_action.items():    
+            print("YOYOYO 2", value.shape)
             
         encoded_obs = self.obs_in(obs)
         encoded_prev_action = self.action_in(prev_action)
@@ -302,7 +305,6 @@ class World_Model(nn.Module):
         new_hidden_states_p_list = []
         new_hidden_states_q_list = []
                                     
-        print(steps, [i for i in range(steps)])
         for step in range(steps):
             print("IN WORLD", step)
             
