@@ -129,13 +129,14 @@ class Agent:
         mask = batch["mask"]
         complete_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1)
         
+        complete_action = {}
         for key, value in action.items(): 
             empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
-            action[key] = torch.cat([empty_action, value], dim = 1)
+            complete_action[key] = torch.cat([empty_action, value], dim = 1)
                         
         # Train world_model
-        hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, action)
+        hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
 
         accuracy = torch.zeros((1,)).requires_grad_()
         
@@ -193,7 +194,7 @@ class Agent:
                 new_entropy += self.alphas[key] * new_log_pis
             Q_targets = reward + self.gamma * (1 - done) * (Q_target_next - new_entropy)  # This might need lists?
         
-        print("HERE!", hq.shape, Q_targets.shape)
+        print("HERE!", hq[:,:-1].shape, Q_targets.shape)
         for i in range(len(self.critics)):
             Q = self.critics[i](hq[:,:-1].detach(), action)
             critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
