@@ -291,7 +291,7 @@ class World_Model(nn.Module):
         for (key, value) in obs.items():    
             episodes, steps = value.shape[0], value.shape[1]
             if(prev_hidden_state == None):
-                prev_hidden_state = torch.zeros(episodes, steps, self.hidden_state_size)
+                prev_hidden_state = torch.zeros(episodes, 1, self.hidden_state_size)
             break
             
         encoded_obs = self.obs_in(obs)
@@ -300,6 +300,8 @@ class World_Model(nn.Module):
         inner_state_dict_list = []
         new_hidden_states_p_list = []
         new_hidden_states_q_list = []
+        
+        print(prev_hidden_state.shape)
                                 
         for step in range(steps):
             print("IN WORLD", step)
@@ -311,12 +313,11 @@ class World_Model(nn.Module):
             step_prev_action = {}
             for key, value in encoded_prev_action.items():
                 step_prev_action[key] = value[:,step].unsqueeze(1)
-                            
-            step_hidden_state = prev_hidden_state[:,step].unsqueeze(1)
-            
+                                        
             new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
-                self.bottom_to_top_step(step_hidden_state, step_obs, step_prev_action)
+                self.bottom_to_top_step(prev_hidden_state, step_obs, step_prev_action)
                 
+            prev_hidden_state = new_hidden_states_q
             new_hidden_states_p_list.append(new_hidden_states_p)
             new_hidden_states_q_list.append(new_hidden_states_q)
             inner_state_dict_list.append(inner_state_dict)
