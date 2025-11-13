@@ -147,16 +147,18 @@ class Agent:
             obs_accuracy = obs_accuracy.mean(dim=tuple(range(2, obs_accuracy.ndim)))
             accuracy = accuracy + (obs_accuracy * complete_mask.squeeze(-1) * scalar).mean()
             
-            
         obs_complexities = {}
         complexity = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
             scalar = self.observation_dict[key]["complexity_scalar"]
             inner_state = inner_state_dict[key]
-            print(inner_state["dkl"].shape, complete_mask.shape)
             dkl = inner_state["dkl"].mean(-1).unsqueeze(-1) * complete_mask * scalar
+            print("DKL:", dkl.shape)
             complexity = complexity + dkl.mean()
             obs_complexities[key] = dkl[:,1:]
+        print(complexity)
+            
+        
                                 
         self.world_model_opt.zero_grad()
         (accuracy + complexity).backward()
