@@ -89,7 +89,7 @@ class Agent:
     def begin(self, batch_size = 1):
         self.prev_action = {} 
         for key, value in self.world_model.action_dict.items(): 
-            action = 0 * self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0)
+            action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             self.prev_action[key] = tile_batch_dim(action, batch_size)
         self.hp = torch.zeros((batch_size, 1, self.hidden_state_size)) 
         self.hq = torch.zeros((batch_size, 1, self.hidden_state_size))
@@ -127,6 +127,10 @@ class Agent:
         done = batch["done"]
         mask = batch["mask"]
         complete_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1)
+        
+        for key, value in action.items(): 
+            empty_action = 
+            self.prev_action[key] = tile_batch_dim(action, batch_size)
                         
         # Train world_model
         hp, hq, inner_states, pred_obs_p, pred_obs_q = self.world_model(None, obs, action)
