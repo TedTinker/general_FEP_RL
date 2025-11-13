@@ -300,9 +300,7 @@ class World_Model(nn.Module):
         inner_state_dict_list = []
         new_hidden_states_p_list = []
         new_hidden_states_q_list = []
-        
-        print(prev_hidden_state.shape)
-                                
+                                        
         for step in range(steps):
             print("IN WORLD", step)
             
@@ -332,6 +330,7 @@ class World_Model(nn.Module):
             dkl = torch.cat([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dict_list], dim = 1)
             catted_inner_state_dict[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
             
+        print(new_hidden_states_p.shape, new_hidden_states_q.shape, encoded_prev_action.keys())
         pred_obs_p = self.predict(new_hidden_states_p, encoded_prev_action)
         pred_obs_q = self.predict(new_hidden_states_q, encoded_prev_action)
                                         
