@@ -65,6 +65,7 @@ class RecurrentReplayBuffer:
         self.mask.push(self.episode_ptr, self.time_ptr, 1.0)
         self.time_ptr += 1
 
+        print("done:", done)
         if done or self.time_ptr >= self.max_episode_len:
             for k, v in next_observation_dict.items():
                 self.observation_buffers[k].push(self.episode_ptr, self.time_ptr, v)
