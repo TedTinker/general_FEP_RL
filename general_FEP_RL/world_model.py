@@ -332,7 +332,7 @@ class World_Model(nn.Module):
         for key, inner_state_dict in inner_state_dict_list[0].items():
             zp = torch.stack([inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dict_list], dim = 1)
             zq = torch.stack([inner_state_dict[key]["zq"] for inner_state_dict in inner_state_dict_list], dim = 1)
-            dkl = torch.cat([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dict_list], dim = 1)
+            dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dict_list], dim = 1)
             catted_inner_state_dict[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
             print(zp.shape, zq.shape, dkl.shape)
         print("THERE!")
