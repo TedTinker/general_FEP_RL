@@ -130,6 +130,7 @@ class Agent:
         
         for key, value in action.items(): 
             empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
+            print(value.shape, empty_action.shape)
             self.prev_action[key] = tile_batch_dim(action, batch_size)
                         
         # Train world_model
