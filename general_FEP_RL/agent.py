@@ -28,8 +28,8 @@ class Agent:
                                             # example_input
                                             # example_output
                                             # loss_func
-                                        # accuracy_scaler
-                                        # complexity_scaler
+                                        # accuracy_scalar
+                                        # complexity_scalar
                                         # eta
             
             action_dict,            # Keys: action_names
@@ -273,8 +273,8 @@ if __name__ == "__main__":
         "see_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "accuracy_scaler" : 1,                               
-            "complexity_scaler" : 1,                                 
+            "accuracy_scalar" : 1,                               
+            "complexity_scalar" : 1,                                 
             "eta" : 1}}
     
     action_dict = {
@@ -291,22 +291,22 @@ if __name__ == "__main__":
         "see_description" : {
             "encoder" : Encode_Description,
             "decoder" : Decode_Description,
-            "accuracy_scaler" : 1,                               
-            "complexity_scaler" : 1,                                 
+            "accuracy_scalar" : 1,                               
+            "complexity_scalar" : 1,                                 
             "eta" : 1},
         "see_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "accuracy_scaler" : 1,                               
-            "complexity_scaler" : 1,                                 
+            "accuracy_scalar" : 1,                               
+            "complexity_scalar" : 1,                                 
             "eta" : 1}}
     
     action_dict = {
         "make_description" : {
             "encoder" : Encode_Description,
             "decoder" : Decode_Description,
-            "accuracy_scaler" : 1,                               
-            "complexity_scaler" : 1,                                 
+            "accuracy_scalar" : 1,                               
+            "complexity_scalar" : 1,                                 
             "eta" : 1},
         "make_image" : {
             "encoder" : Encode_Image,
