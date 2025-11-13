@@ -143,6 +143,8 @@ class Agent:
             predicted_obs = pred_obs_q[key]
             loss_func = self.observation_dict[key]["decoder"].loss_func
             scalar = self.observation_dict[key]["accuracy_scalar"]
+            obs_accuracy = loss_func(true_obs, predicted_obs)
+            print(obs_accuracy.shape)
             accuracy += (loss_func(true_obs, predicted_obs) * mask * scalar).mean()
             
         obs_complexities = {}
