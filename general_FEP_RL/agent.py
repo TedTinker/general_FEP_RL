@@ -169,7 +169,7 @@ class Agent:
         curiosity = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
             eta = self.observation_dict[key]["eta"]
-            curiosity += torch.clamp(obs_complexities[key], min = 0, max = 1) * eta
+            curiosity = curiosity + torch.clamp(obs_complexities[key], min = 0, max = 1) * eta
         reward += curiosity
 
 
