@@ -132,7 +132,8 @@ class Agent:
             empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             print(value.shape, empty_action.shape)
-            self.prev_action[key] = tile_batch_dim(action, batch_size)
+            self.prev_action[key] = torch.cat([empty_action, value], dim = 1)
+            print(self.prev_action[key].shape)
                         
         # Train world_model
         hp, hq, inner_states, pred_obs_p, pred_obs_q = self.world_model(None, obs, action)
