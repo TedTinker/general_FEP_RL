@@ -150,7 +150,7 @@ class Agent:
             
         obs_complexities = {}
         complexity = torch.zeros((1,)).requires_grad_()
-        for key, value in self.observation_dict.item():
+        for key, value in self.observation_dict.items():
             scalar = self.observation_dict[key]["complexity_scalar"]
             inner_state = inner_state_dict[key]
             dkl = inner_state["dkl"].mean(-1).unsqueeze(-1) * complete_mask * scalar
