@@ -193,7 +193,7 @@ class Agent:
                 new_entropy += self.alphas[key] * new_log_pis
             Q_targets = reward + self.gamma * (1 - done) * (Q_target_next - new_entropy)  # This might need lists?
         
-        print("HERE!")
+        print("HERE!", hq.shape, Q_targets.shape)
         for i in range(len(self.critics)):
             Q = self.critics[i](hq[:,:-1].detach(), action)
             critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
