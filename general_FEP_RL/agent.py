@@ -85,7 +85,7 @@ class Agent:
         
         
         
-    # I THINK BEGIN AND STEP_IN)_EPISODE SHOULD WORK WITH MULTIPLE STEPS
+    # I THINK BEGIN AND STEP_IN_EPISODE SHOULD WORK WITH MULTIPLE STEPS
     def begin(self, batch_size = 1):
         self.prev_action = {} 
         for key, value in self.world_model.action_dict.items(): 
@@ -146,7 +146,7 @@ class Agent:
             obs_accuracy = loss_func(true_obs, predicted_obs)
             obs_accuracy = obs_accuracy.mean(dim=tuple(range(2, obs_accuracy.ndim)))
             print(obs_accuracy.shape, mask.shape)
-            accuracy += (obs_accuracy * mask.squeeze(-1) * scalar).mean()
+            accuracy += (obs_accuracy * complete_mask.squeeze(-1) * scalar).mean()
             
         print(accuracy)
             
