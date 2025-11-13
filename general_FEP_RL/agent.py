@@ -30,6 +30,7 @@ class Agent:
                                             # loss_func
                                         # accuracy_scalar
                                         # complexity_scalar
+                                        # beta
                                         # eta
             
             action_dict,            # Keys: action_names
@@ -153,7 +154,7 @@ class Agent:
             scalar = self.observation_dict[key]["complexity_scalar"]
             inner_state = inner_state_dict[key]
             dkl = inner_state["dkl"].mean(-1).unsqueeze(-1) * complete_mask * scalar
-            complexity = complexity + dkl.mean()
+            complexity = complexity + dkl.mean() * self.observation_dict[key]["beta"]
             obs_complexities[key] = dkl
             
         
@@ -166,8 +167,8 @@ class Agent:
         
         # Get curiosity  
         curiosity = torch.zeros((1,)).requires_grad_()
-        for key, value in self.observation_dict.keys():
-            eta = self.observation_dict[key]["observation_decoder_dict"]["eta"]
+        for key, value in self.observation_dict.items():
+            eta = self.observation_dict[key]["eta"]
             curiosity += torch.clamp(obs_complexities[key], min = 0, max = 1) * eta
         reward += curiosity
 
@@ -296,13 +297,15 @@ if __name__ == "__main__":
             "decoder" : Decode_Description,
             "accuracy_scalar" : 1,                               
             "complexity_scalar" : 1,                                 
-            "eta" : 1},
+            "eta" : 1,
+            "beta" : 1},
         "see_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
             "accuracy_scalar" : 1,                               
             "complexity_scalar" : 1,                                 
-            "eta" : 1}}
+            "eta" : 1,
+            "beta" : 1}}
     
     action_dict = {
         "make_description" : {
@@ -310,7 +313,8 @@ if __name__ == "__main__":
             "decoder" : Decode_Description,
             "accuracy_scalar" : 1,                               
             "complexity_scalar" : 1,                                 
-            "eta" : 1},
+            "eta" : 1,
+            "beta" : 1},
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
