@@ -302,6 +302,7 @@ class World_Model(nn.Module):
         new_hidden_states_q_list = []
                                 
         for step in range(steps):
+            print("IN WORLD", step)
             
             step_obs = {}
             for key, value in encoded_obs.items():

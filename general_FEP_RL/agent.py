@@ -122,7 +122,7 @@ class Agent:
                                 
         batch = self.buffer.sample(batch_size)
         obs = batch["obs"]
-        action = batch["action"] # Don't forget to add an empty "first" action.
+        action = batch["action"] 
         reward = batch["reward"]
         done = batch["done"]
         mask = batch["mask"]
