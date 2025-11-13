@@ -312,6 +312,7 @@ class World_Model(nn.Module):
                 step_prev_action[key] = value[:,step].unsqueeze(1)
                             
             print("HERE!", prev_hidden_state.shape)
+            print("AND HERE!", prev_hidden_state[:,step].shape)
             step_hidden_state = prev_hidden_state[:,step].unsqueeze(1)
             
             new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
