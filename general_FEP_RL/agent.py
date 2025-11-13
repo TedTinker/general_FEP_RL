@@ -141,9 +141,9 @@ class Agent:
         for key, value in self.observation_dict.items():
             true_obs = obs[key]
             predicted_obs = pred_obs_q[key]
-            decoder = self.observation_dict[key]["decoder"]
+            loss_func = self.observation_dict[key]["decoder"].loss_func
             scalar = self.observation_dict[key]["accuracy_scalar"]
-            accuracy += (decoder.loss_func(true_obs, predicted_obs) * mask * scalar).mean()
+            accuracy += (loss_func(None, true_obs, predicted_obs) * mask * scalar).mean()
             
         obs_complexities = {}
         complexity = torch.zeros((1,)).requires_grad_()
