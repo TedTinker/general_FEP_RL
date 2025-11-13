@@ -153,10 +153,8 @@ class Agent:
             scalar = self.observation_dict[key]["complexity_scalar"]
             inner_state = inner_state_dict[key]
             dkl = inner_state["dkl"].mean(-1).unsqueeze(-1) * complete_mask * scalar
-            print("DKL:", dkl.shape)
             complexity = complexity + dkl.mean()
-            obs_complexities[key] = dkl[:,1:]
-        print(complexity)
+            obs_complexities[key] = dkl
             
         
                                 
@@ -168,7 +166,7 @@ class Agent:
         
         # Get curiosity  
         curiosity = torch.zeros((1,)).requires_grad_()
-        for key in self.observation_dict.keys():
+        for key, value in self.observation_dict.keys():
             eta = self.observation_dict[key]["observation_decoder_dict"]["eta"]
             curiosity += torch.clamp(obs_complexities[key], min = 0, max = 1) * eta
         reward += curiosity
