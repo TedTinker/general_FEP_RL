@@ -301,7 +301,8 @@ class World_Model(nn.Module):
         inner_state_dict_list = []
         new_hidden_states_p_list = []
         new_hidden_states_q_list = []
-                                        
+                                    
+        print(steps, [i for i in range(steps)])
         for step in range(steps):
             print("IN WORLD", step)
             
