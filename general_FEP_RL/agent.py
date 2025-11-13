@@ -153,6 +153,7 @@ class Agent:
         for key, value in self.observation_dict.items():
             scalar = self.observation_dict[key]["complexity_scalar"]
             inner_state = inner_state_dict[key]
+            print(inner_state["dkl"].shape, complete_mask.shape)
             dkl = inner_state["dkl"].mean(-1).unsqueeze(-1) * complete_mask * scalar
             complexity = complexity + dkl.mean()
             obs_complexities[key] = dkl[:,1:]
