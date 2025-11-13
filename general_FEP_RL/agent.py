@@ -137,10 +137,14 @@ class Agent:
         hp, hq, inner_states, pred_obs_p, pred_obs_q = self.world_model(None, obs, action)
 
         accuracy = torch.zeros((1,)).requires_grad_()
-        for true_obs, pred_obs, obs_dict in zip(obs.values(), pred_obs_q.values(), self.observation_dict.values()):
-            loss_func = obs_dict["observation_decoder_dict"]["loss_func"]
-            scalar = obs_dict["observation_decoder_dict"]["accuracy_scalar"]
-            accuracy += loss_func(true_obs, pred_obs).mean() * mask * scalar
+        
+        for key, value in self.observation_dict.items():
+            print(key)
+            true_obs = obs[key]
+            predicted_obs = pred_obs_q[key]
+            loss_func = self.observation_dict[key]["loss_func"]
+            scalar = self.observation_dict[key]["accuracy_scalar"]
+            accuracy += loss_func(true_obs, predicted_obs).mean() * mask * scalar
             
         obs_complexities = {}
         complexity = torch.zeros((1,)).requires_grad_()
