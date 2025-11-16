@@ -252,7 +252,9 @@ class Agent:
         
         
         return({
-            
+            "accuracies" : accuracies,
+            "complexities" : complexities,
+            "curiosities" : curiosities
             })
                                 
     
