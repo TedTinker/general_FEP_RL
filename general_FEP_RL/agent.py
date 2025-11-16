@@ -148,7 +148,7 @@ class Agent:
             obs_accuracy = loss_func(true_obs, predicted_obs)
             obs_accuracy = obs_accuracy.mean(dim=tuple(range(2, obs_accuracy.ndim)))
             obs_accuracy = obs_accuracy * complete_mask.squeeze(-1) * scalar
-            accuracies[key] = obs_accuracy.mean()
+            accuracies[key] = obs_accuracy.mean().item()
             accuracy = accuracy + obs_accuracy.mean()
             
         complexities = {}
@@ -174,8 +174,8 @@ class Agent:
         for key, value in self.observation_dict.items():
             eta = self.observation_dict[key]["eta"]
             obs_curiosity = torch.clamp(complexities[key], min = 0, max = 1) * eta
-            complexities[key] = complexities[key].mean()
-            curiosities[key] = obs_curiosity.mean()
+            complexities[key] = complexities[key].mean().item()
+            curiosities[key] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
         total_reward = reward + curiosity
 
@@ -204,7 +204,7 @@ class Agent:
         for i in range(len(self.critics)):
             Q = self.critics[i](hq[:,:-1].detach(), action)
             critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
-            critic_losses.append(critic_loss)
+            critic_losses.append(critic_loss.item())
             self.critic_opts[i].zero_grad()
             critic_loss.backward()
             self.critic_opts[i].step()
@@ -255,9 +255,9 @@ class Agent:
         
         
         return({
-            "reward" : reward.mean(),
+            "reward" : reward.mean().item(),
             "critic_losses" : critic_losses,
-            "actor_loss" : actor_loss,
+            "actor_loss" : actor_loss.item(),
             "accuracies" : accuracies,
             "complexities" : complexities,
             "curiosities" : curiosities
