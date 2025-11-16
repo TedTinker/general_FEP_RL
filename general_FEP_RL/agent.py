@@ -176,7 +176,7 @@ class Agent:
             obs_curiosity = torch.clamp(complexities[key], min = 0, max = 1) * eta
             curiosities[key] = obs_curiosity
             curiosity = curiosity + obs_curiosity
-        reward += curiosity
+        total_reward = reward + curiosity
 
 
                 
@@ -197,11 +197,13 @@ class Agent:
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
                 new_entropy += self.alphas[key] * new_log_pis
-            Q_targets = reward + self.gamma * (1 - done) * (Q_target_next - new_entropy)  # This might need lists?
+            Q_targets = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy)  # This might need lists?
         
+        critic_losses = []
         for i in range(len(self.critics)):
             Q = self.critics[i](hq[:,:-1].detach(), action)
             critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
+            critic_losses.append(critic_loss)
             self.critic_opts[i].zero_grad()
             critic_loss.backward()
             self.critic_opts[i].step()
@@ -252,6 +254,9 @@ class Agent:
         
         
         return({
+            "reward" : reward.mean(),
+            "critic_losses" : critic_losses,
+            "actor_loss" : actor_loss,
             "accuracies" : accuracies,
             "complexities" : complexities,
             "curiosities" : curiosities
