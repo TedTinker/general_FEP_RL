@@ -174,7 +174,7 @@ class Agent:
         for key, value in self.observation_dict.items():
             eta = self.observation_dict[key]["eta"]
             obs_curiosity = torch.clamp(complexities[key], min = 0, max = 1) * eta
-            curiosities[key] = obs_curiosity
+            curiosities[key] = obs_curiosity.mean()
             curiosity = curiosity + obs_curiosity
         total_reward = reward + curiosity
 
