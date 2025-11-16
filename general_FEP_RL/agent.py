@@ -138,8 +138,8 @@ class Agent:
         # Train world_model
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
 
+        accuracies = {}
         accuracy = torch.zeros((1,)).requires_grad_()
-        
         for key, value in self.observation_dict.items():
             true_obs = obs[key]
             predicted_obs = pred_obs_q[key]
@@ -147,16 +147,18 @@ class Agent:
             scalar = self.observation_dict[key]["accuracy_scalar"]
             obs_accuracy = loss_func(true_obs, predicted_obs)
             obs_accuracy = obs_accuracy.mean(dim=tuple(range(2, obs_accuracy.ndim)))
-            accuracy = accuracy + (obs_accuracy * complete_mask.squeeze(-1) * scalar).mean()
+            obs_accuracy = obs_accuracy * complete_mask.squeeze(-1) * scalar
+            accuracies[key] = obs_accuracy.mean()
+            accuracy = accuracy + obs_accuracy.mean()
             
-        obs_complexities = {}
+        complexities = {}
         complexity = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
             scalar = self.observation_dict[key]["complexity_scalar"]
             inner_state = inner_state_dict[key]
             dkl = inner_state["dkl"].mean(-1).unsqueeze(-1) * complete_mask * scalar
             complexity = complexity + dkl.mean() * self.observation_dict[key]["beta"]
-            obs_complexities[key] = dkl[:,1:]
+            complexities[key] = dkl[:,1:]
             
         
                                 
@@ -167,10 +169,13 @@ class Agent:
 
         
         # Get curiosity  
+        curiosities = {}
         curiosity = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
             eta = self.observation_dict[key]["eta"]
-            curiosity = curiosity + torch.clamp(obs_complexities[key], min = 0, max = 1) * eta
+            obs_curiosity = torch.clamp(complexities[key], min = 0, max = 1) * eta
+            curiosities[key] = obs_curiosity
+            curiosity = curiosity + obs_curiosity
         reward += curiosity
 
 
@@ -243,6 +248,12 @@ class Agent:
             alpha_loss.backward()
             self.alpha_opt[key].step()
             self.alphas[key] = torch.exp(self.log_alphas[key])
+            
+        
+        
+        return({
+            
+            })
                                 
     
 
