@@ -133,9 +133,7 @@ class Agent:
             empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
-            
-        print(reward.shape)
-                        
+                                    
         # Train world_model
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
 
@@ -144,6 +142,9 @@ class Agent:
         for key, value in self.observation_dict.items():
             true_obs = obs[key]
             predicted_obs = pred_obs_q[key]
+
+            print(true_obs.shape, predicted_obs.shape)
+
             loss_func = self.observation_dict[key]["decoder"].loss_func
             scalar = self.observation_dict[key]["accuracy_scalar"]
             obs_accuracy = loss_func(true_obs, predicted_obs)
