@@ -140,8 +140,8 @@ class Agent:
         accuracies = {}
         accuracy = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
-            true_obs = obs[key]
-            predicted_obs = pred_obs_q[key]
+            true_obs = obs[key][:, 1:]
+            predicted_obs = pred_obs_q[key][:, :-1]
 
             print(true_obs.shape, predicted_obs.shape)
 
