@@ -329,6 +329,7 @@ class World_Model(nn.Module):
             dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dict_list], dim = 1)
             catted_inner_state_dict[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
             
+        # We seem to be getting an extra prediction.
         pred_obs_p = self.predict(new_hidden_states_p, encoded_prev_action)
         pred_obs_q = self.predict(new_hidden_states_q, encoded_prev_action)
                                         

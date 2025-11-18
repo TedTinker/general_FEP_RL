@@ -136,15 +136,16 @@ class Agent:
                                     
         # Train world_model
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
+        
+        print(hp.shape, hq.shape)
 
         accuracies = {}
         accuracy = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
+            # Skipping first observation, yes. 
+            # Skip last prediction? No, that's not right. We shouldn't need to!
             true_obs = obs[key][:, 1:]
             predicted_obs = pred_obs_q[key][:, :-1]
-
-            print(true_obs.shape, predicted_obs.shape)
-
             loss_func = self.observation_dict[key]["decoder"].loss_func
             scalar = self.observation_dict[key]["accuracy_scalar"]
             obs_accuracy = loss_func(true_obs, predicted_obs)
