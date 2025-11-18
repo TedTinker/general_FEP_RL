@@ -291,9 +291,12 @@ class World_Model(nn.Module):
         for key, value in obs.items():    
             print("observation size:", value.shape)
             episodes, steps = value.shape[0], value.shape[1]
-            if(prev_hidden_state == None):
-                prev_hidden_state = torch.zeros(episodes, 1, self.hidden_state_size)
-            break
+            
+        for key, value in prev_action:
+            print("action size:", value.shape)
+            
+        if(prev_hidden_state == None):
+            prev_hidden_state = torch.zeros(episodes, 1, self.hidden_state_size)
             
         encoded_obs = self.obs_in(obs)
         encoded_prev_action = self.action_in(prev_action)

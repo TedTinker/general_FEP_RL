@@ -135,6 +135,7 @@ class Agent:
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
                                     
         # Train world_model
+        # PROBLEM HERE! Not right sizes for obs, action, maybe?
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
         
         print(hp.shape, hq.shape) # These are 1 longer than I expected.
