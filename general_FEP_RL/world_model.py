@@ -292,7 +292,7 @@ class World_Model(nn.Module):
             print("observation size:", value.shape)
             episodes, steps = value.shape[0], value.shape[1]
             
-        for key, value in prev_action:
+        for key, value in prev_action.items():
             print("action size:", value.shape)
             
         if(prev_hidden_state == None):
@@ -307,7 +307,7 @@ class World_Model(nn.Module):
                                     
         for step in range(steps):
             
-            print(step)
+            print("Step", step)
             
             step_obs = {}
             for key, value in encoded_obs.items():
