@@ -303,6 +303,8 @@ class World_Model(nn.Module):
                                     
         for step in range(steps):
             
+            print(step)
+            
             step_obs = {}
             for key, value in encoded_obs.items():
                 step_obs[key] = value[:,step].unsqueeze(1)

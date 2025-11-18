@@ -137,7 +137,7 @@ class Agent:
         # Train world_model
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
         
-        print(hp.shape, hq.shape)
+        print(hp.shape, hq.shape) # These are 1 longer than I expected.
 
         accuracies = {}
         accuracy = torch.zeros((1,)).requires_grad_()
