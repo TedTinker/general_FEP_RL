@@ -86,7 +86,6 @@ class Agent:
         
         
         
-    # I THINK BEGIN AND STEP_IN_EPISODE SHOULD WORK WITH MULTIPLE STEPS
     def begin(self, batch_size = 1):
         self.prev_action = {} 
         for key, value in self.world_model.action_dict.items(): 
@@ -102,11 +101,11 @@ class Agent:
             self.eval()
             self.hp, self.hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(self.hq if posterior else self.hp, obs, self.prev_action)
             new_action_dict, new_log_prob_dict = self.actor(self.hq if posterior else self.hp) 
+            self.prev_action = new_action_dict
             values = []
             for i in range(len(self.critics)):
                 value = self.critics[i](self.hq, new_action_dict) 
                 values.append(value)
-            self.prev_action = new_action_dict
         return {
             "obs" : obs,
             "action" : new_action_dict,
@@ -134,6 +133,8 @@ class Agent:
             empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
+            
+        print(reward.shape)
                         
         # Train world_model
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
@@ -358,9 +359,8 @@ if __name__ == "__main__":
     dummies = generate_dummy_inputs(agent.world_model.observation_dict, agent.world_model.action_dict, agent.hidden_state_size, batch=1, steps=1)
     dummy_inputs = dummies["obs_enc_in"]
         
-    # PROBLEM: How do we make the log_prob (batch * steps, 1) in mu_std?
     agent.step_in_episode(dummy_inputs)
         
         
-        
+    agent.epoch(64)
 # %%
