@@ -330,11 +330,12 @@ class World_Model(nn.Module):
             catted_inner_state_dict[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
             
         # We seem to be getting an extra prediction.
+        encoded_action = {}
         for key, value in encoded_prev_action.items():
-            encoded_prev_action[key] = value[:, 1:]
+            encoded_action[key] = value[:, 1:]
             
-        pred_obs_p = self.predict(new_hidden_states_p[:, :-1], encoded_prev_action)
-        pred_obs_q = self.predict(new_hidden_states_q[:, :-1], encoded_prev_action)
+        pred_obs_p = self.predict(new_hidden_states_p[:, :-1], encoded_action)
+        pred_obs_q = self.predict(new_hidden_states_q[:, :-1], encoded_action)
                                         
         return(new_hidden_states_p, new_hidden_states_q, catted_inner_state_dict, pred_obs_p, pred_obs_q)
         
