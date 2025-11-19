@@ -285,76 +285,76 @@ class World_Model(nn.Module):
         return(new_hidden_states_p, new_hidden_states_q, inner_state_dict)
     
     
-        
+            
     def forward(self, prev_hidden_state, obs, action, one_step=False):
         """
-        Clean aligned world-model forward.
-        
-        obs:    dict of tensors [B, T, ...]
-        action: dict of tensors [B, T, ...]
-        prev_hidden_state: [B, 1, H] or None
-        
-        Returns:
-            hidden_states_p: [B, T, H]
-            hidden_states_q: [B, T, H]
-            inner_states:    dict {key: zp,zq,dkl each [B,T,latent]}
-            pred_obs_p:      dict {key: predicted obs [B,T,...]}
-            pred_obs_q:      same
+        Correct Dreamer/PVRNN-style sequence alignment.
+        Produces:
+            hidden_states_p: [B, T+1, H]
+            hidden_states_q: [B, T+1, H]
+            inner_states:    {key: zp/zq/dkl each [B, T, latent]}
+            pred_obs_p/q:    {key: [B, T, ...]}
         """
     
-        # infer shapes from first obs
+        # Infer B, T from first observation modality
         key0 = next(iter(obs.keys()))
         B, T = obs[key0].shape[0], obs[key0].shape[1]
     
-        # init hidden state if needed
+        # Initial hidden
         if prev_hidden_state is None:
             prev_hidden_state = torch.zeros(B, 1, self.hidden_state_size, device=obs[key0].device)
     
-        encoded_obs = self.obs_in(obs)      # dict[B,T,obs_feat]
-        encoded_act = self.action_in(action)# dict[B,T,act_feat]
+        # Encode obs + actions
+        encoded_obs = self.obs_in(obs)        # dict[B,T,obs_feat]
+        encoded_act = self.action_in(action)  # dict[B,T,act_feat]
     
-        # We will store one output per time step
-        H_p_list = []
-        H_q_list = []
+        # Prepare lists: include H0
+        H_p_list = [prev_hidden_state]  # [B,1,H]
+        H_q_list = [prev_hidden_state]
     
-        inner_state_dict_list = []
+        inner_state_time_list = []
     
-        H = prev_hidden_state  # [B,1,H]
+        H = prev_hidden_state
     
+        # MAIN LOOP: t = 0..T-1
         for t in range(T):
-            # build step dicts with shape [B,1,...]
-            step_obs = {k: v[:, t:t+1] for k,v in encoded_obs.items()}
-            step_act = {k: v[:, t:t+1] for k,v in encoded_act.items()}
     
+            # Extract single-step obs/action as [B,1,...]
+            step_obs = {k: v[:, t:t+1] for k, v in encoded_obs.items()}
+            step_act = {k: v[:, t:t+1] for k, v in encoded_act.items()}
+    
+            # Recurrent update
             new_H_p, new_H_q, inner_dict = self.bottom_to_top_step(H, step_obs, step_act)
     
-            # each new_H_* is [B,1,H]
-            H = new_H_q  # posterior next hidden becomes state for next timestep
-    
+            # Append
             H_p_list.append(new_H_p)
             H_q_list.append(new_H_q)
-            inner_state_dict_list.append(inner_dict)
+            inner_state_time_list.append(inner_dict)
+    
+            # Next recurrent state uses posterior
+            H = new_H_q
     
             if one_step:
                 break
     
-        # Concatenate along time dimension
-        hidden_states_p = torch.cat(H_p_list, dim=1)  # [B,T,H] (or [B,1,H] for step mode)
+        # Stack hidden states → [B, T+1, H]
+        hidden_states_p = torch.cat(H_p_list, dim=1)
         hidden_states_q = torch.cat(H_q_list, dim=1)
     
-        # Collect inner states properly
-        catted = {}
-        for key in inner_state_dict_list[0].keys():
-            zp = torch.stack([inner_state_dict_list[t][key]["zp"] for t in range(len(inner_state_dict_list))], dim=1)
-            zq = torch.stack([inner_state_dict_list[t][key]["zq"] for t in range(len(inner_state_dict_list))], dim=1)
-            dkl = torch.stack([inner_state_dict_list[t][key]["dkl"] for t in range(len(inner_state_dict_list))], dim=1)
-            catted[key] = {"zp": zp, "zq": zq, "dkl": dkl}
+        # Collate inner states (across time)
+        catted_states = {}
+        for key in inner_state_time_list[0].keys():
+            zp = torch.stack([inner_state_time_list[t][key]["zp"] for t in range(len(inner_state_time_list))], dim=1)
+            zq = torch.stack([inner_state_time_list[t][key]["zq"] for t in range(len(inner_state_time_list))], dim=1)
+            dkl = torch.stack([inner_state_time_list[t][key]["dkl"] for t in range(len(inner_state_time_list))], dim=1)
+            catted_states[key] = {"zp": zp, "zq": zq, "dkl": dkl}  # [B,T,latent]
     
-        # Predictions for each time step
-        pred_obs_p = self.predict(hidden_states_p, {k: v for k,v in encoded_act.items()})
-        pred_obs_q = self.predict(hidden_states_q, {k: v for k,v in encoded_act.items()})
+        # Predictions for t = 0..T-1
+        # Use encoded_act (unchanged shape [B,T]) and hidden_states_*[:,1:]
+        pred_obs_p = self.predict(hidden_states_p[:, 1:], encoded_act)
+        pred_obs_q = self.predict(hidden_states_q[:, 1:], encoded_act)
     
-        return hidden_states_p, hidden_states_q, catted, pred_obs_p, pred_obs_q
+        return hidden_states_p, hidden_states_q, catted_states, pred_obs_p, pred_obs_q
         
         
         

@@ -117,117 +117,116 @@ class Agent:
             "pred_obs_q" : pred_obs_q}
         
         
-    
+        
     def epoch(self, batch_size):
         self.train()
     
         batch = self.buffer.sample(batch_size)
     
-        obs = batch["obs"]          # dict[B, T+1, ...]
-        action = batch["action"]    # dict[B, T,   ...]
+        obs = batch["obs"]          # dict[B, T+1]
+        action = batch["action"]    # dict[B, T]
         reward = batch["reward"]    # [B,T,1]
         done = batch["done"]        # [B,T,1]
         mask = batch["mask"]        # [B,T,1]
     
-        # ALIGNMENT
-        obs_in = {k: v[:, :-1] for k, v in obs.items()}    # [B,T]
-        obs_target = {k: v[:, 1:] for k, v in obs.items()} # [B,T]
+        # World model uses obs[0..T-1] and action[0..T-1]
+        obs_in = {k: v[:, :-1] for k, v in obs.items()}  # [B,T]
+        obs_target = {k: v[:, 1:] for k, v in obs.items()}  # [B,T]
     
-        # ---------- WORLD MODEL ----------
-        hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = \
+        hp, hq, inner_state_dict, pred_p, pred_q = \
             self.world_model(None, obs_in, action, one_step=False)
     
+        # ---------- WORLD MODEL LOSS ----------
         accuracies = {}
-        total_accuracy = torch.zeros(1, device=hq.device, requires_grad=True)
-    
         complexities = {}
-        total_complexity = torch.zeros(1, device=hq.device, requires_grad=True)
     
-        # --- Compute accuracy & complexity per modality ---
-        for key in self.observation_dict.keys():
+        total_acc = torch.zeros(1, device=hq.device, requires_grad=True)
+        total_cpx = torch.zeros(1, device=hq.device, requires_grad=True)
     
-            # Accuracy term
+        for key in self.observation_dict:
+    
+            # accuracy
             loss_fn = self.observation_dict[key]["decoder"].loss_func
             scalar = self.observation_dict[key]["accuracy_scalar"]
     
-            acc = loss_fn(pred_obs_q[key], obs_target[key])        # [B,T,...]
-            acc = acc.mean(dim=tuple(range(2, acc.ndim)))          # [B,T]
+            acc = loss_fn(pred_q[key], obs_target[key])    # [B,T,...]
+            acc = acc.mean(dim=tuple(range(2, acc.ndim)))  # [B,T]
             acc = acc * mask.squeeze(-1) * scalar
-            accuracies[key] = acc.mean().item()
-            total_accuracy = total_accuracy + acc.mean()
     
-            # Complexity term (KL)
+            accuracies[key] = acc.mean().item()
+            total_acc = total_acc + acc.mean()
+    
+            # complexity (KL)
             KL = inner_state_dict[key]["dkl"].mean(-1).unsqueeze(-1)  # [B,T,1]
             beta = self.observation_dict[key]["beta"]
-            cpx = KL * mask * beta
-            complexities[key] = cpx[:, :, 0].detach().cpu().numpy().mean()
-            total_complexity = total_complexity + cpx.mean()
     
-        # --- Optimize World Model ---
+            cpx = KL * mask * beta
+            complexities[key] = cpx.mean().item()
+            total_cpx = total_cpx + cpx.mean()
+    
         self.world_model_opt.zero_grad()
-        (total_accuracy + total_complexity).backward()
+        (total_acc + total_cpx).backward()
         self.world_model_opt.step()
     
         # ---------- CURIOSITY ----------
         curiosities = {}
-        total_curiosity = torch.zeros_like(reward)
+        total_curi = 0
     
-        for key in self.observation_dict.keys():
-            eta = self.observation_dict[key]["eta"]
+        for key in self.observation_dict:
             KL = inner_state_dict[key]["dkl"].mean(-1).unsqueeze(-1)  # [B,T,1]
+            eta = self.observation_dict[key]["eta"]
+    
             curi = torch.clamp(KL, 0, 1) * eta
             curiosities[key] = curi.mean().item()
-            total_curiosity += curi
+            total_curi += curi
     
-        total_reward = reward + total_curiosity
+        total_reward = reward + total_curi
     
-        # ---------- RL: CRITICS ----------
-        # target Q
+        # ---------- CRITIC TARGET (SAC) ----------
         with torch.no_grad():
-            new_action, new_logpi = self.actor(hq.detach())   # [B,T+1]
-            new_logpi = {k: v[:, :-1] for k, v in new_logpi.items()}  # align [B,T]
+            new_action, new_logpi = self.actor(hq.detach())  # [B,T+1]
     
-            # Q(next)
-            Q_targets_next = []
+            # align to [B,T]
+            new_logpi_T = {k: v[:, :-1] for k, v in new_logpi.items()}
+    
+            Q_next_list = []
             for tgt in self.critic_targets:
-                q = tgt(hq.detach(), new_action)     # [B,T+1,1]
-                Q_targets_next.append(q[:, 1:])      # drop t=0
+                q = tgt(hq.detach(), new_action)  # [B,T+1,1]
+                Q_next_list.append(q[:, 1:])     # [B,T,1]
     
-            Q_targets_next = torch.stack(Q_targets_next, dim=0)
-            Q_next = torch.min(Q_targets_next, dim=0)[0]      # [B,T,1]
+            Q_next = torch.stack(Q_next_list, dim=0).min(dim=0)[0]
     
             entropy = torch.zeros_like(Q_next)
-            for key in new_logpi.keys():
-                entropy += self.alphas[key] * new_logpi[key]
+            for key in new_logpi_T:
+                entropy += self.alphas[key] * new_logpi_T[key]
     
             Q_target = total_reward + self.gamma * (1 - done) * (Q_next - entropy)
     
+        # ---------- CRITIC UPDATES ----------
         critic_losses = []
         for i, critic in enumerate(self.critics):
             Q = critic(hq[:, :-1].detach(), action)         # [B,T,1]
             loss = 0.5 * F.mse_loss(Q * mask, Q_target * mask)
-            critic_losses.append(loss.item())
     
+            critic_losses.append(loss.item())
             self.critic_opts[i].zero_grad()
             loss.backward()
             self.critic_opts[i].step()
     
-            # soft target update
+            # Soft update
             for p_tgt, p in zip(self.critic_targets[i].parameters(), critic.parameters()):
                 p_tgt.data.copy_(self.tau * p.data + (1 - self.tau) * p_tgt.data)
     
-        # ---------- RL: ACTOR ----------
+        # ---------- ACTOR UPDATE ----------
         new_action, new_logpi = self.actor(hq[:, :-1].detach())
     
-        Qs = []
-        for critic in self.critics:
-            Qs.append(critic(hq[:, :-1].detach(), new_action))
+        Qs = [critic(hq[:, :-1].detach(), new_action) for critic in self.critics]
         Qs = torch.stack(Qs, dim=0)
-        Q = torch.min(Qs, dim=0)[0]   # [B,T,1]
+        Q = torch.min(Qs, dim=0)[0]  # [B,T,1]
     
         entropy = torch.zeros_like(Q)
-        for k in new_logpi.keys():
-            entropy += self.alphas[k] * new_logpi[k]
+        for key in new_logpi:
+            entropy += self.alphas[key] * new_logpi[key]
     
         actor_loss = (entropy - Q) * mask
         actor_loss = actor_loss.mean() / mask.mean()
@@ -236,7 +235,7 @@ class Agent:
         actor_loss.backward()
         self.actor_opt.step()
     
-        # ---------- RL: ALPHA ----------
+        # ---------- ALPHA TUNING ----------
         alpha_losses = {}
         _, new_logpi = self.actor(hq[:, :-1].detach())
     
@@ -251,7 +250,7 @@ class Agent:
             self.alphas[key] = torch.exp(self.log_alphas[key])
             alpha_losses[key] = a_loss.item()
     
-        # ---------- RETURN FOR PLOTTING ----------
+        # ---------- RETURN EXACT ORIGINAL DICT ----------
         return {
             "total_reward": total_reward.mean().item(),
             "reward": reward.mean().item(),
