@@ -287,7 +287,10 @@ class World_Model(nn.Module):
     
     
     def forward(self, prev_hidden_state, obs, prev_action):
-            
+                        
+        for key, value in obs.items():    
+            episodes, steps = value.shape[0], value.shape[1]
+                        
         if(prev_hidden_state == None):
             prev_hidden_state = torch.zeros(episodes, 1, self.hidden_state_size)
             
