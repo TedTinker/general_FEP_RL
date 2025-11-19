@@ -334,11 +334,13 @@ class World_Model(nn.Module):
             catted_inner_state_dict[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
             
         print("hidden states:", hidden_states_q.shape)
+        for key, value in encoded_prev_action.items():    
+            print("encoded actions:", value.shape)
         pred_obs_p = self.predict(hidden_states_p, encoded_prev_action)
         pred_obs_q = self.predict(new_hidden_states_q, encoded_prev_action)
         
         for key, value in pred_obs_q.items():    
-            print("\npredicted obs:", value.shape)
+            print("predicted obs:", value.shape)
                                         
         return(hidden_states_p, hidden_states_q, catted_inner_state_dict, pred_obs_p, pred_obs_q)
         
