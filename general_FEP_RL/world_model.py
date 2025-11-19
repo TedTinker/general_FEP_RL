@@ -289,12 +289,8 @@ class World_Model(nn.Module):
     def forward(self, prev_hidden_state, obs, prev_action):
                         
         for key, value in obs.items():    
-            print("observation size:", value.shape)
             episodes, steps = value.shape[0], value.shape[1]
-            
-        for key, value in prev_action.items():
-            print("action size:", value.shape)
-                        
+                                    
         if(prev_hidden_state == None):
             prev_hidden_state = torch.zeros(episodes, 1, self.hidden_state_size)
             
@@ -306,9 +302,7 @@ class World_Model(nn.Module):
         new_hidden_states_q_list = []
                                     
         for step in range(steps):
-            
-            print(step)
-                        
+                                    
             step_obs = {}
             for key, value in encoded_obs.items():
                 step_obs[key] = value[:,step].unsqueeze(1)

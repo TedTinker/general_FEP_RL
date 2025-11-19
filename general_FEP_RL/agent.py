@@ -134,7 +134,7 @@ class Agent:
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
                                     
-        hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, action)
+        hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
         
         accuracies = {}
         accuracy = torch.zeros((1,)).requires_grad_()
