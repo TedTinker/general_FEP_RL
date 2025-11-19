@@ -287,13 +287,6 @@ class World_Model(nn.Module):
     
     
     def forward(self, prev_hidden_state, obs, prev_action):
-                        
-        for key, value in obs.items():    
-            print("observation size:", value.shape)
-            episodes, steps = value.shape[0], value.shape[1]
-            
-        for key, value in prev_action.items():
-            print("action size:", value.shape)
             
         if(prev_hidden_state == None):
             prev_hidden_state = torch.zeros(episodes, 1, self.hidden_state_size)
@@ -306,9 +299,7 @@ class World_Model(nn.Module):
         new_hidden_states_q_list = []
                                     
         for step in range(steps):
-            
-            print("Step", step)
-            
+                        
             step_obs = {}
             for key, value in encoded_obs.items():
                 step_obs[key] = value[:,step].unsqueeze(1)
@@ -336,6 +327,9 @@ class World_Model(nn.Module):
             catted_inner_state_dict[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
             
         # We seem to be getting an extra prediction.
+        for key, value in encoded_prev_action.items():
+            encoded_prev_action[key] = value[:,1:]
+            
         pred_obs_p = self.predict(new_hidden_states_p[:, :-1], encoded_prev_action[:, 1:])
         pred_obs_q = self.predict(new_hidden_states_q[:, :-1], encoded_prev_action[:, 1:])
                                         
