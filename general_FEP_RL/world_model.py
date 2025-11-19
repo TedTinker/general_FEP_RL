@@ -329,7 +329,6 @@ class World_Model(nn.Module):
             dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dict_list], dim = 1)
             catted_inner_state_dict[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
             
-        # We seem to be getting an extra prediction.
         encoded_action = {}
         for key, value in encoded_prev_action.items():
             encoded_action[key] = value[:, 1:]

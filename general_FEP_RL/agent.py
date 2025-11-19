@@ -196,7 +196,7 @@ class Agent:
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
                 new_entropy += self.alphas[key] * new_log_pis
-            Q_targets = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy)  # This might need lists?
+            Q_targets = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy) 
         
         critic_losses = []
         for i in range(len(self.critics)):
@@ -222,6 +222,7 @@ class Agent:
         Q, _ = torch.min(Qs_stacked, dim=0)
         Q = Q.mean(-1).unsqueeze(-1)
         
+        entropies = {}
         entropy = torch.zeros_like(Q)
         for key in new_action_dict.keys():
             flattened_new_action = new_action_dict[key].flatten(start_dim = 2)
@@ -229,7 +230,9 @@ class Agent:
             scale_tril = torch.eye(flattened_new_action.shape[-1], device=flattened_new_action.device) 
             policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
             policy_prior_log_prrgbd = policy_prior.log_prob(flattened_new_action).unsqueeze(-1)
-            entropy += self.alphas[key] * new_log_pis_dict[key] - self.action_dict[key]["alpha_normal"] * policy_prior_log_prrgbd
+            this_entropy = self.alphas[key] * new_log_pis_dict[key] - self.action_dict[key]["alpha_normal"] * policy_prior_log_prrgbd
+            entropies[key] = this_entropy.mean().item()
+            entropy += this_entropy 
             
         actor_loss = (entropy - Q) * mask    
         actor_loss = actor_loss.mean() / mask.mean()
@@ -241,10 +244,12 @@ class Agent:
             
             
         # Train alpha
+        alpha_losses = {}
         _, new_log_pis_dict = self.actor(hq[:,:-1].detach())
         for key, log_pis in new_log_pis_dict.items():
             alpha_loss = -(self.log_alphas[key] * (log_pis + self.action_dict[key]["target_entropy"]))*mask
             alpha_loss = alpha_loss.mean() / mask.mean()
+            alpha_losses[key] = alpha_loss
             self.alpha_opt[key].zero_grad()
             alpha_loss.backward()
             self.alpha_opt[key].step()
@@ -256,9 +261,11 @@ class Agent:
             "reward" : reward.mean().item(),
             "critic_losses" : critic_losses,
             "actor_loss" : actor_loss.item(),
+            "alpha_losses" : alpha_losses,
             "accuracies" : accuracies,
             "complexities" : complexities,
-            "curiosities" : curiosities
+            "curiosities" : curiosities,
+            "entropies" : entropies
             })
                                 
     
