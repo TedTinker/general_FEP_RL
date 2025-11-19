@@ -301,9 +301,9 @@ class World_Model(nn.Module):
         encoded_obs = self.obs_in(obs)
         encoded_prev_action = self.action_in(prev_action)
         
+        hidden_states_p_list = [prev_hidden_state]
+        hidden_states_q_list = [prev_hidden_state]
         inner_state_dict_list = []
-        new_hidden_states_p_list = []
-        new_hidden_states_q_list = []
                                     
         for step in range(steps):
                                     
@@ -319,12 +319,12 @@ class World_Model(nn.Module):
                 self.bottom_to_top_step(prev_hidden_state, step_obs, step_prev_action)
                 
             prev_hidden_state = new_hidden_states_q
-            new_hidden_states_p_list.append(new_hidden_states_p)
-            new_hidden_states_q_list.append(new_hidden_states_q)
+            hidden_states_p_list.append(new_hidden_states_p)
+            hidden_states_q_list.append(new_hidden_states_q)
             inner_state_dict_list.append(inner_state_dict)
                                             
-        new_hidden_states_p = torch.cat(new_hidden_states_p_list, dim = 1)
-        new_hidden_states_q = torch.cat(new_hidden_states_q_list, dim = 1)
+        hidden_states_p = torch.cat(hidden_states_p_list, dim = 1)
+        hidden_states_q = torch.cat(hidden_states_q_list, dim = 1)
                         
         catted_inner_state_dict = {}
         for key, inner_state_dict in inner_state_dict_list[0].items():
@@ -333,11 +333,14 @@ class World_Model(nn.Module):
             dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dict_list], dim = 1)
             catted_inner_state_dict[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
             
-        print("Hidden states:", new_hidden_states_q.shape)
-        pred_obs_p = self.predict(new_hidden_states_p, encoded_prev_action)
+        print("Hidden states:", hidden_states_q.shape)
+        pred_obs_p = self.predict(hidden_states_p, encoded_prev_action)
         pred_obs_q = self.predict(new_hidden_states_q, encoded_prev_action)
+        
+        for key, value in pred_obs_q.items():    
+            print("\npredicted obs:", value.shape)
                                         
-        return(new_hidden_states_p, new_hidden_states_q, catted_inner_state_dict, pred_obs_p, pred_obs_q)
+        return(hidden_states_p, hidden_states_q, catted_inner_state_dict, pred_obs_p, pred_obs_q)
         
         
         
