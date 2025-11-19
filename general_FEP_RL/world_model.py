@@ -301,8 +301,8 @@ class World_Model(nn.Module):
         encoded_obs = self.obs_in(obs)
         encoded_prev_action = self.action_in(prev_action)
         
-        hidden_states_p_list = []
-        hidden_states_q_list = []
+        hidden_states_p_list = [prev_hidden_state]
+        hidden_states_q_list = [prev_hidden_state]
         inner_state_dict_list = []
                                     
         for step in range(steps):
@@ -337,7 +337,7 @@ class World_Model(nn.Module):
         for key, value in encoded_prev_action.items():    
             print("encoded actions:", value.shape)
         pred_obs_p = self.predict(hidden_states_p, encoded_prev_action)
-        pred_obs_q = self.predict(new_hidden_states_q, encoded_prev_action)
+        pred_obs_q = self.predict(hidden_states_q, encoded_prev_action)
         
         for key, value in pred_obs_q.items():    
             print("predicted obs:", value.shape)
