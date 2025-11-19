@@ -258,6 +258,7 @@ class Agent:
         
         
         return({
+            "total_reward" : total_reward.mean().item(),
             "reward" : reward.mean().item(),
             "critic_losses" : critic_losses,
             "actor_loss" : actor_loss.item(),
