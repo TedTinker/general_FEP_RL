@@ -286,7 +286,7 @@ class World_Model(nn.Module):
     
     
     
-    def forward(self, prev_hidden_state, obs, prev_action):
+    def forward(self, prev_hidden_state, obs, prev_action, one_step = False):
                         
         for key, value in obs.items():    
             episodes, steps = value.shape[0], value.shape[1]
@@ -336,8 +336,13 @@ class World_Model(nn.Module):
         print("hidden states:", hidden_states_q.shape)
         for key, value in encoded_prev_action.items():    
             print("encoded actions:", value.shape)
-        pred_obs_p = self.predict(hidden_states_p, encoded_prev_action)
-        pred_obs_q = self.predict(hidden_states_q, encoded_prev_action)
+            
+        if(one_step):
+            pred_obs_p = self.predict(hidden_states_p, encoded_prev_action)
+            pred_obs_q = self.predict(hidden_states_q, encoded_prev_action)
+        else:
+            pred_obs_p = self.predict(hidden_states_p[:, 1:], encoded_prev_action)
+            pred_obs_q = self.predict(hidden_states_q[:, 1:], encoded_prev_action)
         
         for key, value in pred_obs_q.items():    
             print("predicted obs:", value.shape)
