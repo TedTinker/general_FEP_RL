@@ -134,19 +134,13 @@ class Agent:
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
                                     
-        # Train world_model
-        # PROBLEM HERE! Not right sizes for obs, action, maybe?
-        hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
+        hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, action)
         
-        print(hp.shape, hq.shape) # These are 1 longer than I expected.
-
         accuracies = {}
         accuracy = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
-            # Skipping first observation, yes. 
-            # Skip last prediction? No, that's not right. We shouldn't need to!
             true_obs = obs[key][:, 1:]
-            predicted_obs = pred_obs_q[key][:, :-1]
+            predicted_obs = pred_obs_q[key]
             loss_func = self.observation_dict[key]["decoder"].loss_func
             scalar = self.observation_dict[key]["accuracy_scalar"]
             obs_accuracy = loss_func(true_obs, predicted_obs)
