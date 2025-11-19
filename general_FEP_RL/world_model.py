@@ -338,11 +338,11 @@ class World_Model(nn.Module):
             print("encoded actions:", value.shape)
             
         if(one_step):
-            pred_obs_p = self.predict(hidden_states_p, encoded_prev_action)
-            pred_obs_q = self.predict(hidden_states_q, encoded_prev_action)
-        else:
             pred_obs_p = self.predict(hidden_states_p[:, 1:], encoded_prev_action)
             pred_obs_q = self.predict(hidden_states_q[:, 1:], encoded_prev_action)
+        else:
+            pred_obs_p = self.predict(hidden_states_p, encoded_prev_action)
+            pred_obs_q = self.predict(hidden_states_q, encoded_prev_action)
         
         for key, value in pred_obs_q.items():    
             print("predicted obs:", value.shape)
