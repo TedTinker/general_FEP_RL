@@ -290,6 +290,10 @@ class World_Model(nn.Module):
                         
         for key, value in obs.items():    
             episodes, steps = value.shape[0], value.shape[1]
+            print("obs:", value.shape)
+            
+        for key, value in prev_action.items():    
+            print("actions:", value.shape)
                                     
         if(prev_hidden_state == None):
             prev_hidden_state = torch.zeros(episodes, 1, self.hidden_state_size)
@@ -332,9 +336,12 @@ class World_Model(nn.Module):
         encoded_action = {}
         for key, value in encoded_prev_action.items():
             encoded_action[key] = value[:, 1:]
+            print("encoded_action:", value.shape)
             
-        pred_obs_p = self.predict(new_hidden_states_p, encoded_action)
-        pred_obs_q = self.predict(new_hidden_states_q, encoded_action)
+        
+        print("Hidden states:", new_hidden_states_q.shape)
+        pred_obs_p = self.predict(new_hidden_states_p[:, :-1], encoded_action)
+        pred_obs_q = self.predict(new_hidden_states_q[:, :-1], encoded_action)
                                         
         return(new_hidden_states_p, new_hidden_states_q, catted_inner_state_dict, pred_obs_p, pred_obs_q)
         
