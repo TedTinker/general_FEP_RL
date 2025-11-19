@@ -333,8 +333,8 @@ class World_Model(nn.Module):
         for key, value in encoded_prev_action.items():
             encoded_action[key] = value[:, 1:]
             
-        pred_obs_p = self.predict(new_hidden_states_p[:, :-1], encoded_action)
-        pred_obs_q = self.predict(new_hidden_states_q[:, :-1], encoded_action)
+        pred_obs_p = self.predict(new_hidden_states_p, encoded_action)
+        pred_obs_q = self.predict(new_hidden_states_q, encoded_action)
                                         
         return(new_hidden_states_p, new_hidden_states_q, catted_inner_state_dict, pred_obs_p, pred_obs_q)
         
