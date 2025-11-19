@@ -249,11 +249,11 @@ class Agent:
         for key, log_pis in new_log_pis_dict.items():
             alpha_loss = -(self.log_alphas[key] * (log_pis + self.action_dict[key]["target_entropy"]))*mask
             alpha_loss = alpha_loss.mean() / mask.mean()
-            alpha_losses[key] = alpha_loss
             self.alpha_opt[key].zero_grad()
             alpha_loss.backward()
             self.alpha_opt[key].step()
             self.alphas[key] = torch.exp(self.log_alphas[key])
+            alpha_losses[key] = alpha_loss
             
         
         
