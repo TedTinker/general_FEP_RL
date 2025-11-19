@@ -343,6 +343,8 @@ class World_Model(nn.Module):
         if(not one_step):
             hidden_states_p = hidden_states_p[:, :-1]
             hidden_states_q = hidden_states_q[:, :-1]
+            for key, value in encoded_prev_action.items():
+                encoded_prev_action[key] = value[:, 1:]
             
         print("hidden states after:", hidden_states_q.shape)
 
