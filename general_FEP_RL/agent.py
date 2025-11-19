@@ -253,7 +253,7 @@ class Agent:
             alpha_loss.backward()
             self.alpha_opt[key].step()
             self.alphas[key] = torch.exp(self.log_alphas[key])
-            alpha_losses[key] = alpha_loss
+            alpha_losses[key] = alpha_loss.detach()
             
         
         
