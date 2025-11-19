@@ -333,7 +333,7 @@ class World_Model(nn.Module):
             dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dict_list], dim = 1)
             catted_inner_state_dict[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
             
-        print("hidden states:", hidden_states_q.shape)
+        print("hidden states before:", hidden_states_q.shape)
         for key, value in encoded_prev_action.items():    
             print("encoded actions:", value.shape)
             
@@ -343,6 +343,8 @@ class World_Model(nn.Module):
         if(not one_step):
             hidden_states_p = hidden_states_p[:, :-1]
             hidden_states_q = hidden_states_q[:, :-1]
+            
+        print("hidden states after:", hidden_states_q.shape)
 
         pred_obs_p = self.predict(hidden_states_p, encoded_prev_action)
         pred_obs_q = self.predict(hidden_states_q, encoded_prev_action)

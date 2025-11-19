@@ -101,16 +101,16 @@ class Agent:
             self.eval()
             self.hp, self.hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(
                 self.hq if posterior else self.hp, obs, self.prev_action, one_step = True)
-            new_action_dict, new_log_prob_dict = self.actor(self.hq if posterior else self.hp) 
-            self.prev_action = new_action_dict
+            action, log_prob = self.actor(self.hq if posterior else self.hp) 
+            self.prev_action = action
             values = []
             for i in range(len(self.critics)):
-                value = self.critics[i](self.hq, new_action_dict) 
+                value = self.critics[i](self.hq, action) 
                 values.append(value)
         return {
             "obs" : obs,
-            "action" : new_action_dict,
-            "log_prob" : new_log_prob_dict,
+            "action" : action,
+            "log_prob" : log_prob,
             "values" : values,
             "inner_state_dict" : inner_state_dict,
             "pred_obs_p" : pred_obs_p,
