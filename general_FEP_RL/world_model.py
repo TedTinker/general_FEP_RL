@@ -339,6 +339,10 @@ class World_Model(nn.Module):
             
         hidden_states_p = hidden_states_p[:, 1:]
         hidden_states_q = hidden_states_q[:, 1:]
+        
+        if(not one_step):
+            hidden_states_p = hidden_states_p[:, :-1]
+            hidden_states_q = hidden_states_q[:, :-1]
 
         pred_obs_p = self.predict(hidden_states_p, encoded_prev_action)
         pred_obs_q = self.predict(hidden_states_q, encoded_prev_action)
