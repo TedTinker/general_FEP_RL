@@ -143,8 +143,7 @@ class Agent:
             true_obs = obs[key][:, 1:]
             predicted_obs = pred_obs_q[key]
             print("true obs:", true_obs.shape)
-            for key, value in predicted_obs.items():    
-                print("pred_obs:", value.shape)
+            print("pred_obs:", predicted_obs.shape)
             loss_func = self.observation_dict[key]["decoder"].loss_func
             scalar = self.observation_dict[key]["accuracy_scalar"]
             obs_accuracy = loss_func(true_obs, predicted_obs)
