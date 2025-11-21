@@ -291,7 +291,6 @@ class World_Model(nn.Module):
         print("\nobs:")
         for key, value in obs.items():    
             episodes, steps = value.shape[0], value.shape[1]
-            steps -= 1
             print(f"\t{key}:", value.shape)
             
         print("action:")
