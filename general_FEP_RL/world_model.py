@@ -334,7 +334,7 @@ class World_Model(nn.Module):
             # Cannot make prediction, because we need the next action.
             return(hidden_state_p[:, 1:], hidden_state_q[:, 1:], catted_inner_state_dict)
         else:
-            # Make predictions. s
+            # Make predictions for all steps.
             skip_non_action = {}
             for key, value in encoded_prev_action.items():    
                 skip_non_action[key] = value[:, 1:]
