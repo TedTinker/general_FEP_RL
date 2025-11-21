@@ -105,11 +105,6 @@ class Agent:
             encoded_action = self.world_model.action_in(self.action)
             pred_obs_p = self.world_model.predict(self.hp, encoded_action)
             pred_obs_q = self.world_model.predict(self.hq, encoded_action)
-            
-            #print("one_step pred obs:")
-            #for key, value in pred_obs_q.items():    
-            #    print(f"\t{key}:", value.shape)
-            
             values = []
             for i in range(len(self.critics)):
                 value = self.critics[i](self.hq, self.action) 
