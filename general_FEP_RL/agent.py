@@ -226,19 +226,28 @@ class Agent:
         Q, _ = torch.min(Qs_stacked, dim=0)
         Q = Q.mean(-1).unsqueeze(-1)
         
-        entropies = {}
-        entropy = torch.zeros_like(Q)
+        alpha_entropies = {}
+        alpha_normal_entropies = {}
+        total_entropies = {}
+        complete_entropy = torch.zeros_like(Q)
         for key in new_action_dict.keys():
             flattened_new_action = new_action_dict[key].flatten(start_dim = 2)
             loc = torch.zeros_like(flattened_new_action, device=flattened_new_action.device).float() 
             scale_tril = torch.eye(flattened_new_action.shape[-1], device=flattened_new_action.device) 
             policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
             policy_prior_log_prrgbd = policy_prior.log_prob(flattened_new_action).unsqueeze(-1)
-            this_entropy = self.alphas[key] * new_log_pis_dict[key] - self.action_dict[key]["alpha_normal"] * policy_prior_log_prrgbd
-            entropies[key] = this_entropy.mean().item()
-            entropy += this_entropy 
             
-        actor_loss = (entropy - Q) * mask    
+            alpha_entropy = self.alphas[key] * new_log_pis_dict[key]
+            alpha_normal_entropy = -self.action_dict[key]["alpha_normal"] * policy_prior_log_prrgbd
+            total_entropy = alpha_entropy + alpha_normal_entropy
+            
+            alpha_entropies[key] = alpha_entropy.mean().item()
+            alpha_normal_entropies[key] = alpha_normal_entropy.mean().item()
+            total_entropies[key] = total_entropy.mean().item()
+            
+            complete_entropy += total_entropy 
+            
+        actor_loss = (complete_entropy - Q) * mask    
         actor_loss = actor_loss.mean() / mask.mean()
         
         self.actor_opt.zero_grad()
@@ -270,7 +279,9 @@ class Agent:
             "accuracy_losses" : accuracy_losses,
             "complexity_losses" : complexity_losses,
             "curiosities" : curiosities,
-            "entropies" : entropies
+            "alpha_entropies" : alpha_entropies,
+            "alpha_normal_entropies" : alpha_normal_entropies,
+            "total_entropies" : total_entropies
             })
                                 
     
