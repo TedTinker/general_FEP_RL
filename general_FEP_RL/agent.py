@@ -237,7 +237,7 @@ class Agent:
             policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
             policy_prior_log_prrgbd = policy_prior.log_prob(flattened_new_action).unsqueeze(-1)
             
-            alpha_entropy = self.alphas[key] * new_log_pis_dict[key]
+            alpha_entropy = -self.alphas[key] * new_log_pis_dict[key]
             alpha_normal_entropy = -self.action_dict[key]["alpha_normal"] * policy_prior_log_prrgbd
             total_entropy = alpha_entropy + alpha_normal_entropy
             
