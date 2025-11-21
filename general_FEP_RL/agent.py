@@ -110,12 +110,6 @@ class Agent:
                 value = self.critics[i](self.hq, self.action) 
                 values.append(value)
                 
-                
-        print("hidden_state std:", torch.std(self.hq))
-        print("encoded_action std:", torch.std(encoded_action['make_image']))
-        print("predicted image std:", torch.std(pred_obs_q['see_image']))
-                
-                
         return {
             "obs" : obs,
             "action" : self.action,
