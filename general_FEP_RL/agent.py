@@ -271,7 +271,7 @@ class Agent:
             "critic_losses" : critic_losses,
             "actor_loss" : actor_loss.item(),
             "alpha_losses" : alpha_losses,
-            "accuracy_losses" : accuracy_loss,
+            "accuracy_losses" : accuracy_losses,
             "complexity_losses" : complexity_losses,
             "curiosities" : curiosities,
             "entropies" : entropies
