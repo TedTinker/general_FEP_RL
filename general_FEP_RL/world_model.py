@@ -292,11 +292,11 @@ class World_Model(nn.Module):
         for key, value in obs.items():    
             episodes, steps = value.shape[0], value.shape[1]
             steps -= 1
-            print(f"{key}:", value.shape)
+            print(f"\t{key}:", value.shape)
             
         print("action:")
         for key, value in prev_action.items():    
-            print(f"{key}:", value.shape)
+            print(f"\t{key}:", value.shape)
                                     
         if(prev_hidden_state == None):
             prev_hidden_state = torch.zeros(episodes, 1, self.hidden_state_size)
@@ -351,7 +351,7 @@ class World_Model(nn.Module):
         print("\npred obs:")
         for key, value in pred_obs_q.items():    
             episodes, steps = value.shape[0], value.shape[1]
-            print(f"{key}:", value.shape)
+            print(f"\t{key}:", value.shape)
         
         return(hidden_state_p, hidden_state_q, catted_inner_state_dict, pred_obs_p, pred_obs_q)
         

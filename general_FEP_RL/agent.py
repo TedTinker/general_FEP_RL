@@ -101,24 +101,22 @@ class Agent:
             self.eval()
             self.hp, self.hq, inner_state_dict, _, _ = self.world_model(
                 self.hq if posterior else self.hp, obs, self.action)
-            action, log_prob = self.actor(self.hq if posterior else self.hp) 
-            encoded_action = self.world_model.action_in(action)
+            self.action, log_prob = self.actor(self.hq if posterior else self.hp) 
+            encoded_action = self.world_model.action_in(self.action)
             pred_obs_p = self.world_model.predict(self.hp, encoded_action)
             pred_obs_q = self.world_model.predict(self.hq, encoded_action)
             
             print("\nreal pred obs:")
             for key, value in pred_obs_q.items():    
-                episodes, steps = value.shape[0], value.shape[1]
                 print(f"{key}:", value.shape)
             
             values = []
             for i in range(len(self.critics)):
-                value = self.critics[i](self.hq, action) 
+                value = self.critics[i](self.hq, self.action) 
                 values.append(value)
-            self.action = action
         return {
             "obs" : obs,
-            "action" : action,
+            "action" : self.action,
             "log_prob" : log_prob,
             "values" : values,
             "inner_state_dict" : inner_state_dict,
