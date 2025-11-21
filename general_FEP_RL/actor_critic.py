@@ -25,7 +25,7 @@ class Actor(nn.Module):
         self.action_dict = nn.ModuleDict()
         for key in action_dict.keys():
             self.action_dict[key] = nn.ModuleDict()
-            self.action_dict[key]["decoder"] = action_dict[key]["decoder"](hidden_state_size, entropy = False, verbose = verbose)
+            self.action_dict[key]["decoder"] = action_dict[key]["decoder"](hidden_state_size, entropy = True, verbose = verbose)
             
         if(verbose):
             pass
