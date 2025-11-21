@@ -342,21 +342,25 @@ class World_Model(nn.Module):
             catted_inner_state_dict[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
             
         print("hidden states:", hidden_state_q.shape)
+        print("encoded actions:", value.shape)
         for key, value in encoded_prev_action.items():    
-            print("encoded actions:", value.shape)
-
+            print(f"\t{key}:", value.shape)
+            
         if(one_step):
-            hidden_state_p = hidden_state_p[:, 1:]
-            hidden_state_q = hidden_state_q[:, 1:]
-            return(hidden_state_p, hidden_state_q, catted_inner_state_dict)
+            return(hidden_state_p[:, 1:], hidden_state_q[:, 1:], catted_inner_state_dict)
         else:
-            pred_obs_p = self.predict(hidden_state_p[:, 1:-1], encoded_prev_action[:, 1:])
-            pred_obs_q = self.predict(hidden_state_q[:, 1:-1], encoded_prev_action[:, 1:])
+            
+            skip_non_action = {}
+            for key, value in encoded_prev_action.items():    
+                skip_non_action[key] = value[:, 1:]
+            
+            pred_obs_p = self.predict(hidden_state_p[:, 1:-1], skip_non_action)
+            pred_obs_q = self.predict(hidden_state_q[:, 1:-1], skip_non_action)
         
             print("\nepoch pred obs:")
             for key, value in pred_obs_q.items():    
                 print(f"\t{key}:", value.shape)
-            return(hidden_state_p, hidden_state_q, catted_inner_state_dict, pred_obs_p, pred_obs_q)
+            return(hidden_state_p[:, 1:], hidden_state_q[:, 1:], catted_inner_state_dict, pred_obs_p, pred_obs_q)
         
         
         
