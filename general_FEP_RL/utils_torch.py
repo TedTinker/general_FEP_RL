@@ -151,19 +151,18 @@ def recurrent_logprob(mu, std):
     if(torch.is_tensor(mu)):
         std = F.softplus(std)
         std = torch.clamp(std, min = exp(-20), max = exp(2))
-        sampled = sample(mu, std)
-        value = torch.tanh(sampled)
-        log_prob = Normal(mu, std).log_prob(sampled) - torch.log(1 - value.pow(2) + 1e-6)
-        log_prob = torch.mean(log_prob, -1).unsqueeze(-1)
-        return(value, log_prob)
+        output = sample(mu, std)
+        log_prob = Normal(mu, std).log_prob(output)
+        log_prob = log_prob.mean(-1).unsqueeze(-1)
+        return(output, log_prob)
     else:
-        values = []
+        outputs = []
         log_probs = []
         for sub_mu, sub_std in zip(mu, std):
-            value, log_prob = recurrent_logprob(sub_mu, sub_std)
-            values.append(value)
+            output, log_prob = recurrent_logprob(sub_mu, sub_std)
+            outputs.append(output)
             log_probs.append(log_prob)
-        return(values, log_probs)
+        return(outputs, log_probs)
 
 
 
@@ -179,9 +178,9 @@ class mu_std(nn.Module):
     def forward(self, x):
         mu = self.mu(x)
         std = self.std(x)
-        value, log_prob = recurrent_logprob(mu, std)
+        output, log_prob = recurrent_logprob(mu, std)
         if(not self.entropy):
-            value = mu
+            output = mu
         if log_prob.ndim > 2:
             log_prob = log_prob.mean(dim=tuple(range(2, log_prob.ndim)))
-        return value, log_prob
+        return output, log_prob
