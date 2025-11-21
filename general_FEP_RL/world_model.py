@@ -286,23 +286,27 @@ class World_Model(nn.Module):
     
     
     
-    def forward(self, prev_hidden_state, obs, prev_action, one_step = False):
-                        
+    def forward(self, prev_hidden_state, obs, prev_action):
+                   
+        print("\nobs:")
         for key, value in obs.items():    
             episodes, steps = value.shape[0], value.shape[1]
-            print("\nobs:", value.shape)
+            steps -= 1
+            print(f"{key}:", value.shape)
             
+        print("action:")
         for key, value in prev_action.items():    
-            print("actions:", value.shape)
+            print(f"{key}:", value.shape)
                                     
         if(prev_hidden_state == None):
             prev_hidden_state = torch.zeros(episodes, 1, self.hidden_state_size)
+        print("hidden:", prev_hidden_state.shape)
             
         encoded_obs = self.obs_in(obs)
         encoded_prev_action = self.action_in(prev_action)
         
-        hidden_states_p_list = [prev_hidden_state]
-        hidden_states_q_list = [prev_hidden_state]
+        hidden_state_p_list = [prev_hidden_state]
+        hidden_state_q_list = [prev_hidden_state]
         inner_state_dict_list = []
                                     
         for step in range(steps):
@@ -315,44 +319,41 @@ class World_Model(nn.Module):
             for key, value in encoded_prev_action.items():
                 step_prev_action[key] = value[:,step].unsqueeze(1)
                                         
-            new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
+            new_hidden_state_p, new_hidden_state_q, inner_state_dict = \
                 self.bottom_to_top_step(prev_hidden_state, step_obs, step_prev_action)
                 
-            prev_hidden_state = new_hidden_states_q
-            hidden_states_p_list.append(new_hidden_states_p)
-            hidden_states_q_list.append(new_hidden_states_q)
+            prev_hidden_state = new_hidden_state_q
+            hidden_state_p_list.append(new_hidden_state_p)
+            hidden_state_q_list.append(new_hidden_state_q)
             inner_state_dict_list.append(inner_state_dict)
                                             
-        hidden_states_p = torch.cat(hidden_states_p_list, dim = 1)
-        hidden_states_q = torch.cat(hidden_states_q_list, dim = 1)
+        hidden_state_p = torch.cat(hidden_state_p_list, dim = 1)
+        hidden_state_q = torch.cat(hidden_state_q_list, dim = 1)
                         
         catted_inner_state_dict = {}
         for key, inner_state_dict in inner_state_dict_list[0].items():
             zp = torch.stack([inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dict_list], dim = 1)
             zq = torch.stack([inner_state_dict[key]["zq"] for inner_state_dict in inner_state_dict_list], dim = 1)
             dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dict_list], dim = 1)
+            print("inner states:")
+            print("\tzp:", zp.shape)
+            print("\tzq:", zq.shape)
+            print("\tdkl:", dkl.shape)
             catted_inner_state_dict[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
             
-        print("hidden states before:", hidden_states_q.shape)
+        print("hidden states:", hidden_state_q.shape)
         for key, value in encoded_prev_action.items():    
-            print("encoded actions before:", value.shape)
-            
-        hidden_states_p = hidden_states_p[:, 1:]
-        hidden_states_q = hidden_states_q[:, 1:]
-        
-        if(not one_step):
-            hidden_states_p = hidden_states_p[:, :-1]
-            hidden_states_q = hidden_states_q[:, :-1]
-            for key, value in encoded_prev_action.items():
-                encoded_prev_action[key] = value[:, 1:]
-            
-        print("hidden states after:", hidden_states_q.shape)
-        for key, value in encoded_prev_action.items():    
-            print("encoded actions after:", value.shape)
+            print("encoded actions:", value.shape)
 
-        pred_obs_p = self.predict(hidden_states_p, encoded_prev_action)
-        pred_obs_q = self.predict(hidden_states_q, encoded_prev_action)
-        return(hidden_states_p, hidden_states_q, catted_inner_state_dict, pred_obs_p, pred_obs_q)
+        pred_obs_p = self.predict(hidden_state_p[:, 1:], encoded_prev_action[:, 1:])
+        pred_obs_q = self.predict(hidden_state_q[:, 1:], encoded_prev_action[:, 1:])
+        
+        print("\npred obs:")
+        for key, value in pred_obs_q.items():    
+            episodes, steps = value.shape[0], value.shape[1]
+            print(f"{key}:", value.shape)
+        
+        return(hidden_state_p, hidden_state_q, catted_inner_state_dict, pred_obs_p, pred_obs_q)
         
         
         

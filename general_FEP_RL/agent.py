@@ -87,10 +87,10 @@ class Agent:
         
         
     def begin(self, batch_size = 1):
-        self.prev_action = {} 
+        self.action = {} 
         for key, value in self.world_model.action_dict.items(): 
             action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
-            self.prev_action[key] = tile_batch_dim(action, batch_size)
+            self.action[key] = tile_batch_dim(action, batch_size)
         self.hp = torch.zeros((batch_size, 1, self.hidden_state_size)) 
         self.hq = torch.zeros((batch_size, 1, self.hidden_state_size))
         
@@ -99,14 +99,23 @@ class Agent:
     def step_in_episode(self, obs, posterior = True):
         with torch.no_grad():
             self.eval()
-            self.hp, self.hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(
-                self.hq if posterior else self.hp, obs, self.prev_action, one_step = True)
+            self.hp, self.hq, inner_state_dict, _, _ = self.world_model(
+                self.hq if posterior else self.hp, obs, self.action)
             action, log_prob = self.actor(self.hq if posterior else self.hp) 
-            self.prev_action = action
+            encoded_action = self.world_model.action_in(action)
+            pred_obs_p = self.world_model.predict(self.hp, encoded_action)
+            pred_obs_q = self.world_model.predict(self.hq, encoded_action)
+            
+            print("\nreal pred obs:")
+            for key, value in pred_obs_q.items():    
+                episodes, steps = value.shape[0], value.shape[1]
+                print(f"{key}:", value.shape)
+            
             values = []
             for i in range(len(self.critics)):
                 value = self.critics[i](self.hq, action) 
                 values.append(value)
+            self.action = action
         return {
             "obs" : obs,
             "action" : action,
