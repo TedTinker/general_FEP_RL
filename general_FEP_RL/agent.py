@@ -142,7 +142,7 @@ class Agent:
         accuracy_losses = {}
         accuracy_loss = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
-            true_obs = obs[key][:, 1:]
+            true_obs = obs[key]
             predicted_obs = pred_obs_q[key]
             loss_func = self.observation_dict[key]["decoder"].loss_func
             scalar = self.observation_dict[key]["accuracy_scalar"]
