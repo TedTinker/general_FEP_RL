@@ -99,7 +99,7 @@ class Agent:
     def step_in_episode(self, obs, posterior = True):
         with torch.no_grad():
             self.eval()
-            self.hp, self.hq, inner_state_dict, _, _ = self.world_model(
+            self.hp, self.hq, inner_state_dict = self.world_model(
                 self.hq if posterior else self.hp, obs, self.action, one_step = True)
             self.action, log_prob = self.actor(self.hq if posterior else self.hp) 
             encoded_action = self.world_model.action_in(self.action)
