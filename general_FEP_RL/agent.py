@@ -224,7 +224,7 @@ class Agent:
             Qs.append(Q)
         Qs_stacked = torch.stack(Qs, dim=0)
         Q, _ = torch.min(Qs_stacked, dim=0)
-        Q = Q.mean(-1).unsqueeze(-1)
+        Q = Q.mean(-1).unsqueeze(-1) / len(self.critics)
         
         alpha_entropies = {}
         alpha_normal_entropies = {}
