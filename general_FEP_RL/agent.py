@@ -100,13 +100,13 @@ class Agent:
         with torch.no_grad():
             self.eval()
             self.hp, self.hq, inner_state_dict, _, _ = self.world_model(
-                self.hq if posterior else self.hp, obs, self.action)
+                self.hq if posterior else self.hp, obs, self.action, one_step = True)
             self.action, log_prob = self.actor(self.hq if posterior else self.hp) 
             encoded_action = self.world_model.action_in(self.action)
             pred_obs_p = self.world_model.predict(self.hp, encoded_action)
             pred_obs_q = self.world_model.predict(self.hq, encoded_action)
             
-            print("\nreal pred obs:")
+            print("\none_steppred obs:")
             for key, value in pred_obs_q.items():    
                 print(f"{key}:", value.shape)
             
