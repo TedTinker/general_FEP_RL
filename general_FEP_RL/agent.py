@@ -106,9 +106,9 @@ class Agent:
             pred_obs_p = self.world_model.predict(self.hp, encoded_action)
             pred_obs_q = self.world_model.predict(self.hq, encoded_action)
             
-            print("one_step pred obs:")
-            for key, value in pred_obs_q.items():    
-                print(f"\t{key}:", value.shape)
+            #print("one_step pred obs:")
+            #for key, value in pred_obs_q.items():    
+            #    print(f"\t{key}:", value.shape)
             
             values = []
             for i in range(len(self.critics)):
@@ -144,8 +144,8 @@ class Agent:
                                     
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
         
-        accuracies = {}
-        accuracy = torch.zeros((1,)).requires_grad_()
+        accuracy_losses = {}
+        accuracy_loss = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
             true_obs = obs[key][:, 1:]
             predicted_obs = pred_obs_q[key]
@@ -153,25 +153,25 @@ class Agent:
             print("pred_obs:", predicted_obs.shape)
             loss_func = self.observation_dict[key]["decoder"].loss_func
             scalar = self.observation_dict[key]["accuracy_scalar"]
-            obs_accuracy = loss_func(true_obs, predicted_obs)
-            obs_accuracy = obs_accuracy.mean(dim=tuple(range(2, obs_accuracy.ndim)))
-            obs_accuracy = obs_accuracy * mask.squeeze(-1) * scalar
-            accuracies[key] = obs_accuracy.mean().item()
-            accuracy = accuracy + obs_accuracy.mean()
+            obs_accuracy_loss = loss_func(true_obs, predicted_obs)
+            obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim)))
+            obs_accuracy_loss = obs_accuracy_loss * mask.squeeze(-1) * scalar
+            accuracy_losses[key] = obs_accuracy_loss.mean().item()
+            accuracy_loss = accuracy_loss + obs_accuracy_loss.mean()
             
-        complexities = {}
-        complexity = torch.zeros((1,)).requires_grad_()
+        complexity_losses = {}
+        complexity_loss = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
             scalar = self.observation_dict[key]["complexity_scalar"]
             inner_state = inner_state_dict[key]
             dkl = inner_state["dkl"].mean(-1).unsqueeze(-1) * complete_mask * scalar
-            complexity = complexity + dkl.mean() * self.observation_dict[key]["beta"]
-            complexities[key] = dkl[:,1:]
+            complexity_loss = complexity_loss + dkl.mean() * self.observation_dict[key]["beta"]
+            complexity_losses[key] = dkl[:,1:]
             
         
                                 
         self.world_model_opt.zero_grad()
-        (accuracy + complexity).backward()
+        (accuracy_loss + complexity_loss).backward()
         self.world_model_opt.step()
                 
 
@@ -181,8 +181,8 @@ class Agent:
         curiosity = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
             eta = self.observation_dict[key]["eta"]
-            obs_curiosity = torch.clamp(complexities[key], min = 0, max = 1) * eta
-            complexities[key] = complexities[key].mean().item()
+            obs_curiosity = torch.clamp(complexity_losses[key], min = 0, max = 1) * eta
+            complexity_losses[key] = complexity_losses[key].mean().item()
             curiosities[key] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
         total_reward = reward + curiosity
@@ -273,8 +273,8 @@ class Agent:
             "critic_losses" : critic_losses,
             "actor_loss" : actor_loss.item(),
             "alpha_losses" : alpha_losses,
-            "accuracies" : accuracies,
-            "complexities" : complexities,
+            "accuracy_losses" : accuracy_loss,
+            "complexity_losses" : complexity_losses,
             "curiosities" : curiosities,
             "entropies" : entropies
             })
