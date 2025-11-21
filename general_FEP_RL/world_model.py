@@ -294,7 +294,7 @@ class World_Model(nn.Module):
             #print(f"\t{key}:", value.shape)
             
         #print("action:")
-        for key, value in prev_action.items():    
+        #for key, value in prev_action.items():    
             #print(f"\t{key}:", value.shape)
                                     
         if(prev_hidden_state == None):
