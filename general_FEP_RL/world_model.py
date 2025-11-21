@@ -350,8 +350,8 @@ class World_Model(nn.Module):
             hidden_state_q = hidden_state_q[:, 1:]
             return(hidden_state_p, hidden_state_q, catted_inner_state_dict)
         else:
-            pred_obs_p = self.predict(hidden_state_p[:, 1:], encoded_prev_action[:, 1:])
-            pred_obs_q = self.predict(hidden_state_q[:, 1:], encoded_prev_action[:, 1:])
+            pred_obs_p = self.predict(hidden_state_p[:, 1:-1], encoded_prev_action[:, 1:])
+            pred_obs_q = self.predict(hidden_state_q[:, 1:-1], encoded_prev_action[:, 1:])
         
             print("\nepoch pred obs:")
             for key, value in pred_obs_q.items():    
