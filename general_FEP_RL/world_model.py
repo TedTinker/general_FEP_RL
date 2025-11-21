@@ -286,7 +286,7 @@ class World_Model(nn.Module):
     
     
     
-    def forward(self, prev_hidden_state, obs, prev_action, one_step):
+    def forward(self, prev_hidden_state, obs, prev_action, one_step = False):
                    
         print("\nobs:")
         for key, value in obs.items():    

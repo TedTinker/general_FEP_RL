@@ -106,9 +106,9 @@ class Agent:
             pred_obs_p = self.world_model.predict(self.hp, encoded_action)
             pred_obs_q = self.world_model.predict(self.hq, encoded_action)
             
-            print("\none_steppred obs:")
+            print("one_step pred obs:")
             for key, value in pred_obs_q.items():    
-                print(f"{key}:", value.shape)
+                print(f"\t{key}:", value.shape)
             
             values = []
             for i in range(len(self.critics)):
