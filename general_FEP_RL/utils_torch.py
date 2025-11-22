@@ -44,6 +44,23 @@ def print_step_in_episode(step_dict):
             elif(type(value) == list):
                 for sub_value in value:
                     print(f"{key}:\t{list(sub_value.shape)}")
+                    
+class Interpolate(nn.Module):
+    def __init__(self, size=None, scale_factor=None, mode='nearest', align_corners=None):
+        super().__init__()
+        self.size = size
+        self.scale_factor = scale_factor
+        self.mode = mode
+        self.align_corners = align_corners
+
+    def forward(self, x):
+        return F.interpolate(
+            x,
+            size=self.size,
+            scale_factor=self.scale_factor,
+            mode=self.mode,
+            align_corners=self.align_corners
+        )
 
 # Calculating Kullback-Leibler divergence.
 def calculate_dkl(mu_1, std_1, mu_2, std_2):
