@@ -158,7 +158,7 @@ class Agent:
             inner_state = inner_state_dict[key]
             dkl = inner_state["dkl"].mean(-1).unsqueeze(-1) * complete_mask
             complexity_loss = complexity_loss + dkl.mean() * self.observation_dict[key]["beta"]
-            complexity_losses[key] = dkl[:,1:]
+            complexity_losses[key] = complexity_loss
             
         
                                 
