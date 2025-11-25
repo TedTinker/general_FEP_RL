@@ -29,8 +29,7 @@ class Agent:
                                             # example_output
                                             # loss_func
                                         # accuracy_scalar
-                                        # complexity_scalar
-                                        # beta
+                                        # beta (complexity scalar)
                                         # eta
             
             action_dict,            # Keys: action_names
@@ -156,9 +155,8 @@ class Agent:
         complexity_losses = {}
         complexity_loss = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
-            scalar = self.observation_dict[key]["complexity_scalar"]
             inner_state = inner_state_dict[key]
-            dkl = inner_state["dkl"].mean(-1).unsqueeze(-1) * complete_mask * scalar
+            dkl = inner_state["dkl"].mean(-1).unsqueeze(-1) * complete_mask
             complexity_loss = complexity_loss + dkl.mean() * self.observation_dict[key]["beta"]
             complexity_losses[key] = dkl[:,1:]
             
