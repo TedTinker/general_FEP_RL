@@ -139,6 +139,7 @@ class Agent:
                                     
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
         
+        # ----- World model: accuracy -----
         accuracy_losses = {}
         accuracy_loss = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
@@ -152,6 +153,7 @@ class Agent:
             accuracy_losses[key] = obs_accuracy_loss.mean().item()
             accuracy_loss = accuracy_loss + obs_accuracy_loss.mean()
             
+        # ----- World model: complexity (KL) -----
         complexity_losses = {}
         complexity_loss = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
@@ -159,16 +161,25 @@ class Agent:
             dkl = inner_state["dkl"].mean(-1).unsqueeze(-1) * complete_mask
             complexity_loss = complexity_loss + dkl.mean() * self.observation_dict[key]["beta"]
             complexity_losses[key] = dkl[:,1:]
-            
         
+        # Per-key KL means BEFORE we overwrite complexity_losses below
+        kl_means = {k: v.mean().item() for k, v in complexity_losses.items()}
+        
+        # World model loss components (for logging)
+        free_energy = accuracy_loss + complexity_loss
+        world_model_parts = {
+            "free_energy": free_energy.detach().item(),
+            "accuracy_loss": accuracy_loss.detach().item(),
+            "complexity_loss": complexity_loss.detach().item(),
+        }
                                 
         self.world_model_opt.zero_grad()
-        (accuracy_loss + complexity_loss).backward()
+        free_energy.backward()
         self.world_model_opt.step()
                 
 
         
-        # Get curiosity  
+        # ----- Curiosity (from KL) -----
         curiosities = {}
         curiosity = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
@@ -178,10 +189,11 @@ class Agent:
             curiosities[key] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
         total_reward = reward + curiosity
+        curiosity_mean = curiosity.mean().item()
 
 
                 
-        # Train critics
+        # ----- Train critics -----
         with torch.no_grad():
             new_action_dict, new_log_pis_dict = self.actor(hq.detach())
             for key, new_log_pis in new_log_pis_dict.items():
@@ -198,22 +210,38 @@ class Agent:
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
                 new_entropy += self.alphas[key] * new_log_pis
-            Q_targets = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy) 
+            Q_targets = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy)
         
+        # Critic metrics
         critic_losses = []
+        critic_td_errors = []
+        
         for i in range(len(self.critics)):
             Q = self.critics[i](hq[:,:-1].detach(), action)
             critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
             critic_losses.append(critic_loss.item())
+            
+            # TD error (per critic, for logging; no grad)
+            with torch.no_grad():
+                td = ((Q.detach() - Q_targets) * mask) ** 2
+                critic_td_errors.append(td.mean().item())
+            
             self.critic_opts[i].zero_grad()
             critic_loss.backward()
             self.critic_opts[i].step()
             for critic_target, critic in zip(self.critic_targets[i].parameters(), self.critics[i].parameters()):
                 critic_target.data.copy_(self.tau*critic.data + (1.0-self.tau)*critic_target.data)
-                                            
+        
+        critic_stats = {
+            "Q_target_mean": Q_targets.mean().item(),
+            "Q_target_std": Q_targets.std().item() if Q_targets.numel() > 1 else 0.0,
+            "reward_mean": reward.mean().item(),
+            "curiosity_mean": curiosity_mean,
+        }     
             
         
-        # Train actor
+        
+        # ----- Train actor -----
         new_action_dict, new_log_pis_dict = self.actor(hq[:,:-1].detach())
         
         Qs = []
@@ -248,39 +276,67 @@ class Agent:
         actor_loss = (complete_entropy - Q) * mask    
         actor_loss = actor_loss.mean() / mask.mean()
         
+        # Decompose actor loss into -Q term and entropy term (masked)
+        with torch.no_grad():
+            Q_term = ((-Q * mask).mean() / mask.mean()).item()
+            entropy_term = ((complete_entropy * mask).mean() / mask.mean()).item()
+        actor_loss_parts = {
+            "Q_term": Q_term,
+            "entropy_term": entropy_term,
+        }
+        
         self.actor_opt.zero_grad()
         actor_loss.backward()
         self.actor_opt.step()
         
             
             
-        # Train alpha
+        # ----- Train alpha (temperature) -----
         alpha_losses = {}
+        avg_log_pis = {}
         _, new_log_pis_dict = self.actor(hq[:,:-1].detach())
         for key, log_pis in new_log_pis_dict.items():
-            alpha_loss = -(self.log_alphas[key] * (log_pis + self.action_dict[key]["target_entropy"]))*mask
+            alpha_loss = -(self.log_alphas[key] * (log_pis + self.action_dict[key]["target_entropy"])) * mask
             alpha_loss = alpha_loss.mean() / mask.mean()
             self.alpha_opt[key].zero_grad()
             alpha_loss.backward()
             self.alpha_opt[key].step()
             self.alphas[key] = torch.exp(self.log_alphas[key])
             alpha_losses[key] = alpha_loss.detach()
+            avg_log_pis[key] = log_pis.mean().item()
+        
+        # Log current alphas as scalars
+        alphas_scalar = {key: float(self.alphas[key]) for key in self.alphas}
+        
             
         
-        
-        return({
+        return {
             "total_reward" : total_reward.mean().item(),
-            "reward" : reward.mean().item(),
             "critic_losses" : critic_losses,
+            "critic_td_errors": critic_td_errors,
+            "critic_stats": critic_stats,
+        
             "actor_loss" : actor_loss.item(),
+            "actor_loss_parts": actor_loss_parts,
+        
             "alpha_losses" : alpha_losses,
-            "accuracy_losses" : accuracy_losses,
-            "complexity_losses" : complexity_losses,
-            "curiosities" : curiosities,
+            "alphas": alphas_scalar,
+            "avg_log_pis": avg_log_pis,
+        
+            "accuracy_losses" : accuracy_losses,      # Per-key
+            "curiosities" : curiosities,              # Per-key
+            "kl_means": kl_means,                     # Per-key
+        
+            "world_model_parts": {
+                "Free Energy": free_energy.item(),       # <- renamed from "total"
+                "accuracy_total": accuracy_loss.item(),
+                "complexity_total": complexity_loss.item(),
+            },
+        
             "alpha_entropies" : alpha_entropies,
             "alpha_normal_entropies" : alpha_normal_entropies,
             "total_entropies" : total_entropies
-            })
+        }
                                 
     
 
