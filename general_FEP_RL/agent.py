@@ -200,6 +200,7 @@ class Agent:
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
                 new_entropy += self.alphas[key] * new_log_pis
+            print("IN EPOCH:", total_reward.shape, done.shape, Q_target_next.shape, new_entropy.shape)
             Q_targets = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy) 
         
         critic_losses = []
