@@ -200,5 +200,4 @@ class mu_std(nn.Module):
             output = mu
         if log_prob.ndim > 2:
             log_prob = log_prob.mean(dim=tuple(range(2, log_prob.ndim))).unsqueeze(-1)
-        print("IN MU_STD:", log_prob.shape)
         return output, log_prob
