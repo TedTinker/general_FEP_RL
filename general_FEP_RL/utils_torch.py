@@ -61,6 +61,21 @@ class Interpolate(nn.Module):
             mode=self.mode,
             align_corners=self.align_corners
         )
+    
+# Add position layers.
+def add_position_layers(x, learned_pos, scale = 1):
+    pos = learned_pos.repeat(x.shape[0], 1, 1, 1)
+    pos = F.interpolate(pos, scale_factor = scale, mode = "bilinear", align_corners = True)
+    x = torch.cat([x, pos], dim = 1)
+    return(x)
+    
+    
+    
+    
+    
+    
+    
+    
 
 # Calculating Kullback-Leibler divergence.
 def calculate_dkl(mu_1, std_1, mu_2, std_2):

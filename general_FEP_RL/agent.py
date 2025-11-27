@@ -311,8 +311,7 @@ if __name__ == "__main__":
     
     
     
-    # This works!
-    """observation_dict = {
+    observation_dict = {
         "see_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
@@ -321,39 +320,6 @@ if __name__ == "__main__":
             "eta" : 1}}
     
     action_dict = {
-        "make_image" : {
-            "encoder" : Encode_Image,
-            "decoder" : Decode_Image,
-            "target_entropy" : 1,
-            "alpha_normal" : 1}}"""
-    
-    
-    
-    # This doesn't!
-    observation_dict = {
-        "see_description" : {
-            "encoder" : Encode_Description,
-            "decoder" : Decode_Description,
-            "accuracy_scalar" : 1,                               
-            "complexity_scalar" : 1,                                 
-            "eta" : 1,
-            "beta" : 1},
-        "see_image" : {
-            "encoder" : Encode_Image,
-            "decoder" : Decode_Image,
-            "accuracy_scalar" : 1,                               
-            "complexity_scalar" : 1,                                 
-            "eta" : 1,
-            "beta" : 1}}
-    
-    action_dict = {
-        "make_description" : {
-            "encoder" : Encode_Description,
-            "decoder" : Decode_Description,
-            "accuracy_scalar" : 1,                               
-            "complexity_scalar" : 1,                                 
-            "eta" : 1,
-            "beta" : 1},
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
