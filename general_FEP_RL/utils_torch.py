@@ -46,12 +46,13 @@ def print_step_in_episode(step_dict):
                     print(f"{key}:\t{list(sub_value.shape)}")
                     
 class Interpolate(nn.Module):
-    def __init__(self, size=None, scale_factor=None, mode='nearest', align_corners=None):
+    def __init__(self, size=None, scale_factor=None, mode='nearest', align_corners=None, antialias=False):
         super().__init__()
         self.size = size
         self.scale_factor = scale_factor
         self.mode = mode
         self.align_corners = align_corners
+        self.antialias = antialias
 
     def forward(self, x):
         return F.interpolate(
@@ -59,7 +60,8 @@ class Interpolate(nn.Module):
             size=self.size,
             scale_factor=self.scale_factor,
             mode=self.mode,
-            align_corners=self.align_corners
+            align_corners=self.align_corners,
+            antialias=self.antialias
         )
     
 # Add position layers.
