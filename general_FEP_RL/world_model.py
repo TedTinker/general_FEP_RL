@@ -235,8 +235,8 @@ class World_Model(nn.Module):
         self.observation_dict = nn.ModuleDict()
         for key in observation_dict.keys():
             self.observation_dict[key] = nn.ModuleDict()
-            self.observation_dict[key]["encoder"] = observation_dict[key]["encoder"](arg_dict = action_dict[key]["arg_dict"], verbose = verbose)
-            self.observation_dict[key]["decoder"] = observation_dict[key]["decoder"](hidden_state_size + encoded_action_size, arg_dict = action_dict[key]["arg_dict"], verbose = verbose)
+            self.observation_dict[key]["encoder"] = observation_dict[key]["encoder"](arg_dict = observation_dict[key]["arg_dict"], verbose = verbose)
+            self.observation_dict[key]["decoder"] = observation_dict[key]["decoder"](hidden_state_size + encoded_action_size, arg_dict = observation_dict[key]["arg_dict"], verbose = verbose)
                
         self.fl = World_Model_Layer(
             hidden_state_size = hidden_state_size,
