@@ -10,7 +10,7 @@ from general_FEP_RL.utils_torch import init_weights, model_start, model_end, mu_
 
 # Encode Image (ei).
 class Encode_Image(nn.Module):
-    def __init__(self, verbose = False):
+    def __init__(self, arg_dict = {}, verbose = False):
         super(Encode_Image, self).__init__()
         
         self.out_features = 64

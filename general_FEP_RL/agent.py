@@ -28,6 +28,7 @@ class Agent:
                                             # example_input
                                             # example_output
                                             # loss_func
+                                        # arg_dict
                                         # accuracy_scalar
                                         # beta (complexity scalar)
                                         # eta
@@ -42,6 +43,7 @@ class Agent:
                                             # example_input
                                             # example_output
                                             # loss_func
+                                        # arg_dict
                                         # target_entropy
                                         # alpha_normal
             
@@ -315,6 +317,7 @@ if __name__ == "__main__":
         "see_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
+            "arg_dict" : {},
             "accuracy_scalar" : 1,                               
             "complexity_scalar" : 1,                                 
             "eta" : 1}}
@@ -323,6 +326,7 @@ if __name__ == "__main__":
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
+            "arg_dict" : {},
             "target_entropy" : 1,
             "alpha_normal" : 1}}
     
