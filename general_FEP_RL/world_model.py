@@ -180,14 +180,14 @@ if __name__ == "__main__":
             }
         }
     
-    fl = World_Model_Layer(
+    wl = World_Model_Layer(
         hidden_state_size = hidden_state_size,
         observation_dict = observation_dict, 
         action_dict = action_dict, 
         time_scale = 1, 
         verbose = True)
     print("\n\n")
-    print(fl)
+    print(wl)
     print()
     
     dummies = generate_dummy_inputs(observation_dict, action_dict, hidden_state_size)
@@ -195,7 +195,7 @@ if __name__ == "__main__":
         
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
-            print(summary(fl, input_data=(dummy_inputs)))
+            print(summary(wl, input_data=(dummy_inputs)))
     #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
     
@@ -238,7 +238,7 @@ class World_Model(nn.Module):
             self.observation_dict[key]["encoder"] = observation_dict[key]["encoder"](arg_dict = observation_dict[key]["arg_dict"], verbose = verbose)
             self.observation_dict[key]["decoder"] = observation_dict[key]["decoder"](hidden_state_size + encoded_action_size, arg_dict = observation_dict[key]["arg_dict"], verbose = verbose)
                
-        self.fl = World_Model_Layer(
+        self.wl = World_Model_Layer(
             hidden_state_size = hidden_state_size,
             observation_dict = self.observation_dict, 
             action_dict = self.action_dict,
@@ -246,6 +246,50 @@ class World_Model(nn.Module):
             verbose = False)
 
         self.apply(init_weights)
+        
+        
+        
+    def summary(self):
+        print("WORLD_MODEL_LAYER")
+        with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+            with record_function("model_inference"):
+                print(summary(
+                    self.wl, 
+                    input_data=(zp_zq.example_zp_start, zp_zq.example_zq_start)))
+        #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+        
+        print("OBSERVATIONS")
+        for key, value in self.observation_dict:
+            print(f"{key} ENCODER")
+            with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+                with record_function("model_inference"):
+                    print(summary(
+                        self.observation_dict[key]["encoder"], 
+                        input_data=(zp_zq.example_zp_start, zp_zq.example_zq_start)))
+            print(f"{key} DECODER")
+            with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+                with record_function("model_inference"):
+                    print(summary(
+                        self.observation_dict[key]["decoder"], 
+                        input_data=(zp_zq.example_zp_start, zp_zq.example_zq_start)))
+            #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+            
+        print("ACTIONS")
+        for key, value in self.action_dict:
+            print(f"{key} ENCODER")
+            with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+                with record_function("model_inference"):
+                    print(summary(
+                        self.action_dict[key]["encoder"], 
+                        input_data=(zp_zq.example_zp_start, zp_zq.example_zq_start)))
+            #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+            print(f"{key} DECODER")
+            with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+                with record_function("model_inference"):
+                    print(summary(
+                        self.action_dict[key]["decoder"], 
+                        input_data=(zp_zq.example_zp_start, zp_zq.example_zq_start)))
+            #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
                 
                 
             
@@ -281,7 +325,7 @@ class World_Model(nn.Module):
     # This was originally made to utilize multiple layers, which is not currently implemented.
     def bottom_to_top_step(self, prev_hidden_states, obs, prev_action):
         new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
-            self.fl(prev_hidden_states, obs, prev_action)       
+            self.wl(prev_hidden_states, obs, prev_action)       
         return(new_hidden_states_p, new_hidden_states_q, inner_state_dict)
     
     
