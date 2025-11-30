@@ -350,5 +350,5 @@ if __name__ == "__main__":
     agent.step_in_episode(dummy_inputs)
         
         
-    agent.epoch(64)
+    agent.world_model.summary()
 # %%
