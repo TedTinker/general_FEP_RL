@@ -348,7 +348,7 @@ class World_Model(nn.Module):
         
     def summary(self):
                 
-        print("WORLD_MODEL_LAYER")
+        print("\nWORLD_MODEL_LAYER")
         dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_size)
         dummy_inputs = dummies["hidden"], dummies["obs_enc_out"], dummies["act_enc_out"]
         with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
@@ -358,9 +358,9 @@ class World_Model(nn.Module):
                     input_data=(dummy_inputs)))
         #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
         
-        print("OBSERVATIONS")
+        print("\n\nOBSERVATIONS")
         for key, value in self.observation_dict.items():
-            print(f"{key} ENCODER")
+            print(f"\n{key} ENCODER")
             with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
                 with record_function("model_inference"):
                     print(summary(
@@ -368,7 +368,7 @@ class World_Model(nn.Module):
                         input_data=(self.observation_dict[key]["encoder"].example_input)))
             #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
                     
-            print(f"{key} DECODER")
+            print(f"\n{key} DECODER")
             with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
                 with record_function("model_inference"):
                     print(summary(
@@ -376,9 +376,9 @@ class World_Model(nn.Module):
                         input_data=(self.observation_dict[key]["decoder"].example_input)))
             #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
             
-        print("ACTIONS")
+        print("\n\nACTIONS")
         for key, value in self.action_dict.items():
-            print(f"{key} ENCODER")
+            print(f"\n{key} ENCODER")
             with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
                 with record_function("model_inference"):
                     print(summary(
@@ -386,7 +386,7 @@ class World_Model(nn.Module):
                         input_data=(self.action_dict[key]["encoder"].example_input)))
             #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
             
-            print(f"{key} DECODER")
+            print(f"\n{key} DECODER")
             with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
                 with record_function("model_inference"):
                     print(summary(
