@@ -259,7 +259,7 @@ class World_Model(nn.Module):
             with record_function("model_inference"):
                 print(summary(
                     self.wl, 
-                    input_data=(zp_zq.example_zp_start, zp_zq.example_zq_start)))
+                    input_data=(dummy_inputs)))
         #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
         
         print("OBSERVATIONS")
@@ -269,13 +269,13 @@ class World_Model(nn.Module):
                 with record_function("model_inference"):
                     print(summary(
                         self.observation_dict[key]["encoder"], 
-                        input_data=(zp_zq.example_zp_start, zp_zq.example_zq_start)))
+                        input_data=(dummy_inputs)))
             print(f"{key} DECODER")
             with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
                 with record_function("model_inference"):
                     print(summary(
                         self.observation_dict[key]["decoder"], 
-                        input_data=(zp_zq.example_zp_start, zp_zq.example_zq_start)))
+                        input_data=(dummy_inputs)))
             #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
             
         print("ACTIONS")
@@ -285,14 +285,14 @@ class World_Model(nn.Module):
                 with record_function("model_inference"):
                     print(summary(
                         self.action_dict[key]["encoder"], 
-                        input_data=(zp_zq.example_zp_start, zp_zq.example_zq_start)))
+                        input_data=(dummy_inputs)))
             #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
             print(f"{key} DECODER")
             with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
                 with record_function("model_inference"):
                     print(summary(
                         self.action_dict[key]["decoder"], 
-                        input_data=(zp_zq.example_zp_start, zp_zq.example_zq_start)))
+                        input_data=(dummy_inputs)))
             #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
                 
                 
