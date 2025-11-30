@@ -1,5 +1,9 @@
 #%%
 
+### TO DO:
+    # The zp_zq output shapes are, I think, not handled correctly.
+    # Make it possible to say exactly how many layers they have, too.
+
 import torch
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal

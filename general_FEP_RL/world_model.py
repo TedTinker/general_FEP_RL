@@ -31,18 +31,10 @@ class ZP_ZQ(nn.Module):
         self.zp_mu = nn.Sequential(
                 nn.Linear(
                     in_features = zp_in_features, 
-                    out_features = zp_in_features),
-                nn.PReLU(),
-                nn.Linear(
-                    in_features = zp_in_features, 
                     out_features = out_features),
                 nn.Tanh())
         
         self.zp_std = nn.Sequential(
-                nn.Linear(
-                    in_features = zp_in_features, 
-                    out_features = zp_in_features),
-                nn.PReLU(),
                 nn.Linear(
                     in_features = zp_in_features, 
                     out_features = out_features),
@@ -52,18 +44,10 @@ class ZP_ZQ(nn.Module):
         self.zq_mu = nn.Sequential(
                 nn.Linear(
                     in_features = zq_in_features, 
-                    out_features = zq_in_features),
-                nn.PReLU(),
-                nn.Linear(
-                    in_features = zq_in_features, 
                     out_features = out_features),
                 nn.Tanh())
         
         self.zq_std = nn.Sequential(
-                nn.Linear(
-                    in_features = zq_in_features, 
-                    out_features = zq_in_features),
-                nn.PReLU(),
                 nn.Linear(
                     in_features = zq_in_features, 
                     out_features = out_features),
