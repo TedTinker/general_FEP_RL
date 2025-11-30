@@ -263,7 +263,7 @@ class World_Model(nn.Module):
         #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
         
         print("OBSERVATIONS")
-        for key, value in self.observation_dict:
+        for key, value in self.observation_dict.items():
             print(f"{key} ENCODER")
             with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
                 with record_function("model_inference"):
@@ -279,7 +279,7 @@ class World_Model(nn.Module):
             #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
             
         print("ACTIONS")
-        for key, value in self.action_dict:
+        for key, value in self.action_dict.items():
             print(f"{key} ENCODER")
             with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
                 with record_function("model_inference"):
