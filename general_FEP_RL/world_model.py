@@ -19,44 +19,62 @@ class ZP_ZQ(nn.Module):
             out_features,       # State size
             verbose = False):
         super(ZP_ZQ, self).__init__()
-        
-        self.out_features = out_features[-1]
                 
-        def build_network(in_features, layer_sizes, final_activation):
-            layers = []
-            current_in_features = in_features
-            num_layers = len(layer_sizes)
-            for i, out_size in enumerate(layer_sizes):
-                layers.append(nn.Linear(current_in_features, out_size))
-                if i < num_layers - 1:
-                    layers.append(nn.PReLU())
-                else:
-                    if final_activation == 'tanh':
-                        layers.append(nn.Tanh())
-                    elif final_activation == 'softplus':
-                        layers.append(nn.Softplus())
-                    else:
-                        raise ValueError("Invalid final_activation specified.")
-                current_in_features = out_size
-            return nn.Sequential(*layers)
-        
+        self.out_features = out_features 
         self.example_zp_start = torch.zeros((32, 16, zp_in_features))
         self.example_zq_start = torch.zeros((32, 16, zq_in_features))
         
         if(verbose):
-            print(f"\nZP_ZQ start: \n \tZP in: {self.example_zp_start.shape}, ZQ in: {self.example_zq_start.shape}")
+            print(f"\nZP_ZQ start: \n \t{self.example_zp_start.shape}, {self.example_zq_start.shape}")
             
-        self.zp_mu = build_network(zp_in_features, out_features, 'tanh')
-        self.zp_std = build_network(zp_in_features, out_features, 'softplus')
-        self.zq_mu = build_network(zq_in_features, out_features, 'tanh')
-        self.zq_std = build_network(zq_in_features, out_features, 'softplus')
+        # Prior: Previous hidden state and action.  
+        self.zp_mu = nn.Sequential(
+                nn.Linear(
+                    in_features = zp_in_features, 
+                    out_features = zp_in_features),
+                nn.PReLU(),
+                nn.Linear(
+                    in_features = zp_in_features, 
+                    out_features = out_features),
+                nn.Tanh())
+        
+        self.zp_std = nn.Sequential(
+                nn.Linear(
+                    in_features = zp_in_features, 
+                    out_features = zp_in_features),
+                nn.PReLU(),
+                nn.Linear(
+                    in_features = zp_in_features, 
+                    out_features = out_features),
+                nn.Softplus())
+        
+        # Posterior: Previous hidden state and action and observation.  
+        self.zq_mu = nn.Sequential(
+                nn.Linear(
+                    in_features = zq_in_features, 
+                    out_features = zq_in_features),
+                nn.PReLU(),
+                nn.Linear(
+                    in_features = zq_in_features, 
+                    out_features = out_features),
+                nn.Tanh())
+        
+        self.zq_std = nn.Sequential(
+                nn.Linear(
+                    in_features = zq_in_features, 
+                    out_features = zq_in_features),
+                nn.PReLU(),
+                nn.Linear(
+                    in_features = zq_in_features, 
+                    out_features = out_features),
+                nn.Softplus())
         
         example_zp_mu, example_zp_std = var(self.example_zp_start, self.zp_mu, self.zp_std)
         example_zq_mu, example_zq_std = var(self.example_zq_start, self.zq_mu, self.zq_std)
         
         if(verbose):
-            print(f"ZP_ZQ end: \n \tZP Mu/Std shape: {example_zp_mu.shape} / {example_zp_std.shape}, \n \tZQ Mu/Std shape: {example_zq_mu.shape} / {example_zq_std.shape}, \n")
-    
+            print(f"ZP_ZQ end: \n \t{example_zp_mu.shape}, {example_zp_std.shape}, \n \t{example_zq_mu.shape}, {example_zq_std.shape}, \n")
+
         self.apply(init_weights)
         
     def forward(self, zp_inputs, zq_inputs):                                    
@@ -73,11 +91,7 @@ class ZP_ZQ(nn.Module):
     
 
 if(__name__ == "__main__"):
-    zp_zq = ZP_ZQ(
-        zp_in_features = 16, 
-        zq_in_features = 32, 
-        out_features = [128, 128], 
-        verbose = True)
+    zp_zq = ZP_ZQ(16, 32, 128, verbose = True)
     print("\n\n")
     print(zp_zq)
     print()
@@ -113,7 +127,7 @@ class World_Model_Layer(nn.Module):
             self.zp_zq_dict[key] = ZP_ZQ(
                 zp_in_features = hidden_state_size + total_action_size, 
                 zq_in_features = hidden_state_size + total_action_size + observation_dict[key]["encoder"].example_output.shape[-1], 
-                out_features = observation_dict[key]["encoder"].arg_dict["out_features"])
+                out_features = observation_dict[key]["encoder"].out_features)
     
         self.mtrnn = MTRNN(
                 input_size = sum(zp_zq.out_features for zp_zq in self.zp_zq_dict.values()),
@@ -165,14 +179,22 @@ if __name__ == "__main__":
     observation_dict = {
         "see_image" : { 
             "encoder" : Encode_Image(verbose = True),
-            "decoder" : Decode_Image(hidden_state_size, verbose = True),                                 
+            "decoder" : Decode_Image(hidden_state_size, verbose = True),
+            "target_entropy" : 1,
+            "accuracy_scaler" : 1,                               
+            "complexity_scaler" : 1,                                 
+            "eta" : 1                                   
             }
         }
     
     action_dict = {
         "make_image" : {
             "encoder" : Encode_Image(verbose = True),
-            "decoder" : Decode_Image(hidden_state_size, entropy = True, verbose = True),                                
+            "decoder" : Decode_Image(hidden_state_size, entropy = True, verbose = True),
+            "target_entropy" : 1,
+            "accuracy_scaler" : 1,                               
+            "complexity_scaler" : 1,                                 
+            "eta" : 1                                   
             }
         }
     
@@ -233,7 +255,7 @@ class World_Model(nn.Module):
             self.observation_dict[key] = nn.ModuleDict()
             self.observation_dict[key]["encoder"] = observation_dict[key]["encoder"](arg_dict = observation_dict[key]["arg_dict"], verbose = verbose)
             self.observation_dict[key]["decoder"] = observation_dict[key]["decoder"](hidden_state_size + encoded_action_size, arg_dict = observation_dict[key]["arg_dict"], verbose = verbose)
-            
+               
         self.wl = World_Model_Layer(
             hidden_state_size = hidden_state_size,
             observation_dict = self.observation_dict, 
@@ -395,14 +417,9 @@ class World_Model(nn.Module):
 if __name__ == "__main__":
     
     observation_dict = {
-        "see_image" : { 
+        "see_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "arg_dict" : {
-                "out_features" : [100, 100]},
-            "accuracy_scaler" : 1,                               
-            "beta" : 1,                                 
-            "eta" : 1                                   
             }
         }
     
@@ -410,11 +427,9 @@ if __name__ == "__main__":
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "arg_dict" : {
-                "out_features" : [100, 100]},
-            "target_entropy" : 1,
-            "alpha_normal" : 1,                                 
-            "eta" : 1                                   
+            "accuracy_scaler" : 1,                               
+            "complexity_scaler" : 1,                                 
+            "eta" : 1  
             }
         }
     

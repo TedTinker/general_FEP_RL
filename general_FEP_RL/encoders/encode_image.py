@@ -10,15 +10,10 @@ from general_FEP_RL.utils_torch import init_weights, model_start, model_end, mu_
 
 # Encode Image (ei).
 class Encode_Image(nn.Module):
-    def __init__(
-            self, 
-            arg_dict = {
-                "encoding_size" : 128,
-                "out_features" : [256]}, 
-            verbose = False):
+    def __init__(self, arg_dict = {}, verbose = False):
         super(Encode_Image, self).__init__()
         
-        self.arg_dict = arg_dict
+        self.out_features = 64
                 
         self.example_input = torch.zeros(1, 1, 28, 28, 1)
         if(verbose):
@@ -53,7 +48,7 @@ class Encode_Image(nn.Module):
         self.b = nn.Sequential(
             nn.Linear(
                 in_features = example.shape[-1],
-                out_features = self.arg_dict["encoding_size"]),
+                out_features = self.out_features),
             nn.PReLU())
                 
         example = self.b(example)
@@ -90,3 +85,14 @@ if(__name__ == "__main__"):
         with record_function("model_inference"):
             print(summary(ei, ei.example_input.shape))
     #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+    
+    
+    
+    example_dict = {
+        "encoder" : ei,
+        "target_entropy" : 1,
+        "accuracy_scaler" : 1,                               
+        "complexity_scaler" : 1,                                 
+        "eta" : 1                                   
+        }
+    

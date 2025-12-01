@@ -10,13 +10,7 @@ from general_FEP_RL.utils_torch import init_weights, model_start, model_end, mu_
 
 # Decode Image (di).
 class Decode_Image(nn.Module):
-    def __init__(
-            self, 
-            hidden_state_size, 
-            encoded_action_size = 0, 
-            entropy = False, 
-            arg_dict = {}, 
-            verbose = False):
+    def __init__(self, hidden_state_size, encoded_action_size = 0, entropy = False, arg_dict = {}, verbose = False):
         super(Decode_Image, self).__init__()
                 
         self.example_input = torch.zeros(32, 16, hidden_state_size + encoded_action_size)
@@ -109,3 +103,14 @@ if(__name__ == "__main__"):
         with record_function("model_inference"):
             print(summary(di, di.example_input.shape))
     #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+    
+    
+    
+    example_dict = {
+        "decoder" : di,
+        "target_entropy" : 1,
+        "accuracy_scaler" : 1,                               
+        "complexity_scaler" : 1,                                 
+        "eta" : 1                                   
+        }
+    
