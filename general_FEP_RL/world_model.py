@@ -150,6 +150,7 @@ class World_Model_Layer(nn.Module):
             inner_states = z_func(zp_inputs, zq_inputs)
             return(inner_states)
                 
+        print(prev_hidden_state.shape, [v.shape for v in encoded_prev_action.values()])
         zp_inputs = torch.cat([prev_hidden_state] + [v for v in encoded_prev_action.values()], dim=-1)
         zq_inputs_dict = {key : torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in encoded_obs.items()}              
         episodes, steps = zp_inputs.shape[0], zp_inputs.shape[1]
@@ -420,6 +421,7 @@ if __name__ == "__main__":
         "see_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
+            "arg_dict" : {}
             }
         }
     
@@ -427,9 +429,7 @@ if __name__ == "__main__":
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "accuracy_scaler" : 1,                               
-            "complexity_scaler" : 1,                                 
-            "eta" : 1  
+            "arg_dict" : {}
             }
         }
     
@@ -445,6 +445,7 @@ if __name__ == "__main__":
     
 
     dummies = generate_dummy_inputs(fm.observation_dict, fm.action_dict, hidden_state_size)
+    dummies["hidden"] = dummies["hidden"][:,0].unsqueeze(1)
     dummy_inputs = dummies["hidden"], dummies["obs_enc_in"], dummies["act_enc_in"]
     
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:

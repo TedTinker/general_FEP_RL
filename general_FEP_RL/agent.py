@@ -312,8 +312,6 @@ if __name__ == "__main__":
     from general_FEP_RL.utils_torch import generate_dummy_inputs
     from general_FEP_RL.encoders.encode_image import Encode_Image
     from general_FEP_RL.decoders.decode_image import Decode_Image
-    from general_FEP_RL.encoders.encode_description import Encode_Description
-    from general_FEP_RL.decoders.decode_description import Decode_Description
     
     
     
