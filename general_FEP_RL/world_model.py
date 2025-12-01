@@ -115,7 +115,7 @@ class World_Model_Layer(nn.Module):
                 zp_zq_sizes = observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"])
     
         self.mtrnn = MTRNN(
-                input_size = sum(zp_zq.zp_zq_sizes for zp_zq in self.zp_zq_dict.values()),
+                input_size = sum(zp_zq.zp_zq_sizes[-1] for zp_zq in self.zp_zq_dict.values()),
                 hidden_size = hidden_state_size, 
                 time_constant = time_scale)
             

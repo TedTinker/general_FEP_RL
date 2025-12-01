@@ -322,7 +322,9 @@ if __name__ == "__main__":
         "see_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "encoder_arg_dict" : {},
+            "encoder_arg_dict" : {                
+                "encode_size" : 128,
+                "zp_zq_sizes" : [128]},
             "decoder_arg_dict" : {},
             "accuracy_scalar" : 1,                               
             "complexity_scalar" : 1,                                 
@@ -332,7 +334,9 @@ if __name__ == "__main__":
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "encoder_arg_dict" : {},
+            "encoder_arg_dict" : {                
+                "encode_size" : 128,
+                "zp_zq_sizes" : [128]},
             "decoder_arg_dict" : {},
             "target_entropy" : 1,
             "alpha_normal" : 1}}
