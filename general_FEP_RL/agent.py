@@ -32,7 +32,7 @@ class Agent:
                                             # example_output
                                             # loss_func
                                         # encoder_arg_dict
-                                            # encoder_size
+                                            # encode_size
                                             # zp_zq_sizes
                                         # decoder_arg_dict
                                         # accuracy_scalar
@@ -49,7 +49,7 @@ class Agent:
                                             # example_output
                                             # loss_func
                                         # encoder_arg_dict
-                                            # encoder_size
+                                            # encode_size
                                             # zp_zq_sizes
                                         # decoder_arg_dict
                                         # target_entropy

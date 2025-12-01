@@ -16,11 +16,11 @@ class ZP_ZQ(nn.Module):
             self, 
             zp_in_features,     # Size of RNN hidden state plus encoded actions
             zq_in_features,     # Size of RNN hidden state plus encoded actions and encoded observations
-            out_features,       # State size
+            zp_zq_sizes,        # State size
             verbose = False):
         super(ZP_ZQ, self).__init__()
                 
-        self.out_features = out_features 
+        self.zp_zq_sizes = zp_zq_sizes 
         self.example_zp_start = torch.zeros((32, 16, zp_in_features))
         self.example_zq_start = torch.zeros((32, 16, zq_in_features))
         
@@ -35,7 +35,7 @@ class ZP_ZQ(nn.Module):
                 nn.PReLU(),
                 nn.Linear(
                     in_features = zp_in_features, 
-                    out_features = out_features),
+                    out_features = zp_zq_sizes),
                 nn.Tanh())
         
         self.zp_std = nn.Sequential(
@@ -45,7 +45,7 @@ class ZP_ZQ(nn.Module):
                 nn.PReLU(),
                 nn.Linear(
                     in_features = zp_in_features, 
-                    out_features = out_features),
+                    out_features = zp_zq_sizes),
                 nn.Softplus())
         
         # Posterior: Previous hidden state and action and observation.  
@@ -56,7 +56,7 @@ class ZP_ZQ(nn.Module):
                 nn.PReLU(),
                 nn.Linear(
                     in_features = zq_in_features, 
-                    out_features = out_features),
+                    out_features = zp_zq_sizes),
                 nn.Tanh())
         
         self.zq_std = nn.Sequential(
@@ -66,7 +66,7 @@ class ZP_ZQ(nn.Module):
                 nn.PReLU(),
                 nn.Linear(
                     in_features = zq_in_features, 
-                    out_features = out_features),
+                    out_features = zp_zq_sizes),
                 nn.Softplus())
         
         example_zp_mu, example_zp_std = var(self.example_zp_start, self.zp_mu, self.zp_std)
@@ -120,13 +120,13 @@ class World_Model_Layer(nn.Module):
             verbose = False):
         super(World_Model_Layer, self).__init__()
                 
-        total_action_size = sum(action_dict[key]["encoder"].example_output.shape[-1] for key in action_dict.keys())
+        total_action_size = sum(action_dict[key]["encoder"].args_dict["encode_size"] for key in action_dict.keys())
 
         self.zp_zq_dict = nn.ModuleDict()
         for key in observation_dict.keys():
             self.zp_zq_dict[key] = ZP_ZQ(
                 zp_in_features = hidden_state_size + total_action_size, 
-                zq_in_features = hidden_state_size + total_action_size + observation_dict[key]["encoder"].example_output.shape[-1], 
+                zq_in_features = hidden_state_size + total_action_size + observation_dict[key]["encoder"].args_dict["encode_size"], 
                 out_features = observation_dict[key]["encoder"].out_features)
     
         self.mtrnn = MTRNN(
