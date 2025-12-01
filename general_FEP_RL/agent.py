@@ -27,13 +27,13 @@ class Agent:
                                         # encoder
                                             # example_input
                                             # example_output
+                                        # encoder_arg_dict
+                                            # encode_size
+                                            # zp_zq_sizes
                                         # decoder
                                             # example_input
                                             # example_output
                                             # loss_func
-                                        # encoder_arg_dict
-                                            # encode_size
-                                            # zp_zq_sizes
                                         # decoder_arg_dict
                                         # accuracy_scalar
                                         # beta (complexity scalar)
@@ -44,13 +44,12 @@ class Agent:
                                         # encoder
                                             # example_input
                                             # example_output
+                                        # encoder_arg_dict
+                                            # encode_size
                                         # decoder
                                             # example_input
                                             # example_output
                                             # loss_func
-                                        # encoder_arg_dict
-                                            # encode_size
-                                            # zp_zq_sizes
                                         # decoder_arg_dict
                                         # target_entropy
                                         # alpha_normal
