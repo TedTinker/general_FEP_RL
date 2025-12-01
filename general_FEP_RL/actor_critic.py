@@ -25,7 +25,7 @@ class Actor(nn.Module):
         self.action_dict = nn.ModuleDict()
         for key in action_dict.keys():
             self.action_dict[key] = nn.ModuleDict()
-            self.action_dict[key]["decoder"] = action_dict[key]["decoder"](hidden_state_size, entropy = True, arg_dict = action_dict[key]["arg_dict"], verbose = verbose)
+            self.action_dict[key]["decoder"] = action_dict[key]["decoder"](hidden_state_size, entropy = True, arg_dict = action_dict[key]["decoder_arg_dict"], verbose = verbose)
             
         if(verbose):
             pass
@@ -61,7 +61,8 @@ if __name__ == "__main__":
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "arg_dict" : {},
+            "encoder_dict" : {},
+            "decoder_arg_dict" : {},
             "accuracy_scaler" : 1,                               
             "complexity_scaler" : 1,                                 
             "eta" : 1  
@@ -102,7 +103,7 @@ class Critic(nn.Module):
         self.action_dict = nn.ModuleDict()
         for key, model in action_dict.items():
             self.action_dict[key] = nn.ModuleDict()
-            self.action_dict[key]["encoder"] = action_dict[key]["encoder"](arg_dict = action_dict[key]["arg_dict"], verbose = verbose)
+            self.action_dict[key]["encoder"] = action_dict[key]["encoder"](arg_dict = action_dict[key]["encoder_arg_dict"], verbose = verbose)
             
         if(verbose):
             pass
@@ -141,7 +142,8 @@ if __name__ == "__main__":
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "arg_dict" : {},
+            "encoder_arg_dict" : {},
+            "decoder_arg_dict" : {},
             "accuracy_scaler" : 1,                               
             "complexity_scaler" : 1,                                 
             "eta" : 1  
