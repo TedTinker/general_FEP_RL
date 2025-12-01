@@ -139,7 +139,7 @@ class World_Model_Layer(nn.Module):
         zq_inputs_dict = {key : torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in encoded_obs.items()}              
         episodes, steps = zp_inputs.shape[0], zp_inputs.shape[1]
 
-        print([f"{key}, {zq_inputs.shape}" for (key, zq_inputs), z_func in zip(zq_inputs_dict.items(), self.zp_zq_dict.values())])     
+        print([f"\n{key}, {zq_inputs.shape}\n{self.zp_zq_dict[key].zq_mu}" for (key, zq_inputs), z_func in zip(zq_inputs_dict.items(), self.zp_zq_dict.values())])     
 
         inner_state_dict = {key : process_z_func_outputs(zp_inputs, zq_inputs, z_func, episodes, steps) for \
                             (key, zq_inputs), z_func in zip(zq_inputs_dict.items(), self.zp_zq_dict.values())}
