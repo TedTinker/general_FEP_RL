@@ -14,7 +14,7 @@ class Encode_Image(nn.Module):
             self, 
             arg_dict = {
                 "encoding_size" : 128,
-                "out_features" : 256}, 
+                "out_features" : [256]}, 
             verbose = False):
         super(Encode_Image, self).__init__()
         

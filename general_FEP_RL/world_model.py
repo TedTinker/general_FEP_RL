@@ -16,7 +16,7 @@ class ZP_ZQ(nn.Module):
             self, 
             zp_in_features,     # Size of RNN hidden state plus encoded actions
             zq_in_features,     # Size of RNN hidden state plus encoded actions and encoded observations
-            out_features,           # State size
+            out_features,       # State size
             verbose = False):
         super(ZP_ZQ, self).__init__()
         
@@ -74,9 +74,9 @@ class ZP_ZQ(nn.Module):
 
 if(__name__ == "__main__"):
     zp_zq = ZP_ZQ(
-        16, 
-        32, 
-        [128, 128], 
+        zp_in_features = 16, 
+        zq_in_features = 32, 
+        out_features = [128, 128], 
         verbose = True)
     print("\n\n")
     print(zp_zq)
@@ -113,7 +113,7 @@ class World_Model_Layer(nn.Module):
             self.zp_zq_dict[key] = ZP_ZQ(
                 zp_in_features = hidden_state_size + total_action_size, 
                 zq_in_features = hidden_state_size + total_action_size + observation_dict[key]["encoder"].example_output.shape[-1], 
-                out_features = observation_dict[key]["arg_dict"]["out_features"])
+                out_features = observation_dict[key]["encoder"].arg_dict["out_features"])
     
         self.mtrnn = MTRNN(
                 input_size = sum(zp_zq.out_features for zp_zq in self.zp_zq_dict.values()),
@@ -165,24 +165,14 @@ if __name__ == "__main__":
     observation_dict = {
         "see_image" : { 
             "encoder" : Encode_Image(verbose = True),
-            "decoder" : Decode_Image(hidden_state_size, verbose = True),
-            "arg_dict" : {
-                "out_features" : [100, 100]},
-            "accuracy_scaler" : 1,                               
-            "beta" : 1,                                 
-            "eta" : 1                                   
+            "decoder" : Decode_Image(hidden_state_size, verbose = True),                                 
             }
         }
     
     action_dict = {
         "make_image" : {
             "encoder" : Encode_Image(verbose = True),
-            "decoder" : Decode_Image(hidden_state_size, entropy = True, verbose = True),
-            "arg_dict" : {
-                "out_features" : [100, 100]},
-            "target_entropy" : 1,
-            "alpha_normal" : 1,                                 
-            "eta" : 1                                   
+            "decoder" : Decode_Image(hidden_state_size, entropy = True, verbose = True),                                
             }
         }
     
