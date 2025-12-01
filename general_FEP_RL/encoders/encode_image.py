@@ -22,7 +22,7 @@ class Encode_Image(nn.Module):
                 
         self.example_input = torch.zeros(1, 1, 28, 28, 1)
         if(verbose):
-            print("\nDI Start:", self.example_input.shape)
+            print("\nEI Start:", self.example_input.shape)
 
         episodes, steps, [example] = model_start([(self.example_input, "cnn")])
         if(verbose): 
