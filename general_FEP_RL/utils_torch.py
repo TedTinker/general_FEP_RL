@@ -72,12 +72,6 @@ def add_position_layers(x, learned_pos, scale = 1):
     return(x)
     
     
-    
-    
-    
-    
-    
-    
 
 # Calculating Kullback-Leibler divergence.
 def calculate_dkl(mu_1, std_1, mu_2, std_2):
