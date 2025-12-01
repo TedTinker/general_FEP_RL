@@ -108,7 +108,7 @@ class Critic(nn.Module):
         if(verbose):
             pass
                     
-        example_full_encoding = sum([self.action_dict[key]["encoder"].out_features for key in self.action_dict.keys()] + [hidden_state_size])
+        example_full_encoding = sum([self.action_dict[key]["encoder"].arg_dict["encode_size"] for key in self.action_dict.keys()] + [hidden_state_size])
         
         if(verbose):
             pass
@@ -142,7 +142,9 @@ if __name__ == "__main__":
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "encoder_arg_dict" : {},
+            "encoder_arg_dict" : {
+                "encode_size" : 128,
+                "zp_zq_sizes" : [128]},
             "decoder_arg_dict" : {},
             "accuracy_scaler" : 1,                               
             "complexity_scaler" : 1,                                 
