@@ -63,9 +63,9 @@ class ZP_ZQ(nn.Module):
         
     def forward(self, zp_inputs, zq_inputs):                                    
         zp_mu, zp_std = var(zp_inputs, self.zp_mu, self.zp_std)
-        zp = zp_mu #sample(zp_mu, zp_std)
+        zp = sample(zp_mu, zp_std)
         zq_mu, zq_std = var(zq_inputs, self.zq_mu, self.zq_std)
-        zq = zq_mu # sample(zq_mu, zq_std)
+        zq = sample(zq_mu, zq_std)
         dkl = calculate_dkl(zp_mu, zp_std, zq_mu, zq_std)
         return({
             "zp" : zp, 
