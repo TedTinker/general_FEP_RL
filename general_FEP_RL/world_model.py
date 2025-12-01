@@ -139,8 +139,6 @@ class World_Model_Layer(nn.Module):
         zq_inputs_dict = {key : torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in encoded_obs.items()}              
         episodes, steps = zp_inputs.shape[0], zp_inputs.shape[1]
 
-        print([f"\n{key}, {zq_inputs.shape}\n{self.zp_zq_dict[key].zq_mu}" for (key, zq_inputs), z_func in zip(zq_inputs_dict.items(), self.zp_zq_dict.values())])     
-
         inner_state_dict = {key : process_z_func_outputs(zp_inputs, zq_inputs, z_func, episodes, steps) for \
                             (key, zq_inputs), z_func in zip(zq_inputs_dict.items(), self.zp_zq_dict.values())}
                 
@@ -251,8 +249,10 @@ class World_Model(nn.Module):
         self.action_dict = nn.ModuleDict()
         for key in action_dict.keys():
             self.action_dict[key] = nn.ModuleDict()
-            self.action_dict[key]["encoder"] = action_dict[key]["encoder"](arg_dict = action_dict[key]["encoder_arg_dict"], verbose = verbose)
-            self.action_dict[key]["decoder"] = action_dict[key]["decoder"](hidden_state_size, entropy = True, arg_dict = action_dict[key]["decoder_arg_dict"], verbose = verbose)
+            self.action_dict[key]["encoder"] = action_dict[key]["encoder"](
+                arg_dict = action_dict[key]["encoder_arg_dict"], verbose = verbose)
+            self.action_dict[key]["decoder"] = action_dict[key]["decoder"](
+                hidden_state_size, entropy = True, arg_dict = action_dict[key]["decoder_arg_dict"], verbose = verbose)
         
         encoded_action_size = 0 
         for key, value in self.action_dict.items():
@@ -261,8 +261,10 @@ class World_Model(nn.Module):
         self.observation_dict = nn.ModuleDict()
         for key in observation_dict.keys():
             self.observation_dict[key] = nn.ModuleDict()
-            self.observation_dict[key]["encoder"] = observation_dict[key]["encoder"](arg_dict = observation_dict[key]["encoder_arg_dict"], verbose = verbose)
-            self.observation_dict[key]["decoder"] = observation_dict[key]["decoder"](hidden_state_size + encoded_action_size, arg_dict = observation_dict[key]["decoder_arg_dict"], verbose = verbose)
+            self.observation_dict[key]["encoder"] = observation_dict[key]["encoder"](
+                arg_dict = observation_dict[key]["encoder_arg_dict"], verbose = verbose)
+            self.observation_dict[key]["decoder"] = observation_dict[key]["decoder"](
+                hidden_state_size + encoded_action_size, arg_dict = observation_dict[key]["decoder_arg_dict"], verbose = verbose)
                
         self.wl = World_Model_Layer(
             hidden_state_size = hidden_state_size,
