@@ -1,8 +1,8 @@
 #%%
 
 ### TO DO:
-    # The zp_zq output shapes are, I think, not handled correctly.
-    # Make it possible to say exactly how many layers they have, too.
+    # Should I have another value for beta and eta?
+    # or include both? (one before clamp, one after)
 
 import torch
 import torch.nn.functional as F
@@ -181,7 +181,8 @@ class Agent:
         curiosities = {}
         curiosity = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
-            obs_curiosity = torch.clamp(complexity_losses[key], min = 0, max = 1) * self.observation_dict[key]["eta"]
+            obs_curiosity = self.observation_dict[key]["eta"] * \
+                torch.clamp(complexity_losses[key] * self.observation_dict[key]["eta_before_clamp"], min = 0, max = 1) 
             complexity_losses[key] = complexity_losses[key].mean().item()
             curiosities[key] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
@@ -327,6 +328,7 @@ if __name__ == "__main__":
             "decoder_arg_dict" : {},
             "accuracy_scalar" : 1,                               
             "complexity_scalar" : 1,                                 
+            "eta_before_clamp" : 1,
             "eta" : 1},
         "see_image_2" : {
             "encoder" : Encode_Image,
@@ -336,7 +338,8 @@ if __name__ == "__main__":
             "decoder" : Decode_Image,
             "decoder_arg_dict" : {},
             "accuracy_scalar" : 1,                               
-            "complexity_scalar" : 1,                                 
+            "complexity_scalar" : 1,  
+            "eta_before_clamp" : 1,                               
             "eta" : 1}}
     
     action_dict = {
