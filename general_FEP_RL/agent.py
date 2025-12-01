@@ -164,8 +164,7 @@ class Agent:
         complexity_losses = {}
         complexity_loss = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
-            inner_state = inner_state_dict[key]
-            dkl = inner_state["dkl"].sum(-1).unsqueeze(-1) * complete_mask
+            dkl = inner_state_dict[key]["dkl"].sum(-1).unsqueeze(-1) * complete_mask
             complexity_loss = complexity_loss + dkl.sum() * self.observation_dict[key]["beta"]
             complexity_losses[key] = complexity_loss
             
@@ -181,8 +180,7 @@ class Agent:
         curiosities = {}
         curiosity = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
-            eta = self.observation_dict[key]["eta"]
-            obs_curiosity = torch.clamp(complexity_losses[key], min = 0, max = 1) * eta
+            obs_curiosity = torch.clamp(complexity_losses[key], min = 0, max = 1) * self.observation_dict[key]["eta"]
             complexity_losses[key] = complexity_losses[key].mean().item()
             curiosities[key] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
@@ -322,8 +320,18 @@ if __name__ == "__main__":
         "see_image" : {
             "encoder" : Encode_Image,
             "encoder_arg_dict" : {                
-                "encode_size" : 128,
-                "zp_zq_sizes" : [128]},
+                "encode_size" : 256,
+                "zp_zq_sizes" : [256]},
+            "decoder" : Decode_Image,
+            "decoder_arg_dict" : {},
+            "accuracy_scalar" : 1,                               
+            "complexity_scalar" : 1,                                 
+            "eta" : 1},
+        "see_image_2" : {
+            "encoder" : Encode_Image,
+            "encoder_arg_dict" : {                
+                "encode_size" : 16,
+                "zp_zq_sizes" : [16]},
             "decoder" : Decode_Image,
             "decoder_arg_dict" : {},
             "accuracy_scalar" : 1,                               

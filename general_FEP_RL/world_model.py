@@ -139,7 +139,10 @@ class World_Model_Layer(nn.Module):
         zq_inputs_dict = {key : torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in encoded_obs.items()}              
         episodes, steps = zp_inputs.shape[0], zp_inputs.shape[1]
 
-        inner_state_dict = {key : process_z_func_outputs(zp_inputs, zq_inputs, z_func, episodes, steps) for (key, zq_inputs), z_func in zip(zq_inputs_dict.items(), self.zp_zq_dict.values())}
+        print([f"{key}, {zq_inputs.shape}" for (key, zq_inputs), z_func in zip(zq_inputs_dict.items(), self.zp_zq_dict.values())])     
+
+        inner_state_dict = {key : process_z_func_outputs(zp_inputs, zq_inputs, z_func, episodes, steps) for \
+                            (key, zq_inputs), z_func in zip(zq_inputs_dict.items(), self.zp_zq_dict.values())}
                 
         mtrnn_inputs_p = torch.cat([inner_state["zp"] for inner_state in inner_state_dict.values()], dim = -1)
         mtrnn_inputs_p = mtrnn_inputs_p.reshape(episodes, steps, mtrnn_inputs_p.shape[1])
@@ -163,8 +166,28 @@ if __name__ == "__main__":
     
     observation_dict = {
         "see_image" : { 
-            "encoder" : Encode_Image(verbose = True),
-            "decoder" : Decode_Image(hidden_state_size, verbose = True),
+            "encoder" : Encode_Image(
+                arg_dict = {
+                    "encode_size" : 128,
+                    "zp_zq_sizes" : [128, 128]}, 
+                verbose = True),
+            "decoder" : Decode_Image(
+                hidden_state_size, 
+                verbose = True),
+            "target_entropy" : 1,
+            "accuracy_scaler" : 1,                               
+            "complexity_scaler" : 1,                                 
+            "eta" : 1                                   
+            },
+        "see_image_2" : { 
+            "encoder" : Encode_Image(
+                arg_dict = {
+                    "encode_size" : 64,
+                    "zp_zq_sizes" : [64, 64]}, 
+                verbose = True),
+            "decoder" : Decode_Image(
+                hidden_state_size, 
+                verbose = True),
             "target_entropy" : 1,
             "accuracy_scaler" : 1,                               
             "complexity_scaler" : 1,                                 
@@ -405,8 +428,16 @@ if __name__ == "__main__":
         "see_image" : {
             "encoder" : Encode_Image,
             "encoder_arg_dict" : {
-                "encode_size" : 128,
-                "zp_zq_sizes" : [128]},
+                "encode_size" : 256,
+                "zp_zq_sizes" : [256]},
+            "decoder" : Decode_Image,
+            "decoder_arg_dict" : {},
+            },
+        "see_image_2" : {
+            "encoder" : Encode_Image,
+            "encoder_arg_dict" : {
+                "encode_size" : 16,
+                "zp_zq_sizes" : [16]},
             "decoder" : Decode_Image,
             "decoder_arg_dict" : {},
             }
