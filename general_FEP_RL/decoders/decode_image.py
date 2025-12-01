@@ -104,13 +104,3 @@ if(__name__ == "__main__"):
             print(summary(di, di.example_input.shape))
     #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
     
-    
-    
-    example_dict = {
-        "decoder" : di,
-        "target_entropy" : 1,
-        "accuracy_scaler" : 1,                               
-        "complexity_scaler" : 1,                                 
-        "eta" : 1                                   
-        }
-    

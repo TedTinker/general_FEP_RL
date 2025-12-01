@@ -27,12 +27,14 @@ class Agent:
                                         # encoder
                                             # example_input
                                             # example_output
-                                            # out_features
                                         # decoder
                                             # example_input
                                             # example_output
                                             # loss_func
-                                        # arg_dict
+                                        # encoder_arg_dict
+                                            # encoder_size
+                                            # zp_zq_sizes
+                                        # decoder_arg_dict
                                         # accuracy_scalar
                                         # beta (complexity scalar)
                                         # eta
@@ -42,12 +44,14 @@ class Agent:
                                         # encoder
                                             # example_input
                                             # example_output
-                                            # out_features
                                         # decoder
                                             # example_input
                                             # example_output
                                             # loss_func
-                                        # arg_dict
+                                        # encoder_arg_dict
+                                            # encoder_size
+                                            # zp_zq_sizes
+                                        # decoder_arg_dict
                                         # target_entropy
                                         # alpha_normal
             
@@ -319,7 +323,8 @@ if __name__ == "__main__":
         "see_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "arg_dict" : {},
+            "encoder_arg_dict" : {},
+            "decoder_arg_dict" : {},
             "accuracy_scalar" : 1,                               
             "complexity_scalar" : 1,                                 
             "eta" : 1}}
@@ -328,7 +333,8 @@ if __name__ == "__main__":
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "arg_dict" : {},
+            "encoder_arg_dict" : {},
+            "decoder_arg_dict" : {},
             "target_entropy" : 1,
             "alpha_normal" : 1}}
     
@@ -339,7 +345,7 @@ if __name__ == "__main__":
         observation_dict = observation_dict,       
         action_dict = action_dict,            
         number_of_critics = 2, 
-        tau = .1,
+        tau = .99,
         lr = .0001,
         weight_decay = .00001,
         gamma = .99,

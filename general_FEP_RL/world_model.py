@@ -244,8 +244,8 @@ class World_Model(nn.Module):
         self.action_dict = nn.ModuleDict()
         for key in action_dict.keys():
             self.action_dict[key] = nn.ModuleDict()
-            self.action_dict[key]["encoder"] = action_dict[key]["encoder"](arg_dict = action_dict[key]["arg_dict"], verbose = verbose)
-            self.action_dict[key]["decoder"] = action_dict[key]["decoder"](hidden_state_size, entropy = True, arg_dict = action_dict[key]["arg_dict"],  verbose = verbose)
+            self.action_dict[key]["encoder"] = action_dict[key]["encoder"](arg_dict = action_dict[key]["encoder_arg_dict"], verbose = verbose)
+            self.action_dict[key]["decoder"] = action_dict[key]["decoder"](hidden_state_size, entropy = True, arg_dict = action_dict[key]["decoder_arg_dict"],  verbose = verbose)
         
         encoded_action_size = 0 
         for key, value in self.action_dict.items():
@@ -254,8 +254,8 @@ class World_Model(nn.Module):
         self.observation_dict = nn.ModuleDict()
         for key in observation_dict.keys():
             self.observation_dict[key] = nn.ModuleDict()
-            self.observation_dict[key]["encoder"] = observation_dict[key]["encoder"](arg_dict = observation_dict[key]["arg_dict"], verbose = verbose)
-            self.observation_dict[key]["decoder"] = observation_dict[key]["decoder"](hidden_state_size + encoded_action_size, arg_dict = observation_dict[key]["arg_dict"], verbose = verbose)
+            self.observation_dict[key]["encoder"] = observation_dict[key]["encoder"](arg_dict = observation_dict[key]["encoder_arg_dict"], verbose = verbose)
+            self.observation_dict[key]["decoder"] = observation_dict[key]["decoder"](hidden_state_size + encoded_action_size, arg_dict = observation_dict[key]["decoder_arg_dict"], verbose = verbose)
                
         self.wl = World_Model_Layer(
             hidden_state_size = hidden_state_size,
@@ -421,7 +421,8 @@ if __name__ == "__main__":
         "see_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "arg_dict" : {}
+            "encoder_arg_dict" : {},
+            "decoder_arg_dict" : {},
             }
         }
     
@@ -429,7 +430,8 @@ if __name__ == "__main__":
         "make_image" : {
             "encoder" : Encode_Image,
             "decoder" : Decode_Image,
-            "arg_dict" : {}
+            "encoder_arg_dict" : {},
+            "decoder_arg_dict" : {},
             }
         }
     
