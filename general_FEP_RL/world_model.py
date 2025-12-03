@@ -296,7 +296,7 @@ class World_Model(nn.Module):
             hidden_state_size = hidden_state_size,
             observation_dict = self.observation_dict, 
             action_dict = self.action_dict,
-            time_scale = 1, 
+            time_scale = time_scales[0], 
             verbose = verbose)
 
         self.apply(init_weights)
