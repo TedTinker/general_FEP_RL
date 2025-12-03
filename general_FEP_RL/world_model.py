@@ -436,7 +436,7 @@ class World_Model(nn.Module):
                 
         print("\nWORLD_MODEL_LAYER")
         dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_size)
-        dummy_inputs = dummies["hidden"], dummies["obs_enc_out"], dummies["act_enc_out"], None
+        dummy_inputs = dummies["hidden"], dummies["obs_enc_out"], dummies["act_enc_out"], 0
         with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
             with record_function("model_inference"):
                 print(summary(
