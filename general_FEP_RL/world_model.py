@@ -101,8 +101,8 @@ class World_Model_Layer(nn.Module):
             hidden_state_size,
             observation_dict, 
             action_dict, 
-            bottom_level = False,
-            top_level = False,
+            bottom_level,
+            top_level,
             time_scale = 1, 
             verbose = False):
         super(World_Model_Layer, self).__init__()
@@ -234,6 +234,8 @@ if __name__ == "__main__":
         hidden_state_size = hidden_state_size,
         observation_dict = observation_dict, 
         action_dict = action_dict, 
+        bottom_level = True,
+        top_level = True,
         time_scale = 1, 
         verbose = True)
     print("\n\n")
@@ -241,7 +243,7 @@ if __name__ == "__main__":
     print()
     
     dummies = generate_dummy_inputs(observation_dict, action_dict, hidden_state_size)
-    dummy_inputs = dummies["hidden"], dummies["obs_enc_out"], dummies["act_enc_out"]
+    dummy_inputs = dummies["hidden"], dummies["obs_enc_out"], dummies["act_enc_out"], 0
         
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
@@ -362,10 +364,10 @@ class World_Model(nn.Module):
     def bottom_to_top_step(self, prev_hidden_states, obs, prev_action):
         new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
             self.wl(
-                prev_hidden_states = prev_hidden_states, 
+                prev_hidden_state = prev_hidden_states, 
                 encoded_obs = obs, 
-                encoded_action = prev_action,
-                higher_hidden_state = None)      
+                encoded_prev_action = prev_action,
+                higher_hidden_state = 0)      
         return(new_hidden_states_p, new_hidden_states_q, inner_state_dict)
     
     
@@ -434,7 +436,7 @@ class World_Model(nn.Module):
                 
         print("\nWORLD_MODEL_LAYER")
         dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_size)
-        dummy_inputs = dummies["hidden"], dummies["obs_enc_out"], dummies["act_enc_out"]
+        dummy_inputs = dummies["hidden"], dummies["obs_enc_out"], dummies["act_enc_out"], None
         with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
             with record_function("model_inference"):
                 print(summary(
@@ -515,6 +517,7 @@ if __name__ == "__main__":
         hidden_state_size = hidden_state_size,
         observation_dict = observation_dict, 
         action_dict = action_dict,
+        time_scales = [1],
         verbose = True)
     print("\n\n")
     print(fm)
@@ -524,7 +527,7 @@ if __name__ == "__main__":
 
     dummies = generate_dummy_inputs(fm.observation_dict, fm.action_dict, hidden_state_size)
     dummies["hidden"] = dummies["hidden"][:,0].unsqueeze(1)
-    dummy_inputs = dummies["hidden"], dummies["obs_enc_in"], dummies["act_enc_in"]
+    dummy_inputs = dummies["hidden"], dummies["obs_enc_in"], dummies["act_enc_in"], 0
     
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function("model_inference"):
