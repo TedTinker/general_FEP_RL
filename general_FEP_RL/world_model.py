@@ -107,9 +107,6 @@ class World_Model_Layer(nn.Module):
             verbose = False):
         super(World_Model_Layer, self).__init__()
                 
-        # Action should be used ONLY if lower_level = False
-        # If bottom_level = False, lower zq should replace observations.
-        # If top_level = False, MTRNN should include higher hidden state.
         if(bottom_level):
             total_action_size = sum(action_dict[key]["encoder"].arg_dict["encode_size"] for key in action_dict.keys())
         else:
@@ -121,7 +118,7 @@ class World_Model_Layer(nn.Module):
                 zp_zq_size = observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"]
                 obs_size = observation_dict[key]["encoder"].arg_dict["encode_size"]
             else:
-                zp_zq_size = hidden_state_size
+                zp_zq_size = hidden_state_size # NOT QUITE RIGHT! It should be the zp_zq_size for the lower level, may not be hidden_size.
                 obs_size = hidden_state_size
 
             self.zp_zq_dict[key] = ZP_ZQ(
@@ -129,8 +126,12 @@ class World_Model_Layer(nn.Module):
                 zq_in_features = hidden_state_size + total_action_size + obs_size, 
                 zp_zq_sizes = zp_zq_size)
     
+        if(top_level):
+            higher_hidden_state_size = 0
+        else:
+            higher_hidden_state_size = hidden_state_size
         self.mtrnn = MTRNN(
-                input_size = sum(zp_zq.zp_zq_sizes[-1] for zp_zq in self.zp_zq_dict.values()),
+                input_size = sum(zp_zq.zp_zq_sizes[-1] for zp_zq in self.zp_zq_dict.values()) + higher_hidden_state_size,
                 hidden_size = hidden_state_size, 
                 time_constant = time_scale)
             
@@ -138,7 +139,17 @@ class World_Model_Layer(nn.Module):
         
         
             
-    def forward(self, prev_hidden_state, encoded_obs, encoded_prev_action):
+    # Action should be used ONLY if bottom_level = True.
+    # If bottom_level = False, lower zq should replace observations.
+    # If top_level = False, MTRNN should include higher hidden state.
+    
+    def forward(
+            self, 
+            prev_hidden_state, 
+            encoded_obs, 
+            encoded_prev_action,
+            higher_hidden_state,
+            ):
         
         def reshape(inputs, episodes, steps):
             inputs = inputs.reshape(episodes * steps, inputs.shape[2])
@@ -350,7 +361,11 @@ class World_Model(nn.Module):
     # This was originally made to utilize multiple layers, which is not currently implemented.
     def bottom_to_top_step(self, prev_hidden_states, obs, prev_action):
         new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
-            self.wl(prev_hidden_states, obs, prev_action)       
+            self.wl(
+                prev_hidden_states = prev_hidden_states, 
+                encoded_obs = obs, 
+                encoded_action = prev_action,
+                higher_hidden_state = None)      
         return(new_hidden_states_p, new_hidden_states_q, inner_state_dict)
     
     
