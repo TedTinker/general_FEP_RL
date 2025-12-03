@@ -54,6 +54,8 @@ class Agent:
                                         # target_entropy
                                         # alpha_normal
             
+            time_scales = [1],
+            
             number_of_critics = 2, 
             tau = .1,
             
@@ -67,7 +69,7 @@ class Agent:
         self.action_dict = action_dict
         self.hidden_state_size = hidden_state_size
 
-        self.world_model = World_Model(hidden_state_size, observation_dict, action_dict)
+        self.world_model = World_Model(hidden_state_size, observation_dict, action_dict, time_scales)
         self.world_model_opt = optim.Adam(self.world_model.parameters(), lr = lr, weight_decay = weight_decay)
                            
         self.actor = Actor(hidden_state_size, action_dict)
@@ -108,6 +110,7 @@ class Agent:
         with torch.no_grad():
             self.eval()
             # THIS SEEMS TO CARE ABOUT THE ORDER OF OBSERVATIONS!
+            # I believe this is because of making lists with .keys, .values, or .items
             self.hp, self.hq, inner_state_dict = self.world_model(
                 self.hq if posterior else self.hp, obs, self.action, one_step = True)
             self.action, log_prob = self.actor(self.hq if posterior else self.hp) 

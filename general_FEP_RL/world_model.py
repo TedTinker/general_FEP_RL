@@ -101,6 +101,8 @@ class World_Model_Layer(nn.Module):
             hidden_state_size,
             observation_dict, 
             action_dict, 
+            lower_level = False,
+            higher_level = False,
             time_scale = 1, 
             verbose = False):
         super(World_Model_Layer, self).__init__()
@@ -240,6 +242,7 @@ class World_Model(nn.Module):
             hidden_state_size,
             observation_dict, 
             action_dict,
+            time_scales,
             verbose = False):
         super(World_Model, self).__init__()
                 
@@ -266,12 +269,35 @@ class World_Model(nn.Module):
             self.observation_dict[key]["decoder"] = observation_dict[key]["decoder"](
                 hidden_state_size + encoded_action_size, arg_dict = observation_dict[key]["decoder_arg_dict"], verbose = verbose)
                
+        self.world_layers = nn.ModuleList()
+        for i, time_scale in enumerate(time_scales):
+            if(i == 0):
+                self.world_layers.append(
+                    World_Model_Layer(
+                        hidden_state_size = hidden_state_size,      
+                        observation_dict = self.observation_dict,   
+                        action_dict = self.action_dict,            
+                        lower_level = False,
+                        higher_level = len(time_scales) > 1,         # This should include higher-level hidden state.
+                        time_scale = time_scale, 
+                        verbose = verbose))
+            else:
+                self.world_layers.append(
+                    World_Model_Layer(
+                        hidden_state_size = hidden_state_size,      
+                        observation_dict = self.observation_dict,   # This should be lower-level q-value.
+                        action_dict = self.action_dict,             # This should be gone.
+                        lower_level = True,
+                        higher_level = len(time_scales) > i,        # This should include higher-level hidden state.
+                        time_scale = time_scale, 
+                        verbose = verbose))
+        
         self.wl = World_Model_Layer(
             hidden_state_size = hidden_state_size,
             observation_dict = self.observation_dict, 
             action_dict = self.action_dict,
             time_scale = 1, 
-            verbose = False)
+            verbose = verbose)
 
         self.apply(init_weights)
                 
