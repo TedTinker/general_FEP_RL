@@ -101,20 +101,33 @@ class World_Model_Layer(nn.Module):
             hidden_state_size,
             observation_dict, 
             action_dict, 
-            lower_level = False,
-            higher_level = False,
+            bottom_level = False,
+            top_level = False,
             time_scale = 1, 
             verbose = False):
         super(World_Model_Layer, self).__init__()
                 
-        total_action_size = sum(action_dict[key]["encoder"].arg_dict["encode_size"] for key in action_dict.keys())
+        # Action should be used ONLY if lower_level = False
+        # If bottom_level = False, lower zq should replace observations.
+        # If top_level = False, MTRNN should include higher hidden state.
+        if(bottom_level):
+            total_action_size = sum(action_dict[key]["encoder"].arg_dict["encode_size"] for key in action_dict.keys())
+        else:
+            total_action_size = 0
 
         self.zp_zq_dict = nn.ModuleDict()
         for key in observation_dict.keys():
+            if(bottom_level):
+                zp_zq_size = observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"]
+                obs_size = observation_dict[key]["encoder"].arg_dict["encode_size"]
+            else:
+                zp_zq_size = hidden_state_size
+                obs_size = hidden_state_size
+
             self.zp_zq_dict[key] = ZP_ZQ(
                 zp_in_features = hidden_state_size + total_action_size, 
-                zq_in_features = hidden_state_size + total_action_size + observation_dict[key]["encoder"].arg_dict["encode_size"], 
-                zp_zq_sizes = observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"])
+                zq_in_features = hidden_state_size + total_action_size + obs_size, 
+                zp_zq_sizes = zp_zq_size)
     
         self.mtrnn = MTRNN(
                 input_size = sum(zp_zq.zp_zq_sizes[-1] for zp_zq in self.zp_zq_dict.values()),
@@ -277,18 +290,18 @@ class World_Model(nn.Module):
                         hidden_state_size = hidden_state_size,      
                         observation_dict = self.observation_dict,   
                         action_dict = self.action_dict,            
-                        lower_level = False,
-                        higher_level = len(time_scales) > 1,         # This should include higher-level hidden state.
+                        bottom_level = True,
+                        top_level = i + 1 == len(time_scales),      
                         time_scale = time_scale, 
                         verbose = verbose))
             else:
                 self.world_layers.append(
                     World_Model_Layer(
                         hidden_state_size = hidden_state_size,      
-                        observation_dict = self.observation_dict,   # This should be lower-level q-value.
-                        action_dict = self.action_dict,             # This should be gone.
-                        lower_level = True,
-                        higher_level = len(time_scales) > i,        # This should include higher-level hidden state.
+                        observation_dict = self.observation_dict,   
+                        action_dict = self.action_dict,            
+                        bottom_level = False,
+                        top_level = i + 1 == len(time_scales),       
                         time_scale = time_scale, 
                         verbose = verbose))
         
@@ -296,6 +309,8 @@ class World_Model(nn.Module):
             hidden_state_size = hidden_state_size,
             observation_dict = self.observation_dict, 
             action_dict = self.action_dict,
+            bottom_level = True,
+            top_level = True,
             time_scale = time_scales[0], 
             verbose = verbose)
 
