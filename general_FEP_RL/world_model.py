@@ -289,15 +289,15 @@ class World_Model(nn.Module):
     
     def __init__(
             self, 
-            hidden_state_size,
+            hidden_state_sizes,
             observation_dict, 
             action_dict,
             time_scales,
             verbose = False):
         super(World_Model, self).__init__()
                 
-        self.hidden_state_size = hidden_state_size 
-        self.example_input = torch.zeros((32, 16, hidden_state_size))
+        self.hidden_state_sizes = hidden_state_sizes
+        self.example_input = [torch.zeros((32, 16, hidden_state_size)) for hidden_state_size in hidden_state_sizes]
         
         self.action_dict = nn.ModuleDict()
         for key in action_dict.keys():
@@ -324,17 +324,17 @@ class World_Model(nn.Module):
         for i, time_scale in enumerate(time_scales):
             self.world_layers.append(
                 World_Model_Layer(
-                    hidden_state_size = hidden_state_size,      
+                    hidden_state_size = hidden_state_sizes[0],      
                     observation_dict = self.observation_dict if i == 0 else None,   
                     action_dict = self.action_dict if i == 0 else None,            
                     bottom_level = i == 0,
                     top_level = i + 1 == len(time_scales), 
-                    lower_zp_zq_size = 0 if i == 0 else first_level_zp_zq_size if i == 1 else hidden_state_size,
+                    lower_zp_zq_size = 0 if i == 0 else first_level_zp_zq_size if i == 1 else hidden_state_sizes[0],
                     time_scale = time_scale, 
                     verbose = verbose))
         
         self.wl = World_Model_Layer(
-            hidden_state_size = hidden_state_size,
+            hidden_state_size = hidden_state_sizes[0],
             observation_dict = self.observation_dict, 
             action_dict = self.action_dict,
             bottom_level = True,
@@ -534,7 +534,7 @@ if __name__ == "__main__":
         }
     
     fm = World_Model(            
-        hidden_state_size = hidden_state_size,
+        hidden_state_sizes = [hidden_state_size],
         observation_dict = observation_dict, 
         action_dict = action_dict,
         time_scales = [1],
