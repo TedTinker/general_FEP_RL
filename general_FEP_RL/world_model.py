@@ -305,7 +305,7 @@ class World_Model(nn.Module):
             self.action_dict[key]["encoder"] = action_dict[key]["encoder"](
                 arg_dict = action_dict[key]["encoder_arg_dict"], verbose = verbose)
             self.action_dict[key]["decoder"] = action_dict[key]["decoder"](
-                hidden_state_size, entropy = True, arg_dict = action_dict[key]["decoder_arg_dict"], verbose = verbose)
+                hidden_state_sizes[0], entropy = True, arg_dict = action_dict[key]["decoder_arg_dict"], verbose = verbose)
         
         encoded_action_size = 0 
         for key, value in self.action_dict.items():
