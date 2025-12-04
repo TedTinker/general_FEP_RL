@@ -101,8 +101,8 @@ class Agent:
         for key, value in self.world_model.action_dict.items(): 
             action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             self.action[key] = tile_batch_dim(action, batch_size)
-        self.hp = [torch.zeros((batch_size, 1, hidden_state_size)) for hidden_state_size in self.hidden_state_sizes]
-        self.hq = [torch.zeros((batch_size, 1, hidden_state_size)) for hidden_state_size in self.hidden_state_sizes]
+        self.hp = [torch.zeros((batch_size, 1, hidden_state_size)) for hidden_state_size in self.hidde]
+        self.hq = [torch.zeros((batch_size, 1, hidden_state_size))]
         
         
     
@@ -359,7 +359,7 @@ if __name__ == "__main__":
     
     
     agent = Agent(
-        hidden_state_sizes = [128],
+        hidden_state_size = 128,
         observation_dict = observation_dict,       
         action_dict = action_dict,            
         number_of_critics = 2, 
@@ -370,7 +370,7 @@ if __name__ == "__main__":
         capacity = 128, 
         max_steps = 32)
     
-    dummies = generate_dummy_inputs(agent.world_model.observation_dict, agent.world_model.action_dict, agent.hidden_state_sizes, batch=1, steps=1)
+    dummies = generate_dummy_inputs(agent.world_model.observation_dict, agent.world_model.action_dict, agent.hidden_state_size, batch=1, steps=1)
     dummy_inputs = dummies["obs_enc_in"]
         
     agent.step_in_episode(dummy_inputs)
