@@ -297,9 +297,9 @@ class World_Model(nn.Module):
                 hidden_state_size + encoded_action_size, arg_dict = observation_dict[key]["decoder_arg_dict"], verbose = verbose)
                
         self.world_layers = nn.ModuleList()
-        first_level_zp_zq_size = 0
+        first_level_zp_zq_size = [0]
         for key in observation_dict.keys():
-            first_level_zp_zq_size += self.observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"][-1]
+            first_level_zp_zq_size[0] += self.observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"][-1]
         for i, time_scale in enumerate(time_scales):
             self.world_layers.append(
                 World_Model_Layer(
