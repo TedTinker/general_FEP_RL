@@ -93,6 +93,9 @@ if(__name__ == "__main__"):
 
 
 
+# Maybe we should do this with two models: bottem-up, top-down.
+
+
 # Making prior and posterior inner states for each portion of the sensation.
 class World_Model_Layer(nn.Module):
     
@@ -137,19 +140,13 @@ class World_Model_Layer(nn.Module):
         self.apply(init_weights)
         
         
-            
-    # Action should be used ONLY if bottom_level = True.
-    # If bottom_level = False, lower zq should replace observations.
-    # If top_level = False, MTRNN should include higher hidden state.
-    
-    def forward(
-            self, 
+        
+        
+    def bottom_up(
+            self,
             prev_hidden_state, 
             encoded_obs = None, 
-            encoded_prev_action = None,
-            higher_hidden_state = None,
-            lower_zp_zq = None,
-            ):
+            encoded_prev_action = None):
         
         def reshape(inputs, episodes, steps):
             inputs = inputs.reshape(episodes * steps, inputs.shape[2])
@@ -172,11 +169,38 @@ class World_Model_Layer(nn.Module):
         mtrnn_inputs_p = mtrnn_inputs_p.reshape(episodes, steps, mtrnn_inputs_p.shape[1])
 
         mtrnn_inputs_q = torch.cat([inner_state["zq"] for inner_state in inner_state_dict.values()], dim = -1)
-        mtrnn_inputs_q = mtrnn_inputs_q.reshape(episodes, steps, mtrnn_inputs_q.shape[1])
+        mtrnn_inputs_q = mtrnn_inputs_q.reshape(episodes, steps, mtrnn_inputs_q.shape[1]) 
         
-        new_hidden_state_p = self.mtrnn(mtrnn_inputs_p, prev_hidden_state)
-        new_hidden_state_q = self.mtrnn(mtrnn_inputs_q, prev_hidden_state)
+        return(mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict)
+    
+    
+    
+    def top_down(
+            self,
+            inputs_p,
+            inputs_q,
+            prev_hidden_state):
         
+        new_hidden_state_p = self.mtrnn(inputs_p, prev_hidden_state)
+        new_hidden_state_q = self.mtrnn(inputs_q, prev_hidden_state)
+        return(new_hidden_state_p, new_hidden_state_q)
+        
+        
+            
+    # Action should be used ONLY if bottom_level = True.
+    # If bottom_level = False, lower zq should replace observations.
+    # If top_level = False, MTRNN should include higher hidden state.
+    
+    def forward(
+            self, 
+            prev_hidden_state, 
+            encoded_obs = None, 
+            encoded_prev_action = None,
+            higher_hidden_state = None,
+            lower_zp_zq = None
+            ):
+        mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.bottom_up(prev_hidden_state, encoded_obs, encoded_prev_action)
+        new_hidden_state_p, new_hidden_state_q = self.top_down(mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_state)
         return(new_hidden_state_p, new_hidden_state_q, inner_state_dict)
         
         
@@ -356,6 +380,10 @@ class World_Model(nn.Module):
         
         for i in range(len(prev_hidden_states)):
             print("hidden state", i)
+            
+        # Go UP, making zp zqs. 
+        
+        # Go DOWN, making hidden states.
         
         new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
             self.wl(
