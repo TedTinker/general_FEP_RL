@@ -122,8 +122,8 @@ class World_Model_Layer(nn.Module):
         else:
             self.zp_zq_dict["zq"] = ZP_ZQ(
                 zp_in_features = hidden_state_size, 
-                zq_in_features = hidden_state_size + lower_zp_zq_size, 
-                zp_zq_sizes = hidden_state_size)
+                zq_in_features = hidden_state_size + lower_zp_zq_size[0], 
+                zp_zq_sizes = [hidden_state_size])
     
         if(top_level):
             higher_hidden_state_size = 0
