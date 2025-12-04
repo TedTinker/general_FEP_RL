@@ -297,33 +297,20 @@ class World_Model(nn.Module):
                 hidden_state_size + encoded_action_size, arg_dict = observation_dict[key]["decoder_arg_dict"], verbose = verbose)
                
         self.world_layers = nn.ModuleList()
+        first_level_zp_zq_size = 0
+        for key in observation_dict.keys():
+            first_level_zp_zq_size += self.observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"][-1]
         for i, time_scale in enumerate(time_scales):
-            if(i == 0):
-                zp_zq_size = 0
-                for key in observation_dict.keys():
-                    zp_zq_size += self.observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"][-1]
-                self.world_layers.append(
-                    World_Model_Layer(
-                        hidden_state_size = hidden_state_size,      
-                        observation_dict = self.observation_dict,   
-                        action_dict = self.action_dict,            
-                        bottom_level = True,
-                        top_level = i + 1 == len(time_scales), 
-                        lower_zp_zq_size = None,
-                        time_scale = time_scale, 
-                        verbose = verbose))
-            else:
-                self.world_layers.append(
-                    World_Model_Layer(
-                        hidden_state_size = hidden_state_size,      
-                        observation_dict = None,   
-                        action_dict = None,            
-                        bottom_level = False,
-                        top_level = i + 1 == len(time_scales),   
-                        lower_zp_zq_size = zp_zq_size,
-                        time_scale = time_scale, 
-                        verbose = verbose))
-                zp_zq_size = hidden_state_size
+            self.world_layers.append(
+                World_Model_Layer(
+                    hidden_state_size = hidden_state_size,      
+                    observation_dict = self.observation_dict if i == 0 else None,   
+                    action_dict = self.action_dict if i == 0 else None,            
+                    bottom_level = i == 0,
+                    top_level = i + 1 == len(time_scales), 
+                    lower_zp_zq_size = 0 if i == 0 else first_level_zp_zq_size if i == 1 else hidden_state_size,
+                    time_scale = time_scale, 
+                    verbose = verbose))
         
         self.wl = World_Model_Layer(
             hidden_state_size = hidden_state_size,
