@@ -317,7 +317,7 @@ class World_Model(nn.Module):
             self.observation_dict[key]["encoder"] = observation_dict[key]["encoder"](
                 arg_dict = observation_dict[key]["encoder_arg_dict"], verbose = verbose)
             self.observation_dict[key]["decoder"] = observation_dict[key]["decoder"](
-                hidden_state_size + encoded_action_size, arg_dict = observation_dict[key]["decoder_arg_dict"], verbose = verbose)
+                hidden_state_sizes[0] + encoded_action_size, arg_dict = observation_dict[key]["decoder_arg_dict"], verbose = verbose)
                
         self.world_layers = nn.ModuleList()
         first_level_zp_zq_size = sum(self.observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"][-1] for key in self.observation_dict.keys())
