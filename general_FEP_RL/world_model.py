@@ -354,7 +354,7 @@ class World_Model(nn.Module):
     # This was originally made to utilize multiple layers, which is not currently implemented.
     def bottom_to_top_step(self, prev_hidden_states, obs, prev_action):
         
-        for i in len(prev_hidden_states):
+        for i in range(len(prev_hidden_states)):
             print("hidden state", i)
         
         new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
