@@ -103,28 +103,29 @@ class World_Model_Layer(nn.Module):
             action_dict, 
             bottom_level,
             top_level,
+            lower_zp_zq_size = None,
             time_scale = 1, 
             verbose = False):
         super(World_Model_Layer, self).__init__()
-                
-        if(bottom_level):
-            total_action_size = sum(action_dict[key]["encoder"].arg_dict["encode_size"] for key in action_dict.keys())
-        else:
-            total_action_size = 0
 
         self.zp_zq_dict = nn.ModuleDict()
-        for key in observation_dict.keys():
-            if(bottom_level):
+        if(bottom_level):
+            total_action_size = sum(action_dict[key]["encoder"].arg_dict["encode_size"] for key in action_dict.keys())
+            for key in observation_dict.keys():
                 zp_zq_size = observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"]
                 obs_size = observation_dict[key]["encoder"].arg_dict["encode_size"]
-            else:
-                zp_zq_size = hidden_state_size # NOT QUITE RIGHT! It should be the zp_zq_size for the lower level, may not be hidden_size.
-                obs_size = hidden_state_size
 
-            self.zp_zq_dict[key] = ZP_ZQ(
-                zp_in_features = hidden_state_size + total_action_size, 
-                zq_in_features = hidden_state_size + total_action_size + obs_size, 
-                zp_zq_sizes = zp_zq_size)
+                self.zp_zq_dict[key] = ZP_ZQ(
+                    zp_in_features = hidden_state_size + total_action_size, 
+                    zq_in_features = hidden_state_size + total_action_size + obs_size, 
+                    zp_zq_sizes = zp_zq_size)
+        else:
+            if(lower_zp_zq_size == None):
+                lower_zp_zq_size = hidden_state_size,
+            self.zp_zq_dict["zq"] = ZP_ZQ(
+                zp_in_features = hidden_state_size, 
+                zq_in_features = hidden_state_size + lower_zp_zq_size, 
+                zp_zq_sizes = hidden_state_size)
     
         if(top_level):
             higher_hidden_state_size = 0
@@ -298,25 +299,31 @@ class World_Model(nn.Module):
         self.world_layers = nn.ModuleList()
         for i, time_scale in enumerate(time_scales):
             if(i == 0):
+                zp_zq_size = 0
+                for key in observation_dict.keys():
+                    zp_zq_size += self.observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"][-1]
                 self.world_layers.append(
                     World_Model_Layer(
                         hidden_state_size = hidden_state_size,      
                         observation_dict = self.observation_dict,   
                         action_dict = self.action_dict,            
                         bottom_level = True,
-                        top_level = i + 1 == len(time_scales),      
+                        top_level = i + 1 == len(time_scales), 
+                        lower_zp_zq_size = None,
                         time_scale = time_scale, 
                         verbose = verbose))
             else:
                 self.world_layers.append(
                     World_Model_Layer(
                         hidden_state_size = hidden_state_size,      
-                        observation_dict = self.observation_dict,   
-                        action_dict = self.action_dict,            
+                        observation_dict = None,   
+                        action_dict = None,            
                         bottom_level = False,
-                        top_level = i + 1 == len(time_scales),       
+                        top_level = i + 1 == len(time_scales),   
+                        lower_zp_zq_size = zp_zq_size,
                         time_scale = time_scale, 
                         verbose = verbose))
+                zp_zq_size = hidden_state_size
         
         self.wl = World_Model_Layer(
             hidden_state_size = hidden_state_size,
