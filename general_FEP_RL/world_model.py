@@ -104,15 +104,15 @@ class World_Model_Layer(nn.Module):
             hidden_state_size,
             observation_dict, 
             action_dict, 
-            bottom_level,
-            top_level,
+            bottom_layer,
+            top_layer,
             lower_zp_zq_size = None,
             time_scale = 1, 
             verbose = False):
         super(World_Model_Layer, self).__init__()
 
         self.zp_zq_dict = nn.ModuleDict()
-        if(bottom_level):
+        if(bottom_layer):
             total_action_size = sum(action_dict[key]["encoder"].arg_dict["encode_size"] for key in action_dict.keys())
             for key in observation_dict.keys():
                 zp_zq_size = observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"]
@@ -128,7 +128,7 @@ class World_Model_Layer(nn.Module):
                 zq_in_features = hidden_state_size + lower_zp_zq_size, 
                 zp_zq_sizes = [hidden_state_size])
     
-        if(top_level):
+        if(top_layer):
             higher_hidden_state_size = 0
         else:
             higher_hidden_state_size = hidden_state_size
@@ -187,9 +187,9 @@ class World_Model_Layer(nn.Module):
         
         
             
-    # Action should be used ONLY if bottom_level = True.
-    # If bottom_level = False, lower zq should replace observations.
-    # If top_level = False, MTRNN should include higher hidden state.
+    # Action should be used ONLY if bottom_layer = True.
+    # If bottom_layer = False, lower zq should replace observations.
+    # If top_layer = False, MTRNN should include higher hidden state.
     
     def forward(
             self, 
@@ -258,8 +258,8 @@ if __name__ == "__main__":
         hidden_state_size = hidden_state_size,
         observation_dict = observation_dict, 
         action_dict = action_dict, 
-        bottom_level = True,
-        top_level = True,
+        bottom_layer = True,
+        top_layer = True,
         time_scale = 1, 
         verbose = True)
     print("\n\n")
@@ -320,16 +320,16 @@ class World_Model(nn.Module):
                 hidden_state_size + encoded_action_size, arg_dict = observation_dict[key]["decoder_arg_dict"], verbose = verbose)
                
         self.world_layers = nn.ModuleList()
-        first_level_zp_zq_size = sum(self.observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"][-1] for key in self.observation_dict.keys())
+        first_layer_zp_zq_size = sum(self.observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"][-1] for key in self.observation_dict.keys())
         for i, time_scale in enumerate(time_scales):
             self.world_layers.append(
                 World_Model_Layer(
                     hidden_state_size = hidden_state_size,      
                     observation_dict = self.observation_dict if i == 0 else None,   
                     action_dict = self.action_dict if i == 0 else None,            
-                    bottom_level = i == 0,
-                    top_level = i + 1 == len(time_scales), 
-                    lower_zp_zq_size = 0 if i == 0 else first_level_zp_zq_size if i == 1 else hidden_state_size,
+                    bottom_layer = i == 0,
+                    top_layer = i + 1 == len(time_scales), 
+                    lower_zp_zq_size = 0 if i == 0 else first_layer_zp_zq_size if i == 1 else hidden_state_size,
                     time_scale = time_scale, 
                     verbose = verbose))
         
@@ -337,8 +337,8 @@ class World_Model(nn.Module):
             hidden_state_size = hidden_state_size,
             observation_dict = self.observation_dict, 
             action_dict = self.action_dict,
-            bottom_level = True,
-            top_level = True,
+            bottom_layer = True,
+            top_layer = True,
             time_scale = time_scales[0], 
             verbose = verbose)
 
@@ -366,29 +366,23 @@ class World_Model(nn.Module):
     
     # Predict upcoming observations.
     def predict(self, hidden_state, encoded_action):
-        hidden_states_and_action = torch.cat([hidden_state] + [v for v in encoded_action.values()], dim=-1)
+        hidden_state_and_action = torch.cat([hidden_state] + [v for v in encoded_action.values()], dim=-1)
         predicted_obs = {}
         for key, value in self.observation_dict.items():
-            prediction, log_prob = self.observation_dict[key]["decoder"](hidden_states_and_action)
+            prediction, log_prob = self.observation_dict[key]["decoder"](hidden_state_and_action)
             predicted_obs[key] = prediction
         return(predicted_obs)
     
     
     
     # This was originally made to utilize multiple layers, which is not currently implemented.
-    def bottom_to_top_step(self, prev_hidden_states, obs, prev_action):
+    def bottom_to_top_step(self, prev_hidden_state, encoded_obs, encoded_prev_action):
             
-        # Go UP, making zp zqs. 
+        mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.wl.bottom_up(
+            prev_hidden_state, encoded_obs, encoded_prev_action)
+        new_hidden_state_p, new_hidden_state_q = self.wl.top_down(mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_state)
         
-        # Go DOWN, making hidden states.
-        
-        new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
-            self.wl(
-                prev_hidden_state = prev_hidden_states, 
-                encoded_obs = obs, 
-                encoded_prev_action = prev_action,
-                higher_hidden_state = 0)      
-        return(new_hidden_states_p, new_hidden_states_q, inner_state_dict)
+        return(new_hidden_state_p, new_hidden_state_q, inner_state_dict)
     
     
     
