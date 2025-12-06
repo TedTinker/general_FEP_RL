@@ -441,9 +441,7 @@ class World_Model(nn.Module):
                         
         # This needs to be adjusted.
         catted_inner_state_dicts = {}
-        print("\n", len(inner_state_dicts_list), len(inner_state_dicts_list[0]), inner_state_dicts_list[0][0].keys())
         for key, inner_state_dict in inner_state_dicts_list[0][0].items():
-            print(key)
             zp = torch.stack([inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dicts_list], dim = 1)
             zq = torch.stack([inner_state_dict[key]["zq"] for inner_state_dict in inner_state_dicts_list], dim = 1)
             dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dicts_list], dim = 1)
