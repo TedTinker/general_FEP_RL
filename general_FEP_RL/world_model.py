@@ -103,7 +103,8 @@ class World_Model_Layer(nn.Module):
             action_dict, 
             bottom_layer,
             top_layer,
-            lower_zp_zq_size = None,
+            lower_zp_zq_size = 0,
+            higher_hidden_state_size = 0,
             time_scale = 1, 
             verbose = False):
         super(World_Model_Layer, self).__init__()
@@ -125,10 +126,6 @@ class World_Model_Layer(nn.Module):
                 zq_in_features = hidden_state_size + lower_zp_zq_size, 
                 zp_zq_sizes = [hidden_state_size])
     
-        if(top_layer):
-            higher_hidden_state_size = 0
-        else:
-            higher_hidden_state_size = hidden_state_size # THIS SHOULD ACTUALLY BE THE HIGHER HIDDEN_STATE_SIZE
         self.mtrnn = MTRNN(
                 input_size = sum(zp_zq.zp_zq_sizes[-1] for zp_zq in self.zp_zq_dict.values()) + higher_hidden_state_size,
                 hidden_size = hidden_state_size, 
@@ -329,6 +326,7 @@ class World_Model(nn.Module):
                     bottom_layer = i == 0,
                     top_layer = i + 1 == len(time_scales), 
                     lower_zp_zq_size = 0 if i == 0 else first_layer_zp_zq_size if i == 1 else hidden_state_sizes[i-1],
+                    higher_hidden_state_size = 0 if i+1 == len(time_scales) else hidden_state_sizes[i+1],
                     time_scale = time_scale, 
                     verbose = verbose))
         
