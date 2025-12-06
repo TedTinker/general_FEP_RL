@@ -410,9 +410,9 @@ class World_Model(nn.Module):
         encoded_prev_action = self.action_in(prev_action)
         
         # These should be lists of lists.
-        hidden_state_p_list = [prev_hidden_states]
-        hidden_state_q_list = [prev_hidden_states]
-        inner_state_dict_list = []
+        hidden_states_p_list = [prev_hidden_states]
+        hidden_states_q_list = [prev_hidden_states]
+        inner_state_dicts_list = []
                                     
         for step in range(steps):
                                     
@@ -429,29 +429,32 @@ class World_Model(nn.Module):
                 
             # This needs to be adjusted.
             prev_hidden_states = new_hidden_states_q
-            hidden_state_p_list.append(new_hidden_states_p)
-            hidden_state_q_list.append(new_hidden_states_q)
-            inner_state_dict_list.append(inner_state_dict)
+            hidden_states_p_list.append(new_hidden_states_p)
+            hidden_states_q_list.append(new_hidden_states_q)
+            inner_state_dicts_list.append(inner_state_dict)
                                        
         # This needs to be adjusted.
-        hidden_state_p = [] 
-        hidden_state_q = [] 
-        for i in range(len(hidden_state_p_list[0])):
-            hidden_state_p.append(torch.cat([h[i] for h in hidden_state_p_list], dim = 1))
-            hidden_state_q.append(torch.cat([h[i] for h in hidden_state_q_list], dim = 1))
+        hidden_states_p = [] 
+        hidden_states_q = [] 
+        for i in range(len(hidden_states_p_list[0])):
+            hidden_states_p.append(torch.cat([h[i] for h in hidden_states_p_list], dim = 1))
+            hidden_states_q.append(torch.cat([h[i] for h in hidden_states_q_list], dim = 1))
                         
         # This needs to be adjusted.
-        catted_inner_state_dict = {}
-        for key, inner_state_dict in inner_state_dict_list[0].items():
-            zp = torch.stack([inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dict_list], dim = 1)
-            zq = torch.stack([inner_state_dict[key]["zq"] for inner_state_dict in inner_state_dict_list], dim = 1)
-            dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dict_list], dim = 1)
-            catted_inner_state_dict[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
+        catted_inner_state_dicts = []
+        for i in range(len(inner_state_dicts_list)):
+            catted_inner_state_dicts.append({})
+            for key, inner_state_dict in inner_state_dicts_list[0][0].items():
+                print(key)
+                zp = torch.stack([inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dicts_list], dim = 1)
+                zq = torch.stack([inner_state_dict[key]["zq"] for inner_state_dict in inner_state_dicts_list], dim = 1)
+                dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dicts_list], dim = 1)
+                catted_inner_state_dicts[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
 
         # All this needs to be adjusted.
         if(one_step):
             # Cannot make prediction, because we need the next action.
-            return([h[:,1:] for h in hidden_state_p], [h[:,1:] for h in hidden_state_q], catted_inner_state_dict)
+            return([h[:,1:] for h in hidden_states_p], [h[:,1:] for h in hidden_states_q], catted_inner_state_dicts)
         else:
             # Make predictions for all steps.
             skip_non_action = {}
