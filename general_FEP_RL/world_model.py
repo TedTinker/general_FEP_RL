@@ -388,6 +388,10 @@ class World_Model(nn.Module):
                 encoded_prev_action = encoded_prev_action if i==0 else None,
                 lower_zp_zq = None if i!=0 else inner_state_dict_list[-1]["zq"],
                 higher_hidden_state = None if i+1 != len(self.world_layers) else prev_hidden_states[i+1])
+            print(inner_state_dict.keys())
+            inner_state_dict_list.append(inner_state_dict)
+            mtrnn_inputs_p_list.append(mtrnn_inputs_p)
+            mtrnn_inputs_q_list.append(mtrnn_inputs_q)
         
         
         
