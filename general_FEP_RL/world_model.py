@@ -382,12 +382,13 @@ class World_Model(nn.Module):
         # This should use each world_layer in order to make inner_state_dicts,
         # then in reverse order to make new hidden_states.
         for i, world_layer in enumerate(self.world_layers):
+            print("HERE!", i)
             mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = world_layer.bottom_up(
                 prev_hidden_state = prev_hidden_states[i], 
-                encoded_obs = encoded_obs if i == 0 else None, 
+                encoded_obs = encoded_obs if i==0 else None, 
                 encoded_prev_action = encoded_prev_action if i==0 else None,
-                lower_zp_zq = None if i!=0 else inner_state_dict_list[-1]["zq"],
-                higher_hidden_state = None if i+1 != len(self.world_layers) else prev_hidden_states[i+1])
+                lower_zp_zq = None if i==0 else inner_state_dict_list[-1]["zq"],
+                higher_hidden_state = None if i+1 == len(self.world_layers) else prev_hidden_states[i+1])
             print(inner_state_dict.keys())
             inner_state_dict_list.append(inner_state_dict)
             mtrnn_inputs_p_list.append(mtrnn_inputs_p)
