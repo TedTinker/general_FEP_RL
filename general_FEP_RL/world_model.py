@@ -437,8 +437,8 @@ class World_Model(nn.Module):
         for i in range(len(hidden_state_p_list[0])):
             print("i:", i)
             print(hidden_state_p_list[0][i].shape)
-            hidden_state_p.append([torch.cat(h[i], dim = 1) for h in hidden_state_p_list])
-            hidden_state_q.append([torch.cat(h[i], dim = 1) for h in hidden_state_q_list])
+            hidden_state_p.append(torch.cat([h[i] for h in hidden_state_p_list], dim = 1))
+            hidden_state_q.append(torch.cat([h[i] for h in hidden_state_q_list], dim = 1))
                         
         # This needs to be adjusted.
         catted_inner_state_dict = {}
