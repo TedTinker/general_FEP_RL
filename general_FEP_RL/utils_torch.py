@@ -116,7 +116,10 @@ def model_end(episodes, steps, model_output_list, recurrent = False):
 def generate_dummy_inputs(obs_dict, act_dict, hidden_state_sizes, batch=8, steps=4):
     dummies = {}
 
-    dummies["hidden"] = [torch.zeros((batch, steps, hidden_state_size)) for hidden_state_size in hidden_state_sizes]
+    if(type(hidden_state_sizes) == list):
+        dummies["hidden"] = [torch.zeros((batch, steps, hidden_state_size)) for hidden_state_size in hidden_state_sizes]
+    else:
+        dummies["hidden"] = torch.zeros((batch, steps, hidden_state_sizes))
 
     if obs_dict is not None:
         dummies["obs_enc_in"] = {}

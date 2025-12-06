@@ -93,9 +93,6 @@ if(__name__ == "__main__"):
 
 
 
-# Maybe we should do this with two models: bottem-up, top-down.
-
-
 # Making prior and posterior inner states for each portion of the sensation.
 class World_Model_Layer(nn.Module):
     
@@ -132,6 +129,7 @@ class World_Model_Layer(nn.Module):
             higher_hidden_state_size = 0
         else:
             higher_hidden_state_size = hidden_state_size
+            print("\n\nHERE!\n\n")
         self.mtrnn = MTRNN(
                 input_size = sum(zp_zq.zp_zq_sizes[-1] for zp_zq in self.zp_zq_dict.values()) + higher_hidden_state_size,
                 hidden_size = hidden_state_size, 
@@ -467,8 +465,9 @@ class World_Model(nn.Module):
     def summary(self):
                 
         print("\nWORLD_MODEL_LAYER")
-        dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_size)
+        dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_sizes)
         dummy_inputs = dummies["hidden"], dummies["obs_enc_out"], dummies["act_enc_out"], 0
+        print("HERE!", type(dummy_inputs[0]))
         with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
             with record_function("model_inference"):
                 print(summary(
