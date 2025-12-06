@@ -389,7 +389,9 @@ class World_Model(nn.Module):
         new_hidden_state_p, new_hidden_state_q = self.wl.top_down(
             mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_states[0])
         
-        return(new_hidden_state_p, new_hidden_state_q, inner_state_dict)
+        
+        
+        return([new_hidden_state_p, prev_hidden_states[1]], [new_hidden_state_q, prev_hidden_states[1]], inner_state_dict)
     
     
     
@@ -419,13 +421,13 @@ class World_Model(nn.Module):
             for key, value in encoded_prev_action.items():
                 step_prev_action[key] = value[:,step].unsqueeze(1)
                                         
-            new_hidden_state_p, new_hidden_state_q, inner_state_dict = \
+            new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
                 self.bottom_to_top_step(prev_hidden_states, step_obs, step_prev_action)
                 
             # This needs to be adjusted.
-            prev_hidden_states = new_hidden_state_q
-            hidden_state_p_list.append(new_hidden_state_p)
-            hidden_state_q_list.append(new_hidden_state_q)
+            prev_hidden_states = new_hidden_states_q
+            hidden_state_p_list.append(new_hidden_states_p)
+            hidden_state_q_list.append(new_hidden_states_q)
             inner_state_dict_list.append(inner_state_dict)
                                        
         # This needs to be adjusted.
