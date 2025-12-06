@@ -431,11 +431,11 @@ class World_Model(nn.Module):
             inner_state_dict_list.append(inner_state_dict)
                                        
         # This needs to be adjusted.
-        print(len(hidden_state_p_list))
+        print("LENGTH:", len(hidden_state_p_list))
         hidden_state_p = [] 
         hidden_state_q = [] 
         for i in range(len(hidden_state_p_list[0])):
-            print(i)
+            print("i:", i)
             print(hidden_state_p_list[0][i].shape)
             hidden_state_p.append([torch.cat(h[i], dim = 1) for h in hidden_state_p_list])
             hidden_state_q.append([torch.cat(h[i], dim = 1) for h in hidden_state_q_list])
