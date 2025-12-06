@@ -442,7 +442,7 @@ class World_Model(nn.Module):
                         
         # This needs to be adjusted.
         catted_inner_state_dicts = []
-        print(len(inner_state_dicts_list), len(inner_state_dicts_list[0]), len(inner_state_dicts_list[0][0].keys()))
+        print(len(inner_state_dicts_list), len(inner_state_dicts_list[0]), inner_state_dicts_list[0][0].keys())
         for i in range(len(inner_state_dicts_list)):
             catted_inner_state_dicts.append({})
             for key, inner_state_dict in inner_state_dicts_list[0][0].items():
