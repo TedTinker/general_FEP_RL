@@ -375,14 +375,13 @@ class World_Model(nn.Module):
     
     # This was originally made to utilize multiple layers, which is not currently implemented.
     def bottom_to_top_step(self, prev_hidden_states, encoded_obs, encoded_prev_action):
-            
-        inner_state_dict_list = []
+
+        # This is functioning, but we need to accomodate higher layers!
+        """inner_state_dict_list = []
         mtrnn_inputs_p_list = []
         mtrnn_inputs_q_list = []
         first_layer_zp_zq = []
-
-        # This is functioning, except for higher layers!
-        """for i, world_layer in enumerate(self.world_layers):
+        for i, world_layer in enumerate(self.world_layers):
             mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = world_layer.bottom_up(
                 prev_hidden_state = prev_hidden_states[i], 
                 encoded_obs = encoded_obs if i==0 else None, 
@@ -395,10 +394,13 @@ class World_Model(nn.Module):
             mtrnn_inputs_p_list.append(mtrnn_inputs_p)
             mtrnn_inputs_q_list.append(mtrnn_inputs_q)"""
         
-        
-        for i in reversed(range(len(self.world_layers))):
+        # Not tested
+        """for i in reversed(range(len(self.world_layers))):
             world_layer = self.world_layers[i]
-            print(i)
+            new_hidden_state_p, new_hidden_state_q = world_layer.top_down(
+                mtrnn_inputs_p_list[i],
+                mtrnn_inputs_q_list[i],
+                prev_hidden_states[i])"""
         
         
         mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.wl.bottom_up(
