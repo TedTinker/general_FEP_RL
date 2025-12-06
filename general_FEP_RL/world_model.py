@@ -392,7 +392,7 @@ class World_Model(nn.Module):
                 higher_hidden_state = None if i+1 == len(self.world_layers) else prev_hidden_states[i+1])
             print(inner_state_dict.keys())
             if(i==0):
-                first_layer_zp_zq = torch.cat([value["zq"] for key, value in inner_state_dict], dim = -1)
+                first_layer_zp_zq = torch.cat([value["zq"] for key, value in inner_state_dict.items()], dim = -1)
             inner_state_dict_list.append(inner_state_dict)
             mtrnn_inputs_p_list.append(mtrnn_inputs_p)
             mtrnn_inputs_q_list.append(mtrnn_inputs_q)
