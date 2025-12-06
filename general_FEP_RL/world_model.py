@@ -379,14 +379,11 @@ class World_Model(nn.Module):
             
         # This should use each world_layer in order to make inner_state_dicts,
         # then in reverse order to make new hidden_states.
-        
-        
-        
         for i, world_layer in enumerate(self.world_layers):
             pass 
         
         
-        print(prev_hidden_states[0].shape)
+        
         mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.wl.bottom_up(
             prev_hidden_states[0], encoded_obs, encoded_prev_action)
         new_hidden_state_p, new_hidden_state_q = self.wl.top_down(
@@ -432,8 +429,8 @@ class World_Model(nn.Module):
             inner_state_dict_list.append(inner_state_dict)
                                        
         # This needs to be adjusted.
-        hidden_state_p = torch.cat(hidden_state_p_list, dim = 1)
-        hidden_state_q = torch.cat(hidden_state_q_list, dim = 1)
+        hidden_state_p = [torch.cat(h, dim = 1) for h in hidden_state_p_list]
+        hidden_state_q = [torch.cat(h, dim = 1) for h in hidden_state_q_list]
                         
         # This needs to be adjusted.
         catted_inner_state_dict = {}
