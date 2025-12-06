@@ -140,7 +140,9 @@ class World_Model_Layer(nn.Module):
             self,
             prev_hidden_state, 
             encoded_obs = None, 
-            encoded_prev_action = None):
+            encoded_prev_action = None,
+            lower_zp_zq = None,
+            higher_hidden_state = None):
         
         def reshape(inputs, episodes, steps):
             inputs = inputs.reshape(episodes * steps, inputs.shape[2])
@@ -190,9 +192,8 @@ class World_Model_Layer(nn.Module):
             prev_hidden_state, 
             encoded_obs = None, 
             encoded_prev_action = None,
-            higher_hidden_state = None,
-            lower_zp_zq = None
-            ):
+            lower_zp_zq = None,
+            higher_hidden_state = None):
         mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.bottom_up(prev_hidden_state, encoded_obs, encoded_prev_action)
         new_hidden_state_p, new_hidden_state_q = self.top_down(mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_state)
         return(new_hidden_state_p, new_hidden_state_q, inner_state_dict)
@@ -375,10 +376,18 @@ class World_Model(nn.Module):
     # This was originally made to utilize multiple layers, which is not currently implemented.
     def bottom_to_top_step(self, prev_hidden_states, encoded_obs, encoded_prev_action):
             
+        inner_state_dict_list = []
+        mtrnn_inputs_p_list = []
+        mtrnn_inputs_q_list = []
         # This should use each world_layer in order to make inner_state_dicts,
         # then in reverse order to make new hidden_states.
         for i, world_layer in enumerate(self.world_layers):
-            pass 
+            mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = world_layer.bottom_up(
+                prev_hidden_state = prev_hidden_states[i], 
+                encoded_obs = encoded_obs if i == 0 else None, 
+                encoded_prev_action = encoded_prev_action if i==0 else None,
+                lower_zp_zq = None if i!=0 else inner_state_dict_list[-1]["zq"],
+                higher_hidden_state = None if i+1 != len(self.world_layers) else prev_hidden_states[i+1])
         
         
         
