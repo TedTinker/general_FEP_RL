@@ -473,6 +473,10 @@ class World_Model(nn.Module):
         hidden_states = []
         for i in range(len(dummies["hidden"])):
             hidden_states.append([h[0] for h in dummies["hidden"][i]])
+            
+        print("\n\nHERE!\n\n")
+        print(len(hidden_states), hidden_states[0].shape)
+        print("\n\nTHERE!\n\n")
         
         dummy_inputs = dummies["hidden"], dummies["obs_enc_out"], dummies["act_enc_out"], 0
         
