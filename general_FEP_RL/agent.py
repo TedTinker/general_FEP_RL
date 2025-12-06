@@ -20,7 +20,7 @@ class Agent:
     
     def __init__(
             self, 
-            hidden_state_size,
+            hidden_state_sizes,
             
             observation_dict,       # Keys: observation_names
                                     # Values: 
@@ -67,12 +67,12 @@ class Agent:
 
         self.observation_dict = observation_dict
         self.action_dict = action_dict
-        self.hidden_state_size = hidden_state_size
+        self.hidden_state_sizes = hidden_state_sizes
 
-        self.world_model = World_Model(hidden_state_size, observation_dict, action_dict, time_scales)
+        self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales)
         self.world_model_opt = optim.Adam(self.world_model.parameters(), lr = lr, weight_decay = weight_decay)
                            
-        self.actor = Actor(hidden_state_size, action_dict)
+        self.actor = Actor(hidden_state_sizes[0], action_dict)
         self.actor_opt = optim.Adam(self.actor.parameters(), lr = lr, weight_decay = weight_decay) 
         
         self.alphas = {key : 1 for key in action_dict.keys()} 
@@ -83,8 +83,8 @@ class Agent:
         self.critic_targets = []
         self.critic_opts = []
         for _ in range(number_of_critics):
-            self.critics.append(Critic(hidden_state_size, action_dict))
-            self.critic_targets.append(Critic(hidden_state_size, action_dict))
+            self.critics.append(Critic(hidden_state_sizes[0], action_dict))
+            self.critic_targets.append(Critic(hidden_state_sizes[0], action_dict))
             self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
             self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr = lr, weight_decay = weight_decay))
         
@@ -101,8 +101,8 @@ class Agent:
         for key, value in self.world_model.action_dict.items(): 
             action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             self.action[key] = tile_batch_dim(action, batch_size)
-        self.hp = torch.zeros((batch_size, 1, self.hidden_state_size)) 
-        self.hq = torch.zeros((batch_size, 1, self.hidden_state_size))
+        self.hp = [torch.zeros((batch_size, 1, hidden_state_size)) for hidden_state_size in self.hidden_state_sizes] 
+        self.hq = [torch.zeros((batch_size, 1, hidden_state_size)) for hidden_state_size in self.hidden_state_sizes] 
         
         
     
@@ -359,7 +359,7 @@ if __name__ == "__main__":
     
     
     agent = Agent(
-        hidden_state_size = 128,
+        hidden_state_sizes = [128, 128],
         observation_dict = observation_dict,       
         action_dict = action_dict,            
         number_of_critics = 2, 
@@ -370,7 +370,7 @@ if __name__ == "__main__":
         capacity = 128, 
         max_steps = 32)
     
-    dummies = generate_dummy_inputs(agent.world_model.observation_dict, agent.world_model.action_dict, agent.hidden_state_size, batch=1, steps=1)
+    dummies = generate_dummy_inputs(agent.world_model.observation_dict, agent.world_model.action_dict, agent.hidden_state_sizes, batch=1, steps=1)
     dummy_inputs = dummies["obs_enc_in"]
         
     agent.step_in_episode(dummy_inputs)
