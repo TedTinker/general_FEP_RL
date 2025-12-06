@@ -113,7 +113,7 @@ class Agent:
             # I believe this is because of making lists with .keys, .values, or .items
             self.hp, self.hq, inner_state_dict = self.world_model(
                 self.hq if posterior else self.hp, obs, self.action, one_step = True)
-            self.action, log_prob = self.actor(self.hq if posterior else self.hp) 
+            self.action, log_prob = self.actor(self.hq[0] if posterior else self.hp[0]) 
             encoded_action = self.world_model.action_in(self.action)
             pred_obs_p = self.world_model.predict(self.hp, encoded_action)
             pred_obs_q = self.world_model.predict(self.hq, encoded_action)
