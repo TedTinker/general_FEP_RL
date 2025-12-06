@@ -119,7 +119,7 @@ class Agent:
             pred_obs_q = self.world_model.predict(self.hq, encoded_action)
             values = []
             for i in range(len(self.critics)):
-                value = self.critics[i](self.hq, self.action) 
+                value = self.critics[i](self.hq[0], self.action) 
                 values.append(value)
                 
         return {
