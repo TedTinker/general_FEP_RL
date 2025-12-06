@@ -470,7 +470,7 @@ class World_Model(nn.Module):
         print(len(dummies["hidden"]), dummies["hidden"][0].shape)
         print("\n\nTHERE!\n\n")
         
-        hidden_states = [h[1].unsqueeze(1) for h in dummies["hidden"]]
+        hidden_states = [h[:,0].unsqueeze(1) for h in dummies["hidden"]]
             
         print("\n\nHERE!\n\n")
         print(len(hidden_states), hidden_states[0].shape)
