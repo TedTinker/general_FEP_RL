@@ -167,6 +167,7 @@ class Agent:
             
         complexity_losses = {}
         complexity_loss = torch.zeros((1,)).requires_grad_()
+        # Need to add complexities for higher layers.
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]["dkl"].mean(-1).unsqueeze(-1) * complete_mask
             complexity_loss = complexity_loss + dkl.mean() * self.observation_dict[key]["beta"]
@@ -214,7 +215,7 @@ class Agent:
         
         critic_losses = []
         for i in range(len(self.critics)):
-            Q = self.critics[i](hq[:,:-1].detach(), action)
+            Q = self.critics[i](hq[0][:,:-1].detach(), action)
             critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
             critic_losses.append(critic_loss.item())
             self.critic_opts[i].zero_grad()
