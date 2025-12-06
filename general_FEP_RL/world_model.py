@@ -128,8 +128,7 @@ class World_Model_Layer(nn.Module):
         if(top_layer):
             higher_hidden_state_size = 0
         else:
-            higher_hidden_state_size = hidden_state_size
-            print("\n\nHERE!\n\n")
+            higher_hidden_state_size = hidden_state_size # THIS SHOULD ACTUALLY BE THE HIGHER HIDDEN_STATE_SIZE
         self.mtrnn = MTRNN(
                 input_size = sum(zp_zq.zp_zq_sizes[-1] for zp_zq in self.zp_zq_dict.values()) + higher_hidden_state_size,
                 hidden_size = hidden_state_size, 
@@ -466,8 +465,13 @@ class World_Model(nn.Module):
                 
         print("\nWORLD_MODEL_LAYER")
         dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_sizes)
+        
+        hidden_states = []
+        for i in range(len(dummies["hidden"])):
+            hidden_states.append([h[0] for h in dummies["hidden"][i]])
+        
         dummy_inputs = dummies["hidden"], dummies["obs_enc_out"], dummies["act_enc_out"], 0
-        print("HERE!", type(dummy_inputs[0]))
+        
         with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
             with record_function("model_inference"):
                 print(summary(
