@@ -441,10 +441,9 @@ class World_Model(nn.Module):
             hidden_states_q.append(torch.cat([h[i] for h in hidden_states_q_list], dim = 1))
                         
         # This needs to be adjusted.
-        catted_inner_state_dicts = []
-        print(len(inner_state_dicts_list), len(inner_state_dicts_list[0]), inner_state_dicts_list[0][0].keys())
+        catted_inner_state_dicts = {}
+        print("\n", len(inner_state_dicts_list), len(inner_state_dicts_list[0]), inner_state_dicts_list[0][0].keys())
         for i in range(len(inner_state_dicts_list)):
-            catted_inner_state_dicts.append({})
             for key, inner_state_dict in inner_state_dicts_list[0][0].items():
                 print(key)
                 zp = torch.stack([inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dicts_list], dim = 1)
