@@ -269,7 +269,7 @@ class Agent:
             
         # Train alpha
         alpha_losses = {}
-        _, new_log_pis_dict = self.actor(hq[:,:-1].detach())
+        _, new_log_pis_dict = self.actor(hq[0][:,:-1].detach())
         for key, log_pis in new_log_pis_dict.items():
             alpha_loss = -(self.log_alphas[key] * (log_pis + self.action_dict[key]["target_entropy"]))*mask
             alpha_loss = alpha_loss.mean() / mask.mean()
