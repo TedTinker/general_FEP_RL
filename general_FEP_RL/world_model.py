@@ -443,13 +443,19 @@ class World_Model(nn.Module):
         # This needs to be adjusted.
         catted_inner_state_dicts = {}
         print("\n", len(inner_state_dicts_list), len(inner_state_dicts_list[0]), inner_state_dicts_list[0][0].keys())
-        for i in range(len(inner_state_dicts_list)):
-            for key, inner_state_dict in inner_state_dicts_list[0][0].items():
-                print(key)
-                zp = torch.stack([inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dicts_list], dim = 1)
-                zq = torch.stack([inner_state_dict[key]["zq"] for inner_state_dict in inner_state_dicts_list], dim = 1)
-                dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dicts_list], dim = 1)
-                catted_inner_state_dicts[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
+        for key, inner_state_dict in inner_state_dicts_list[0][0].items():
+            print(key)
+            catted_inner_state_dicts[key] = {}
+            zps = [] 
+            for i in range(len(inner_state_dicts_list)):
+                all_dicts = inner_state_dicts_list[i]
+                this_dict = all_dicts[key]
+                zp = this_dict["zp"]
+            zps = [inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dicts_list]
+            zp = torch.stack([inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dicts_list], dim = 1)
+            zq = torch.stack([inner_state_dict[key]["zq"] for inner_state_dict in inner_state_dicts_list], dim = 1)
+            dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dicts_list], dim = 1)
+            catted_inner_state_dicts[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
 
         # All this needs to be adjusted.
         if(one_step):
