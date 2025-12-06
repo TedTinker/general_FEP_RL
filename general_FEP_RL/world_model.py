@@ -467,7 +467,7 @@ class World_Model(nn.Module):
         dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_sizes)
         
         print("\n\nHERE!\n\n")
-        print(len(dummies["hidden"]))
+        print(len(dummies["hidden"]), dummies["hidden"][0].shape)
         print("\n\nTHERE!\n\n")
         
         hidden_states = []
