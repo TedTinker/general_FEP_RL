@@ -379,6 +379,7 @@ class World_Model(nn.Module):
         inner_state_dict_list = []
         mtrnn_inputs_p_list = []
         mtrnn_inputs_q_list = []
+        first_layer_zp_zq = []
         # This should use each world_layer in order to make inner_state_dicts,
         # then in reverse order to make new hidden_states.
         for i, world_layer in enumerate(self.world_layers):
@@ -387,9 +388,11 @@ class World_Model(nn.Module):
                 prev_hidden_state = prev_hidden_states[i], 
                 encoded_obs = encoded_obs if i==0 else None, 
                 encoded_prev_action = encoded_prev_action if i==0 else None,
-                lower_zp_zq = None if i==0 else inner_state_dict_list[-1]["zq"],
+                lower_zp_zq = None if i==0 else first_layer_zp_zq if i==1 else inner_state_dict_list[-1]["zq"],
                 higher_hidden_state = None if i+1 == len(self.world_layers) else prev_hidden_states[i+1])
             print(inner_state_dict.keys())
+            if(i==0):
+                first_layer_zp_zq = torch.cat([value["zq"] for key, value in inner_state_dict], dim = -1)
             inner_state_dict_list.append(inner_state_dict)
             mtrnn_inputs_p_list.append(mtrnn_inputs_p)
             mtrnn_inputs_q_list.append(mtrnn_inputs_q)
