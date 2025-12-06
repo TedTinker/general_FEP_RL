@@ -390,8 +390,11 @@ class World_Model(nn.Module):
             mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_states[0])
         
         
-        
-        return([new_hidden_state_p, prev_hidden_states[1]], [new_hidden_state_q, prev_hidden_states[1]], inner_state_dict)
+        # This needs to be adjusted
+        return(
+            [new_hidden_state_p, prev_hidden_states[1]], 
+            [new_hidden_state_q, prev_hidden_states[1]], 
+            [inner_state_dict, inner_state_dict])
     
     
     
@@ -431,12 +434,9 @@ class World_Model(nn.Module):
             inner_state_dict_list.append(inner_state_dict)
                                        
         # This needs to be adjusted.
-        print("LENGTH:", len(hidden_state_p_list))
         hidden_state_p = [] 
         hidden_state_q = [] 
         for i in range(len(hidden_state_p_list[0])):
-            print("i:", i)
-            print(hidden_state_p_list[0][i].shape)
             hidden_state_p.append(torch.cat([h[i] for h in hidden_state_p_list], dim = 1))
             hidden_state_q.append(torch.cat([h[i] for h in hidden_state_q_list], dim = 1))
                         
@@ -451,7 +451,7 @@ class World_Model(nn.Module):
         # All this needs to be adjusted.
         if(one_step):
             # Cannot make prediction, because we need the next action.
-            return(hidden_state_p[:, 1:], hidden_state_q[:, 1:], catted_inner_state_dict)
+            return([h[:,1:] for h in hidden_state_p], [h[:,1:] for h in hidden_state_q], catted_inner_state_dict)
         else:
             # Make predictions for all steps.
             skip_non_action = {}
