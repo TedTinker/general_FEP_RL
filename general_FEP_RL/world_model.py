@@ -375,7 +375,7 @@ class World_Model(nn.Module):
     
     
     # This was originally made to utilize multiple layers, which is not currently implemented.
-    def bottom_to_top_step(self, prev_hidden_state, encoded_obs, encoded_prev_action):
+    def bottom_to_top_step(self, prev_hidden_states, encoded_obs, encoded_prev_action):
             
         # This should use each world_layer in order to make inner_state_dicts,
         # then in reverse order to make new hidden_states.
@@ -386,31 +386,30 @@ class World_Model(nn.Module):
             pass 
         
         
-        
+        print(prev_hidden_states[0].shape)
         mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.wl.bottom_up(
-            prev_hidden_state, encoded_obs, encoded_prev_action)
-        new_hidden_state_p, new_hidden_state_q = self.wl.top_down(mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_state)
+            prev_hidden_states[0], encoded_obs, encoded_prev_action)
+        new_hidden_state_p, new_hidden_state_q = self.wl.top_down(
+            mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_states[0])
         
         return(new_hidden_state_p, new_hidden_state_q, inner_state_dict)
     
     
     
     def forward(self, prev_hidden_states, obs, prev_action, one_step = False):
-        
-        prev_hidden_state = prev_hidden_states[0]
-                   
+                           
         for key, value in obs.items():    
             episodes, steps = value.shape[0], value.shape[1]
                                     
-        if(prev_hidden_state == None): # This should initialize all hidden_states
-            prev_hidden_state = torch.zeros(episodes, 1, self.hidden_state_size)
-            
+        if(prev_hidden_states == None): # This should initialize all hidden_states
+            prev_hidden_states = [torch.zeros(episodes, 1, hidden_state_size) for hidden_state_Size in self.hidden_state_sizes]
+                        
         encoded_obs = self.obs_in(obs)
         encoded_prev_action = self.action_in(prev_action)
         
         # These should be lists of lists.
-        hidden_state_p_list = [prev_hidden_state]
-        hidden_state_q_list = [prev_hidden_state]
+        hidden_state_p_list = [prev_hidden_states]
+        hidden_state_q_list = [prev_hidden_states]
         inner_state_dict_list = []
                                     
         for step in range(steps):
@@ -424,10 +423,10 @@ class World_Model(nn.Module):
                 step_prev_action[key] = value[:,step].unsqueeze(1)
                                         
             new_hidden_state_p, new_hidden_state_q, inner_state_dict = \
-                self.bottom_to_top_step(prev_hidden_state, step_obs, step_prev_action)
+                self.bottom_to_top_step(prev_hidden_states, step_obs, step_prev_action)
                 
             # This needs to be adjusted.
-            prev_hidden_state = new_hidden_state_q
+            prev_hidden_states = new_hidden_state_q
             hidden_state_p_list.append(new_hidden_state_p)
             hidden_state_q_list.append(new_hidden_state_q)
             inner_state_dict_list.append(inner_state_dict)
@@ -464,19 +463,8 @@ class World_Model(nn.Module):
     def summary(self):
                 
         print("\nWORLD_MODEL_LAYER")
-        dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_sizes)
-        
-        print("\n\nHERE!\n\n")
-        print(len(dummies["hidden"]), dummies["hidden"][0].shape)
-        print("\n\nTHERE!\n\n")
-        
-        hidden_states = [h[:,0].unsqueeze(1) for h in dummies["hidden"]]
-            
-        print("\n\nHERE!\n\n")
-        print(len(hidden_states), hidden_states[0].shape)
-        print("\n\nTHERE!\n\n")
-        
-        dummy_inputs = hidden_states, dummies["obs_enc_out"], dummies["act_enc_out"], 0
+        dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_sizes)        
+        dummy_inputs = dummies["hidden"][0], dummies["obs_enc_out"], dummies["act_enc_out"], 0
         
         with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
             with record_function("model_inference"):
@@ -568,14 +556,8 @@ if __name__ == "__main__":
     
 
     dummies = generate_dummy_inputs(fm.observation_dict, fm.action_dict, hidden_state_size)
-    dummies["hidden"] = dummies["hidden"][:,0].unsqueeze(1)
     dummy_inputs = [dummies["hidden"], dummies["hidden"]], dummies["obs_enc_in"], dummies["act_enc_in"], 0
     
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function("model_inference"):
-            print(summary(fm, input_data=dummy_inputs))
-    #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
-
-            
+    fm.summary()
 
 # %%
