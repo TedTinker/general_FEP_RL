@@ -403,7 +403,7 @@ class World_Model(nn.Module):
             episodes, steps = value.shape[0], value.shape[1]
                                     
         if(prev_hidden_states == None): # This should initialize all hidden_states
-            prev_hidden_states = [torch.zeros(episodes, 1, hidden_state_size) for hidden_state_Size in self.hidden_state_sizes]
+            prev_hidden_states = [torch.zeros(episodes, 1, hidden_state_size) for hidden_state_size in self.hidden_state_sizes]
                         
         encoded_obs = self.obs_in(obs)
         encoded_prev_action = self.action_in(prev_action)
