@@ -466,6 +466,10 @@ class World_Model(nn.Module):
         print("\nWORLD_MODEL_LAYER")
         dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_sizes)
         
+        print("\n\nHERE!\n\n")
+        print(len(dummies["hidden"]))
+        print("\n\nTHERE!\n\n")
+        
         hidden_states = []
         for i in range(len(dummies["hidden"])):
             hidden_states.append([h[0] for h in dummies["hidden"][i]])
