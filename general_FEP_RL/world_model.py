@@ -441,7 +441,7 @@ class World_Model(nn.Module):
                         
         # This needs to be adjusted.
         catted_inner_state_dicts = {}
-        for key, inner_state_dict in inner_state_dicts_list[0][0].items():
+        for key, inner_state_dict in inner_state_dicts_list[0].items():
             zp = torch.stack([inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dicts_list], dim = 1)
             zq = torch.stack([inner_state_dict[key]["zq"] for inner_state_dict in inner_state_dicts_list], dim = 1)
             dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dicts_list], dim = 1)
@@ -457,10 +457,10 @@ class World_Model(nn.Module):
             for key, value in encoded_prev_action.items():    
                 skip_non_action[key] = value[:, 1:]
             
-            pred_obs_p = self.predict(hidden_state_p[:, 1:-1], skip_non_action)
-            pred_obs_q = self.predict(hidden_state_q[:, 1:-1], skip_non_action)
+            pred_obs_p = self.predict(hidden_states_p[0][:, 1:-1], skip_non_action)
+            pred_obs_q = self.predict(hidden_states_q[0][:, 1:-1], skip_non_action)
         
-            return(hidden_state_p[:, 1:], hidden_state_q[:, 1:], catted_inner_state_dict, pred_obs_p, pred_obs_q)
+            return(hidden_states_p[:, 1:], hidden_states_q[:, 1:], catted_inner_state_dicts, pred_obs_p, pred_obs_q)
         
         
         
