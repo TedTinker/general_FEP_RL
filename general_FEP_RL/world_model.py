@@ -472,6 +472,7 @@ class World_Model(nn.Module):
         
         hidden_states = []
         for i in range(len(dummies["hidden"])):
+            print(dummies["hidden"][i].shape)
             hidden_states.append([h[0] for h in dummies["hidden"][i]])
             
         print("\n\nHERE!\n\n")
