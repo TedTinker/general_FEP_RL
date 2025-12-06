@@ -470,16 +470,13 @@ class World_Model(nn.Module):
         print(len(dummies["hidden"]), dummies["hidden"][0].shape)
         print("\n\nTHERE!\n\n")
         
-        hidden_states = []
-        for i in range(len(dummies["hidden"])):
-            print(dummies["hidden"][i].shape)
-            hidden_states.append([h[0] for h in dummies["hidden"][i]])
+        hidden_states = [h[0] for h in dummies["hidden"]]
             
         print("\n\nHERE!\n\n")
         print(len(hidden_states), hidden_states[0].shape)
         print("\n\nTHERE!\n\n")
         
-        dummy_inputs = dummies["hidden"], dummies["obs_enc_out"], dummies["act_enc_out"], 0
+        dummy_inputs = hidden_states, dummies["obs_enc_out"], dummies["act_enc_out"], 0
         
         with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
             with record_function("model_inference"):
