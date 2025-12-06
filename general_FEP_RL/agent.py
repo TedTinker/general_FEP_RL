@@ -115,8 +115,8 @@ class Agent:
                 self.hq if posterior else self.hp, obs, self.action, one_step = True)
             self.action, log_prob = self.actor(self.hq[0] if posterior else self.hp[0]) 
             encoded_action = self.world_model.action_in(self.action)
-            pred_obs_p = self.world_model.predict(self.hp, encoded_action)
-            pred_obs_q = self.world_model.predict(self.hq, encoded_action)
+            pred_obs_p = self.world_model.predict(self.hp[0], encoded_action)
+            pred_obs_q = self.world_model.predict(self.hq[0], encoded_action)
             values = []
             for i in range(len(self.critics)):
                 value = self.critics[i](self.hq[0], self.action) 
