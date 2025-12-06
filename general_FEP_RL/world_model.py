@@ -389,12 +389,11 @@ class World_Model(nn.Module):
         new_hidden_state_p, new_hidden_state_q = self.wl.top_down(
             mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_states[0])
         
-        
-        # This needs to be adjusted
+        # Need to combine multiple inner_state_dict
         return(
             [new_hidden_state_p, prev_hidden_states[1]], 
             [new_hidden_state_q, prev_hidden_states[1]], 
-            [inner_state_dict, inner_state_dict])
+            inner_state_dict)
     
     
     
@@ -445,13 +444,6 @@ class World_Model(nn.Module):
         print("\n", len(inner_state_dicts_list), len(inner_state_dicts_list[0]), inner_state_dicts_list[0][0].keys())
         for key, inner_state_dict in inner_state_dicts_list[0][0].items():
             print(key)
-            catted_inner_state_dicts[key] = {}
-            zps = [] 
-            for i in range(len(inner_state_dicts_list)):
-                all_dicts = inner_state_dicts_list[i]
-                this_dict = all_dicts[key]
-                zp = this_dict["zp"]
-            zps = [inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dicts_list]
             zp = torch.stack([inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dicts_list], dim = 1)
             zq = torch.stack([inner_state_dict[key]["zq"] for inner_state_dict in inner_state_dicts_list], dim = 1)
             dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dicts_list], dim = 1)
