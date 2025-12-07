@@ -423,15 +423,14 @@ class World_Model(nn.Module):
             
         
         
-        mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.wl.bottom_up(
+        """mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.wl.bottom_up(
             prev_hidden_states[0], encoded_obs, encoded_prev_action)
         new_hidden_state_p, new_hidden_state_q = self.wl.top_down(
-            mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_states[0])
+            mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_states[0])"""
         
-        # Need to combine multiple inner_state_dict
         return(
-            [new_hidden_state_p, prev_hidden_states[1]], 
-            [new_hidden_state_q, prev_hidden_states[1]], 
+            new_hidden_states_p, 
+            new_hidden_states_q, 
             inner_state_dict)
     
     
