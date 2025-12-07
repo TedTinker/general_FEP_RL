@@ -103,11 +103,16 @@ class World_Model_Layer(nn.Module):
             action_dict, 
             bottom_layer,
             top_layer,
+            layer_number = 0,
             lower_zp_zq_size = 0,
             higher_hidden_state_size = 0,
             time_scale = 1, 
             verbose = False):
         super(World_Model_Layer, self).__init__()
+        
+        self.bottom_layer = bottom_layer 
+        self.top_layer = top_layer
+        self.layer_number = layer_number
 
         self.zp_zq_dict = nn.ModuleDict()
         if(bottom_layer):
@@ -144,6 +149,8 @@ class World_Model_Layer(nn.Module):
             lower_zp_zq = None,
             higher_hidden_state = None):
         
+        episodes, steps = prev_hidden_state.shape[0], prev_hidden_state.shape[1]
+        
         def reshape(inputs, episodes, steps):
             inputs = inputs.reshape(episodes * steps, inputs.shape[2])
             return inputs
@@ -154,9 +161,13 @@ class World_Model_Layer(nn.Module):
             inner_states = z_func(zp_inputs, zq_inputs)
             return(inner_states)
                 
-        zp_inputs = torch.cat([prev_hidden_state] + [v for v in encoded_prev_action.values()], dim=-1)
-        zq_inputs_dict = {key : torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in encoded_obs.items()}              
-        episodes, steps = zp_inputs.shape[0], zp_inputs.shape[1]
+        if(self.bottom_layer):
+            zp_inputs = torch.cat([prev_hidden_state] + [v for v in encoded_prev_action.values()], dim=-1)
+            zq_inputs_dict = {key : torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in encoded_obs.items()}              
+        else:
+            zp_inputs = prev_hidden_state
+            zq_inputs_dict = "HARD"
+
 
         inner_state_dict = {key : process_z_func_outputs(zp_inputs, zq_inputs, z_func, episodes, steps) for \
                             (key, zq_inputs), z_func in zip(zq_inputs_dict.items(), self.zp_zq_dict.values())}
@@ -255,6 +266,7 @@ if __name__ == "__main__":
         action_dict = action_dict, 
         bottom_layer = True,
         top_layer = True,
+        layer_number = 0,
         time_scale = 1, 
         verbose = True)
     print("\n\n")
@@ -326,6 +338,7 @@ class World_Model(nn.Module):
                     action_dict = self.action_dict if i == 0 else None,            
                     bottom_layer = i == 0,
                     top_layer = i + 1 == len(time_scales), 
+                    layer_number = i,
                     lower_zp_zq_size = 0 if i == 0 else first_layer_zp_zq_size if i == 1 else hidden_state_sizes[i-1],
                     higher_hidden_state_size = 0 if i+1 == len(time_scales) else hidden_state_sizes[i+1],
                     time_scale = time_scale, 
@@ -401,6 +414,8 @@ class World_Model(nn.Module):
                 mtrnn_inputs_p_list[i],
                 mtrnn_inputs_q_list[i],
                 prev_hidden_states[i])"""
+            
+        # After than, make inner_state_dict_list into one dict.
         
         
         mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.wl.bottom_up(
