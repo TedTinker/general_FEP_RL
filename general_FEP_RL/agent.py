@@ -181,7 +181,7 @@ class Agent:
         for i in range(len(self.hidden_state_sizes) - 1):
             dkl = inner_state_dict[i+1]["dkl"].mean(-1).unsqueeze(-1) * complete_mask 
             complexity_loss = complexity_loss + dkl.mean() * self.beta[i]
-            complexity_losses[f"hidden_layer {i+2}"] = complexity_loss
+            complexity_losses[f"hidden_layer_{i+2}"] = complexity_loss
             
         
                                 
@@ -205,8 +205,8 @@ class Agent:
         for i in range(len(self.hidden_state_sizes) - 1):
             obs_curiosity = self.eta[i] * \
                 torch.clamp(complexity_losses[f"hidden_layer {i+2}"] * self.eta_before_clamp[i], min = 0, max = 1) 
-            complexity_losses[f"hidden_layer {i+2}"] = complexity_losses[f"hidden_layer {i+2}"].mean().item()
-            curiosities[f"hidden_layer {i+2}"] = obs_curiosity.mean().item()
+            complexity_losses[f"hidden_layer_{i+2}"] = complexity_losses[f"hidden_layer {i+2}"].mean().item()
+            curiosities[f"hidden_layer_{i+2}"] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
             
         total_reward = reward + curiosity
