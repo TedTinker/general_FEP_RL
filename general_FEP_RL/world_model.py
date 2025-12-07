@@ -389,7 +389,7 @@ class World_Model(nn.Module):
     def bottom_to_top_step(self, prev_hidden_states, encoded_obs, encoded_prev_action):
 
         # This is functioning, but we need to accomodate higher layers!
-        """inner_state_dict_list = []
+        inner_state_dict_list = []
         mtrnn_inputs_p_list = []
         mtrnn_inputs_q_list = []
         first_layer_zp_zq = []
@@ -404,7 +404,7 @@ class World_Model(nn.Module):
                 first_layer_zp_zq = torch.cat([value["zq"] for key, value in inner_state_dict.items()], dim = -1)
             inner_state_dict_list.append(inner_state_dict)
             mtrnn_inputs_p_list.append(mtrnn_inputs_p)
-            mtrnn_inputs_q_list.append(mtrnn_inputs_q)"""
+            mtrnn_inputs_q_list.append(mtrnn_inputs_q)
         
         # Not tested
         """for i in reversed(range(len(self.world_layers))):
