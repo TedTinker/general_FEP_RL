@@ -19,9 +19,7 @@ from general_FEP_RL.actor_critic import Actor, Critic
 class Agent:
     
     def __init__(
-            self, 
-            hidden_state_sizes,
-            
+            self,             
             observation_dict,       # Keys: observation_names
                                     # Values: 
                                         # encoder
@@ -54,7 +52,11 @@ class Agent:
                                         # target_entropy
                                         # alpha_normal
             
+            hidden_state_sizes,
             time_scales = [1],
+            beta = [],
+            eta_before_clamp = [],
+            eta = [],
             
             number_of_critics = 2, 
             tau = .1,
@@ -68,6 +70,9 @@ class Agent:
         self.observation_dict = observation_dict
         self.action_dict = action_dict
         self.hidden_state_sizes = hidden_state_sizes
+        self.beta = beta,
+        self.eta_before_clamp = eta_before_clamp,
+        self.eta = eta,
 
         self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales)
         self.world_model_opt = optim.Adam(self.world_model.parameters(), lr = lr, weight_decay = weight_decay)
@@ -172,6 +177,10 @@ class Agent:
             dkl = inner_state_dict[key]["dkl"].mean(-1).unsqueeze(-1) * complete_mask
             complexity_loss = complexity_loss + dkl.mean() * self.observation_dict[key]["beta"]
             complexity_losses[key] = complexity_loss
+        for i in range(len(self.hidden_state_sizes) - 1):
+            dkl = inner_state_dict[i+1]["dkl"].mean(-1).unsqueeze(-1) * complete_mask 
+            complexity_loss = complexity_loss + dkl.mean() * self.beta[i]
+            complexity_losses[i+1] = complexity_loss
             
         
                                 
