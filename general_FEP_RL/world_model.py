@@ -417,6 +417,9 @@ class World_Model(nn.Module):
             new_hidden_states_p.append(new_hidden_state_p)
             new_hidden_states_q.append(new_hidden_state_q)
             
+        new_hidden_states_p.reverse() 
+        new_hidden_states_q.reverse()
+            
         inner_state_dict = {}
         for d in inner_state_dict_list:
             inner_state_dict.update(d)
