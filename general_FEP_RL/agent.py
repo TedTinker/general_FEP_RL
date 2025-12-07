@@ -70,9 +70,9 @@ class Agent:
         self.observation_dict = observation_dict
         self.action_dict = action_dict
         self.hidden_state_sizes = hidden_state_sizes
-        self.beta = beta,
-        self.eta_before_clamp = eta_before_clamp,
-        self.eta = eta,
+        self.beta = beta
+        self.eta_before_clamp = eta_before_clamp
+        self.eta = eta
 
         self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales)
         self.world_model_opt = optim.Adam(self.world_model.parameters(), lr = lr, weight_decay = weight_decay)
