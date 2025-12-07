@@ -161,9 +161,7 @@ class World_Model_Layer(nn.Module):
             zp_inputs = torch.cat([prev_hidden_state] + [v for v in encoded_prev_action.values()], dim=-1)
             zq_inputs_dict = {key : torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in encoded_obs.items()}              
         else:
-            #lower_zp_zq = lower_zp_zq.reshape(episodes * steps, lower_zp_zq.shape[2])
             zp_inputs = prev_hidden_state
-            print(zp_inputs.shape, lower_zp_zq.shape)
             zq_inputs_dict = {self.layer_number : torch.cat([zp_inputs, lower_zp_zq], dim=-1)}
                 
         inner_state_dict = {key : process_z_func_outputs(zp_inputs, zq_inputs, z_func) for \
@@ -391,7 +389,6 @@ class World_Model(nn.Module):
     # This was originally made to utilize multiple layers, which is not currently implemented.
     def bottom_to_top_step(self, prev_hidden_states, encoded_obs, encoded_prev_action):
 
-        # This is functioning, but we need to accomodate higher layers!
         inner_state_dict_list = []
         mtrnn_inputs_p_list = []
         mtrnn_inputs_q_list = []
@@ -410,12 +407,12 @@ class World_Model(nn.Module):
             mtrnn_inputs_q_list.append(mtrnn_inputs_q)
         
         # Not tested
-        """for i in reversed(range(len(self.world_layers))):
+        for i in reversed(range(len(self.world_layers))):
             world_layer = self.world_layers[i]
             new_hidden_state_p, new_hidden_state_q = world_layer.top_down(
                 mtrnn_inputs_p_list[i],
                 mtrnn_inputs_q_list[i],
-                prev_hidden_states[i])"""
+                prev_hidden_states[i])
             
         # After than, make inner_state_dict_list into one dict.
         
