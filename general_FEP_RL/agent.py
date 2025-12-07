@@ -379,9 +379,10 @@ if __name__ == "__main__":
     
     
     agent = Agent(
-        hidden_state_sizes = [128, 128],
         observation_dict = observation_dict,       
-        action_dict = action_dict,            
+        action_dict = action_dict,       
+        hidden_state_sizes = [128, 128],
+        time_scales = [1, 2],
         number_of_critics = 2, 
         tau = .99,
         lr = .0001,

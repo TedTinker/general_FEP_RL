@@ -193,10 +193,6 @@ class World_Model_Layer(nn.Module):
         return(new_hidden_state_p, new_hidden_state_q)
         
         
-            
-    # Action should be used ONLY if bottom_layer = True.
-    # If bottom_layer = False, lower zq should replace observations.
-    # If top_layer = False, MTRNN should include higher hidden state.
     
     def forward(
             self, 
@@ -326,8 +322,6 @@ class World_Model(nn.Module):
             self.observation_dict[key]["decoder"] = observation_dict[key]["decoder"](
                 hidden_state_sizes[0] + encoded_action_size, arg_dict = observation_dict[key]["decoder_arg_dict"], verbose = verbose)
                
-        # We may have multiple layers of MTRNN for short-term memory, long-term memory.
-        # THIS IS NOT YET IMPLEMENTED! 
         self.world_layers = nn.ModuleList()
         first_layer_zp_zq_size = sum(self.observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"][-1] for key in self.observation_dict.keys())
         for i, time_scale in enumerate(time_scales):
@@ -343,15 +337,6 @@ class World_Model(nn.Module):
                     higher_hidden_state_size = 0 if i+1 == len(time_scales) else hidden_state_sizes[i+1],
                     time_scale = time_scale, 
                     verbose = verbose))
-        
-        self.wl = World_Model_Layer(
-            hidden_state_size = hidden_state_sizes[0],
-            observation_dict = self.observation_dict, 
-            action_dict = self.action_dict,
-            bottom_layer = True,
-            top_layer = True,
-            time_scale = time_scales[0], 
-            verbose = verbose)
 
         self.apply(init_weights)
                 
@@ -428,21 +413,6 @@ class World_Model(nn.Module):
             new_hidden_states_p, 
             new_hidden_states_q, 
             inner_state_dict)
-            
-        
-        
-        """mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.wl.bottom_up(
-            prev_hidden_states[0], encoded_obs, encoded_prev_action)
-        new_hidden_state_p, new_hidden_state_q = self.wl.top_down(
-            mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_states[0])
-        
-        print("old:", new_hidden_state_p.shape, prev_hidden_states[1].shape)
-        print("new:", [h.shape for h in new_hidden_states_p])
-        
-        return(
-            [new_hidden_state_p, prev_hidden_states[1]], 
-            [new_hidden_state_q, prev_hidden_states[1]], 
-            inner_state_dict)"""
     
     
     
@@ -524,7 +494,7 @@ class World_Model(nn.Module):
         with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
             with record_function("model_inference"):
                 print(summary(
-                    self.wl, 
+                    self.world_layers[0], 
                     input_data=(dummy_inputs)))
         #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
         
