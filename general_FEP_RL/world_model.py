@@ -161,8 +161,9 @@ class World_Model_Layer(nn.Module):
             zp_inputs = torch.cat([prev_hidden_state] + [v for v in encoded_prev_action.values()], dim=-1)
             zq_inputs_dict = {key : torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in encoded_obs.items()}              
         else:
-            lower_zp_zq = lower_zp_zq.reshape(episodes * steps, lower_zp_zq.shape[2])
+            #lower_zp_zq = lower_zp_zq.reshape(episodes * steps, lower_zp_zq.shape[2])
             zp_inputs = prev_hidden_state
+            print(zp_inputs.shape, lower_zp_zq.shape)
             zq_inputs_dict = {self.layer_number : torch.cat([zp_inputs, lower_zp_zq])}
                 
         inner_state_dict = {key : process_z_func_outputs(zp_inputs, zq_inputs, z_func) for \
