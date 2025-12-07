@@ -178,9 +178,7 @@ class Agent:
             complexity_loss = complexity_loss + dkl.mean() * self.observation_dict[key]["beta"]
             complexity_losses[key] = complexity_loss
         for i in range(len(self.hidden_state_sizes) - 1):
-            print("\n", i, self.beta[i], self.beta)
             dkl = inner_state_dict[i+1]["dkl"].mean(-1).unsqueeze(-1) * complete_mask 
-            print(dkl.shape)
             complexity_loss = complexity_loss + dkl.mean() * self.beta[i]
             complexity_losses[i+1] = complexity_loss
             
@@ -201,6 +199,13 @@ class Agent:
             complexity_losses[key] = complexity_losses[key].mean().item()
             curiosities[key] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
+        for i in range(len(self.hidden_state_sizes) - 1):
+            obs_curiosity = self.eta[i] * \
+                torch.clamp(complexity_losses[i+1] * self.eta_before_clamp[i], min = 0, max = 1) 
+            complexity_losses[i+1] = complexity_losses[i+1].mean().item()
+            curiosities[i+1] = obs_curiosity.mean().item()
+            curiosity = curiosity + obs_curiosity
+            
         total_reward = reward + curiosity
 
 
