@@ -171,6 +171,7 @@ class World_Model_Layer(nn.Module):
             mtrnn_inputs_p = torch.cat([inner_state["zp"] for inner_state in inner_state_dict.values()], dim = -1)
             mtrnn_inputs_q = torch.cat([inner_state["zq"] for inner_state in inner_state_dict.values()], dim = -1)
         else:
+            higher_hidden_state = higher_hidden_state.reshape(episodes * steps, higher_hidden_state.shape[2])
             mtrnn_inputs_p = torch.cat([inner_state["zp"] for inner_state in inner_state_dict.values()] + [higher_hidden_state], dim = -1)
             mtrnn_inputs_q = torch.cat([inner_state["zq"] for inner_state in inner_state_dict.values()] + [higher_hidden_state], dim = -1)
         
