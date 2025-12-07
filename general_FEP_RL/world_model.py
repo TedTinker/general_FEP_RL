@@ -433,6 +433,9 @@ class World_Model(nn.Module):
         new_hidden_state_p, new_hidden_state_q = self.wl.top_down(
             mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_states[0])
         
+        print("old:", new_hidden_state_p.shape, prev_hidden_states[1].shape)
+        print("new:", [h.shape for h in new_hidden_states_p])
+        
         return(
             [new_hidden_state_p, prev_hidden_states[1]], 
             [new_hidden_state_q, prev_hidden_states[1]], 
@@ -451,7 +454,6 @@ class World_Model(nn.Module):
         encoded_obs = self.obs_in(obs)
         encoded_prev_action = self.action_in(prev_action)
         
-        # These should be lists of lists.
         hidden_states_p_list = [prev_hidden_states]
         hidden_states_q_list = [prev_hidden_states]
         inner_state_dicts_list = []
@@ -482,7 +484,6 @@ class World_Model(nn.Module):
             hidden_states_p.append(torch.cat([h[i] for h in hidden_states_p_list], dim = 1))
             hidden_states_q.append(torch.cat([h[i] for h in hidden_states_q_list], dim = 1))
                         
-        # This needs to be adjusted.
         catted_inner_state_dicts = {}
         for key, inner_state_dict in inner_state_dicts_list[0].items():
             zp = torch.stack([inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dicts_list], dim = 1)
@@ -490,7 +491,6 @@ class World_Model(nn.Module):
             dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dicts_list], dim = 1)
             catted_inner_state_dicts[key] = {"zp" : zp, "zq" : zq, "dkl" : dkl}
 
-        # All this needs to be adjusted.
         if(one_step):
             # Cannot make prediction, because we need the next action.
             return([h[:,1:] for h in hidden_states_p], [h[:,1:] for h in hidden_states_q], catted_inner_state_dicts)
