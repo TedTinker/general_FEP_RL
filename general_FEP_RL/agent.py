@@ -172,15 +172,16 @@ class Agent:
             
         complexity_losses = {}
         complexity_loss = torch.zeros((1,)).requires_grad_()
-        # Need to add complexities for higher layers.
+
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]["dkl"].mean(-1).unsqueeze(-1) * complete_mask
             complexity_loss = complexity_loss + dkl.mean() * self.observation_dict[key]["beta"]
             complexity_losses[key] = complexity_loss
+            
         for i in range(len(self.hidden_state_sizes) - 1):
             dkl = inner_state_dict[i+1]["dkl"].mean(-1).unsqueeze(-1) * complete_mask 
             complexity_loss = complexity_loss + dkl.mean() * self.beta[i]
-            complexity_losses[i+1] = complexity_loss
+            complexity_losses[f"hidden_layer {i+2}"] = complexity_loss
             
         
                                 
@@ -193,17 +194,19 @@ class Agent:
         # Get curiosity  
         curiosities = {}
         curiosity = torch.zeros((1,)).requires_grad_()
+        
         for key, value in self.observation_dict.items():
             obs_curiosity = self.observation_dict[key]["eta"] * \
                 torch.clamp(complexity_losses[key] * self.observation_dict[key]["eta_before_clamp"], min = 0, max = 1) 
             complexity_losses[key] = complexity_losses[key].mean().item()
             curiosities[key] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
+            
         for i in range(len(self.hidden_state_sizes) - 1):
             obs_curiosity = self.eta[i] * \
-                torch.clamp(complexity_losses[i+1] * self.eta_before_clamp[i], min = 0, max = 1) 
-            complexity_losses[i+1] = complexity_losses[i+1].mean().item()
-            curiosities[i+1] = obs_curiosity.mean().item()
+                torch.clamp(complexity_losses[f"hidden_layer {i+2}"] * self.eta_before_clamp[i], min = 0, max = 1) 
+            complexity_losses[f"hidden_layer {i+2}"] = complexity_losses[f"hidden_layer {i+2}"].mean().item()
+            curiosities[f"hidden_layer {i+2}"] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
             
         total_reward = reward + curiosity
