@@ -406,18 +406,21 @@ class World_Model(nn.Module):
             mtrnn_inputs_p_list.append(mtrnn_inputs_p)
             mtrnn_inputs_q_list.append(mtrnn_inputs_q)
         
+        new_hidden_states_p = []
+        new_hidden_states_q = []
         for i in reversed(range(len(self.world_layers))):
             world_layer = self.world_layers[i]
             new_hidden_state_p, new_hidden_state_q = world_layer.top_down(
                 mtrnn_inputs_p_list[i],
                 mtrnn_inputs_q_list[i],
                 prev_hidden_states[i])
+            new_hidden_states_p.append(new_hidden_state_p)
+            new_hidden_states_q.append(new_hidden_state_q)
             
         inner_state_dict = {}
         for d in inner_state_dict_list:
             inner_state_dict.update(d)
             
-        print(inner_state_dict.keys())
         
         
         mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.wl.bottom_up(
