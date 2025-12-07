@@ -424,14 +424,14 @@ class World_Model(nn.Module):
         for d in inner_state_dict_list:
             inner_state_dict.update(d)
             
-        #return(
-        #    new_hidden_states_p, 
-        #    new_hidden_states_q, 
-        #    inner_state_dict)
+        return(
+            new_hidden_states_p, 
+            new_hidden_states_q, 
+            inner_state_dict)
             
         
         
-        mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.wl.bottom_up(
+        """mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.wl.bottom_up(
             prev_hidden_states[0], encoded_obs, encoded_prev_action)
         new_hidden_state_p, new_hidden_state_q = self.wl.top_down(
             mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_states[0])
@@ -442,7 +442,7 @@ class World_Model(nn.Module):
         return(
             [new_hidden_state_p, prev_hidden_states[1]], 
             [new_hidden_state_q, prev_hidden_states[1]], 
-            inner_state_dict)
+            inner_state_dict)"""
     
     
     
