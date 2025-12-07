@@ -398,7 +398,7 @@ class World_Model(nn.Module):
                 prev_hidden_state = prev_hidden_states[i], 
                 encoded_obs = encoded_obs if i==0 else None, 
                 encoded_prev_action = encoded_prev_action if i==0 else None,
-                lower_zp_zq = None if i==0 else first_layer_zp_zq if i==1 else inner_state_dict_list[-1]["zq"],
+                lower_zp_zq = None if i==0 else first_layer_zp_zq if i==1 else inner_state_dict_list[-1][i-1]["zq"],
                 higher_hidden_state = None if i+1 == len(self.world_layers) else prev_hidden_states[i+1])
             if(i==0):
                 first_layer_zp_zq = torch.cat([value["zq"] for key, value in inner_state_dict.items()], dim = -1).unsqueeze(1)
