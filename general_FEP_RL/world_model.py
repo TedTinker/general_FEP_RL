@@ -164,8 +164,8 @@ class World_Model_Layer(nn.Module):
             zp_inputs = prev_hidden_state
             zq_inputs_dict = {self.layer_number : torch.cat([zp_inputs, lower_zp_zq], dim=-1)}
                 
-        inner_state_dict = {key : process_z_func_outputs(zp_inputs, zq_inputs, self.zp_zq_dict[key]) for \
-                            key, zq_inputs in sorted(zq_inputs_dict.items())}
+        inner_state_dict = {key : process_z_func_outputs(zp_inputs, zq_inputs, z_func) for \
+                            (key, zq_inputs), z_func in zip(zq_inputs_dict.items(), self.zp_zq_dict.values())}
                 
         if(self.top_layer):
             mtrnn_inputs_p = torch.cat([inner_state["zp"] for key, inner_state in sorted(inner_state_dict.items())], dim = -1)
