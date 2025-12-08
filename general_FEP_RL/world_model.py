@@ -487,7 +487,7 @@ class World_Model(nn.Module):
         
     def summary(self):
                 
-        print("\nWORLD_MODEL_LAYER")
+        """print("\nWORLD_MODEL_LAYER")
         dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_sizes)        
         dummy_inputs = dummies["hidden"][0], dummies["obs_enc_out"], dummies["act_enc_out"], 0
         
@@ -496,7 +496,7 @@ class World_Model(nn.Module):
                 print(summary(
                     self.world_layers[0], 
                     input_data=(dummy_inputs)))
-        #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+        #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))"""
         
         print("\n\nOBSERVATIONS")
         for key, value in sorted(self.observation_dict.items()):
