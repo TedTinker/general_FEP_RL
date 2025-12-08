@@ -116,8 +116,8 @@ class World_Model_Layer(nn.Module):
 
         self.zp_zq_dict = nn.ModuleDict()
         if(bottom_layer):
-            total_action_size = sum(action_dict[key]["encoder"].arg_dict["encode_size"] for key in action_dict.keys())
-            for key in observation_dict.keys():
+            total_action_size = sum(action_dict[key]["encoder"].arg_dict["encode_size"] for key in sorted(action_dict.keys()))
+            for key in sorted(observation_dict.keys()):
                 zp_zq_size = observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"]
                 obs_size = observation_dict[key]["encoder"].arg_dict["encode_size"]
 
@@ -132,7 +132,7 @@ class World_Model_Layer(nn.Module):
                 zp_zq_sizes = [hidden_state_size])
     
         self.mtrnn = MTRNN(
-                input_size = sum(zp_zq.zp_zq_sizes[-1] for zp_zq in self.zp_zq_dict.values()) + higher_hidden_state_size,
+                input_size = sum(zp_zq.zp_zq_sizes[-1] for key, zp_zq in sorted(self.zp_zq_dict.items())) + higher_hidden_state_size,
                 hidden_size = hidden_state_size, 
                 time_constant = time_scale)
             
@@ -158,22 +158,22 @@ class World_Model_Layer(nn.Module):
             return(inner_states)
                 
         if(self.bottom_layer):
-            zp_inputs = torch.cat([prev_hidden_state] + [v for v in encoded_prev_action.values()], dim=-1)
-            zq_inputs_dict = {key : torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in encoded_obs.items()}              
+            zp_inputs = torch.cat([prev_hidden_state] + [v for k, v in sorted(encoded_prev_action.items())], dim=-1)
+            zq_inputs_dict = {key : torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in sorted(encoded_obs.items())}              
         else:
             zp_inputs = prev_hidden_state
             zq_inputs_dict = {self.layer_number : torch.cat([zp_inputs, lower_zp_zq], dim=-1)}
                 
-        inner_state_dict = {key : process_z_func_outputs(zp_inputs, zq_inputs, z_func) for \
-                            (key, zq_inputs), z_func in zip(zq_inputs_dict.items(), self.zp_zq_dict.values())}
+        inner_state_dict = {key : process_z_func_outputs(zp_inputs, zq_inputs, self.zp_zq_dict[key]) for \
+                            key, zq_inputs in sorted(zq_inputs_dict.items())}
                 
         if(self.top_layer):
-            mtrnn_inputs_p = torch.cat([inner_state["zp"] for inner_state in inner_state_dict.values()], dim = -1)
-            mtrnn_inputs_q = torch.cat([inner_state["zq"] for inner_state in inner_state_dict.values()], dim = -1)
+            mtrnn_inputs_p = torch.cat([inner_state["zp"] for key, inner_state in sorted(inner_state_dict.items())], dim = -1)
+            mtrnn_inputs_q = torch.cat([inner_state["zq"] for key, inner_state in sorted(inner_state_dict.items())], dim = -1)
         else:
             higher_hidden_state = higher_hidden_state.reshape(episodes * steps, higher_hidden_state.shape[2])
-            mtrnn_inputs_p = torch.cat([inner_state["zp"] for inner_state in inner_state_dict.values()] + [higher_hidden_state], dim = -1)
-            mtrnn_inputs_q = torch.cat([inner_state["zq"] for inner_state in inner_state_dict.values()] + [higher_hidden_state], dim = -1)
+            mtrnn_inputs_p = torch.cat([inner_state["zp"] for key, inner_state in sorted(inner_state_dict.items())] + [higher_hidden_state], dim = -1)
+            mtrnn_inputs_q = torch.cat([inner_state["zq"] for key, inner_state in sorted(inner_state_dict.items())] + [higher_hidden_state], dim = -1)
         
         mtrnn_inputs_p = mtrnn_inputs_p.reshape(episodes, steps, mtrnn_inputs_p.shape[1])
         mtrnn_inputs_q = mtrnn_inputs_q.reshape(episodes, steps, mtrnn_inputs_q.shape[1]) 
@@ -303,7 +303,7 @@ class World_Model(nn.Module):
         self.example_input = torch.zeros((32, 16, hidden_state_sizes[0]))
         
         self.action_dict = nn.ModuleDict()
-        for key in action_dict.keys():
+        for key in sorted(action_dict.keys()):
             self.action_dict[key] = nn.ModuleDict()
             self.action_dict[key]["encoder"] = action_dict[key]["encoder"](
                 arg_dict = action_dict[key]["encoder_arg_dict"], verbose = verbose)
@@ -311,11 +311,11 @@ class World_Model(nn.Module):
                 hidden_state_sizes[0], entropy = True, arg_dict = action_dict[key]["decoder_arg_dict"], verbose = verbose)
         
         encoded_action_size = 0 
-        for key, value in self.action_dict.items():
+        for key, value in sorted(action_dict.items()):
             encoded_action_size += self.action_dict[key]["encoder"].arg_dict["encode_size"]
         
         self.observation_dict = nn.ModuleDict()
-        for key in observation_dict.keys():
+        for key in sorted(observation_dict.keys()):
             self.observation_dict[key] = nn.ModuleDict()
             self.observation_dict[key]["encoder"] = observation_dict[key]["encoder"](
                 arg_dict = observation_dict[key]["encoder_arg_dict"], verbose = verbose)
@@ -323,7 +323,7 @@ class World_Model(nn.Module):
                 hidden_state_sizes[0] + encoded_action_size, arg_dict = observation_dict[key]["decoder_arg_dict"], verbose = verbose)
                
         self.world_layers = nn.ModuleList()
-        first_layer_zp_zq_size = sum(self.observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"][-1] for key in self.observation_dict.keys())
+        first_layer_zp_zq_size = sum(self.observation_dict[key]["encoder"].arg_dict["zp_zq_sizes"][-1] for key in sorted(self.observation_dict.keys()))
         for i, time_scale in enumerate(time_scales):
             self.world_layers.append(
                 World_Model_Layer(
@@ -345,7 +345,7 @@ class World_Model(nn.Module):
     # Encode incoming observations. # PROBLEM HERE!
     def obs_in(self, obs):
         encoded_obs = {}
-        for key, value in obs.items():
+        for key, value in sorted(obs.items()):
             encoded_obs[key] = self.observation_dict[key]["encoder"](value)
         return(encoded_obs)
     
@@ -354,7 +354,7 @@ class World_Model(nn.Module):
     # Encode incoming actions.
     def action_in(self, action):
         encoded_action = {}
-        for key, value in action.items():
+        for key, value in sorted(action.items()):
             encoded_action[key] = self.action_dict[key]["encoder"](value)
         return(encoded_action)
     
@@ -362,9 +362,9 @@ class World_Model(nn.Module):
     
     # Predict upcoming observations.
     def predict(self, hidden_state, encoded_action):
-        hidden_state_and_action = torch.cat([hidden_state] + [v for v in encoded_action.values()], dim=-1)
+        hidden_state_and_action = torch.cat([hidden_state] + [v for k, v in sorted(encoded_action.items())], dim=-1)
         predicted_obs = {}
-        for key, value in self.observation_dict.items():
+        for key, value in sorted(self.observation_dict.items()):
             prediction, log_prob = self.observation_dict[key]["decoder"](hidden_state_and_action)
             predicted_obs[key] = prediction
         return(predicted_obs)
@@ -386,7 +386,7 @@ class World_Model(nn.Module):
                 lower_zp_zq = None if i==0 else first_layer_zp_zq if i==1 else inner_state_dict_list[-1][i-1]["zq"].unsqueeze(1),
                 higher_hidden_state = None if i+1 == len(self.world_layers) else prev_hidden_states[i+1])
             if(i==0):
-                first_layer_zp_zq = torch.cat([value["zq"] for key, value in inner_state_dict.items()], dim = -1).unsqueeze(1)
+                first_layer_zp_zq = torch.cat([value["zq"] for key, value in sorted(inner_state_dict.items())], dim = -1).unsqueeze(1)
             inner_state_dict_list.append(inner_state_dict)
             mtrnn_inputs_p_list.append(mtrnn_inputs_p)
             mtrnn_inputs_q_list.append(mtrnn_inputs_q)
@@ -418,7 +418,7 @@ class World_Model(nn.Module):
     
     def forward(self, prev_hidden_states, obs, prev_action, one_step = False):
                            
-        for key, value in obs.items():    
+        for key, value in sorted(obs.items()):    
             episodes, steps = value.shape[0], value.shape[1]
                                     
         if(prev_hidden_states == None): # This should initialize all hidden_states
@@ -434,11 +434,11 @@ class World_Model(nn.Module):
         for step in range(steps):
                                     
             step_obs = {}
-            for key, value in encoded_obs.items():
+            for key, value in sorted(encoded_obs.items()):
                 step_obs[key] = value[:,step].unsqueeze(1)
                 
             step_prev_action = {}
-            for key, value in encoded_prev_action.items():
+            for key, value in sorted(encoded_prev_action.items()):
                 step_prev_action[key] = value[:,step].unsqueeze(1)
                                         
             new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
@@ -458,7 +458,7 @@ class World_Model(nn.Module):
             hidden_states_q.append(torch.cat([h[i] for h in hidden_states_q_list], dim = 1))
                         
         catted_inner_state_dicts = {}
-        for key, inner_state_dict in inner_state_dicts_list[0].items():
+        for key, inner_state_dict in sorted(inner_state_dicts_list[0].items()):
             zp = torch.stack([inner_state_dict[key]["zp"] for inner_state_dict in inner_state_dicts_list], dim = 1)
             zq = torch.stack([inner_state_dict[key]["zq"] for inner_state_dict in inner_state_dicts_list], dim = 1)
             dkl = torch.stack([inner_state_dict[key]["dkl"] for inner_state_dict in inner_state_dicts_list], dim = 1)
@@ -470,7 +470,7 @@ class World_Model(nn.Module):
         else:
             # Make predictions for all steps.
             skip_non_action = {}
-            for key, value in encoded_prev_action.items():    
+            for key, value in sorted(encoded_prev_action.items()):    
                 skip_non_action[key] = value[:, 1:]
             
             pred_obs_p = self.predict(hidden_states_p[0][:, 1:-1], skip_non_action)
@@ -487,7 +487,7 @@ class World_Model(nn.Module):
         
     def summary(self):
                 
-        print("\nWORLD_MODEL_LAYER")
+        """print("\nWORLD_MODEL_LAYER")
         dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_sizes)        
         dummy_inputs = dummies["hidden"][0], dummies["obs_enc_out"], dummies["act_enc_out"], 0
         
@@ -496,10 +496,10 @@ class World_Model(nn.Module):
                 print(summary(
                     self.world_layers[0], 
                     input_data=(dummy_inputs)))
-        #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+        #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))"""
         
         print("\n\nOBSERVATIONS")
-        for key, value in self.observation_dict.items():
+        for key, value in sorted(self.observation_dict.items()):
             print(f"\n{key} ENCODER")
             with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
                 with record_function("model_inference"):
@@ -517,7 +517,7 @@ class World_Model(nn.Module):
             #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
             
         print("\n\nACTIONS")
-        for key, value in self.action_dict.items():
+        for key, value in sorted(self.action_dict.items()):
             print(f"\n{key} ENCODER")
             with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
                 with record_function("model_inference"):
