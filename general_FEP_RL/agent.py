@@ -279,7 +279,7 @@ class Agent:
             
             complete_entropy += total_entropy 
             
-        imitation_losses = {}
+        """imitation_losses = {}
         imitation_loss = torch.zeros((1,)).requires_grad_()
         for key in new_action_dict.keys():
             this_action = new_action_dict[key]
@@ -290,9 +290,10 @@ class Agent:
             action_imitation_loss = action_imitation_loss.mean(dim=tuple(range(2, imitation_loss.ndim)))
             action_imitation_loss = action_imitation_loss * mask.squeeze(-1) * scalar
             imitation_losses[key] = imitation_loss.mean().item()
-            imitation_loss = imitation_loss + action_imitation_loss.mean()
+            imitation_loss = imitation_loss + action_imitation_loss.mean()"""
+        imitation_loss = 0
             
-        actor_loss = (complete_entropy - Q) * mask    
+        actor_loss = (complete_entropy - Q - imitation_loss) * mask    
         actor_loss = actor_loss.mean() / mask.mean()
         
         self.actor_opt.zero_grad()
