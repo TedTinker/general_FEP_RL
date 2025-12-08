@@ -43,7 +43,7 @@ class RecurrentReplayBuffer:
         # Best Actions
         self.best_action_buffers = {}
         for key, value in action_dict.items():
-            self.action_buffers[key] = VariableBuffer(capacity, max_steps, shape=value["decoder"].example_output.shape[2:])
+            self.best_action_buffers[key] = VariableBuffer(capacity, max_steps, shape=value["decoder"].example_output.shape[2:])
 
         # Scalars
         self.reward = VariableBuffer(capacity, max_steps)
