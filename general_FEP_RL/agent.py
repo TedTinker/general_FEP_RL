@@ -51,6 +51,7 @@ class Agent:
                                         # decoder_arg_dict
                                         # target_entropy
                                         # alpha_normal
+                                        # delta
             
             hidden_state_sizes,
             time_scales = [1],
@@ -278,6 +279,19 @@ class Agent:
             
             complete_entropy += total_entropy 
             
+        imitation_losses = {}
+        imitation_loss = torch.zeros((1,)).requires_grad_()
+        for key in new_action_dict.keys():
+            this_action = new_action_dict[key]
+            the_best_action = best_action[key]
+            loss_func = self.action_dict[key]["decoder"].loss_func
+            scalar = self.action_dict[key]["delta"]
+            action_imitation_loss = loss_func(the_best_action, this_action)
+            action_imitation_loss = action_imitation_loss.mean(dim=tuple(range(2, imitation_loss.ndim)))
+            action_imitation_loss = action_imitation_loss * mask.squeeze(-1) * scalar
+            imitation_losses[key] = imitation_loss.mean().item()
+            imitation_loss = imitation_loss + action_imitation_loss.mean()
+            
         actor_loss = (complete_entropy - Q) * mask    
         actor_loss = actor_loss.mean() / mask.mean()
         
@@ -375,7 +389,8 @@ if __name__ == "__main__":
             "decoder" : Decode_Image,
             "decoder_arg_dict" : {},
             "target_entropy" : 1,
-            "alpha_normal" : 1}}
+            "alpha_normal" : 1,
+            "delta" : 0}}
     
     
     
