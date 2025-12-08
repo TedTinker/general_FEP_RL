@@ -39,14 +39,22 @@ class Actor(nn.Module):
 
         self.apply(init_weights)
 
-    def forward(self, hidden_state):
+    def forward(self, hidden_state, best_action = None):
         action = {}
         log_prob = {}
         for key, model in self.action_dict.items():
             a, lp = self.action_dict[key]["decoder"](hidden_state)
             action[key] = a
             log_prob[key] = lp
-        return(action, log_prob)
+        if(best_action == None):
+            return(action, log_prob)
+        else:
+            imitation_loss = {}
+            for key, model in self.action_dict.items():
+                loss_func = self.action_dict[key]["decoder"].loss_func
+                loss_value = loss_func(best_action[key], action[key])
+                imitation_loss[key] = loss_value
+            return(action, log_prob, imitation_loss)
     
     
     

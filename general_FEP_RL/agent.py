@@ -1,8 +1,7 @@
 #%%
 
 ### TO DO:
-    # Make hidden states a list.
-    # Use however many levels there are.
+    # Use imitation.
 
 import torch
 import torch.nn.functional as F
