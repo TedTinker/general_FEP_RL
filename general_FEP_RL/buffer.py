@@ -39,6 +39,11 @@ class RecurrentReplayBuffer:
         self.action_buffers = {}
         for key, value in action_dict.items():
             self.action_buffers[key] = VariableBuffer(capacity, max_steps, shape=value["decoder"].example_output.shape[2:])
+            
+        # Best Actions
+        self.best_action_buffers = {}
+        for key, value in action_dict.items():
+            self.action_buffers[key] = VariableBuffer(capacity, max_steps, shape=value["decoder"].example_output.shape[2:])
 
         # Scalars
         self.reward = VariableBuffer(capacity, max_steps)
@@ -50,7 +55,7 @@ class RecurrentReplayBuffer:
                     self.reward, self.done, self.mask]:
             buf.reset_episode(self.episode_ptr)
 
-    def push(self, observation_dict, action_dict, reward, next_observation_dict, done):
+    def push(self, observation_dict, action_dict, reward, next_observation_dict, done, best_action_dict = None):
         if self.time_ptr == 0:
             self.reset_episode()
 
@@ -59,6 +64,13 @@ class RecurrentReplayBuffer:
 
         for k, v in action_dict.items():
             self.action_buffers[k].push(self.episode_ptr, self.time_ptr, v)
+            
+        if(best_action_dict == None):
+            for k, v in action_dict.items():
+                self.best_action_buffers[k].push(self.episode_ptr, self.time_ptr, v)
+        else:
+            for k, v in best_action_dict.items():
+                self.best_action_buffers[k].push(self.episode_ptr, self.time_ptr, v)
 
         self.reward.push(self.episode_ptr, self.time_ptr, reward)
         self.done.push(self.episode_ptr, self.time_ptr, done)
@@ -85,6 +97,7 @@ class RecurrentReplayBuffer:
         batch = {
             "obs": {k: buf.sample(indices) for k, buf in self.observation_buffers.items()},
             "action": {k: buf.sample(indices) for k, buf in self.action_buffers.items()},
+            "best_action" : {k: buf.sample(indices) for k, buf in self.best_action_buffers.items()},
             "reward": self.reward.sample(indices),
             "done": self.done.sample(indices),
             "mask": self.mask.sample(indices),

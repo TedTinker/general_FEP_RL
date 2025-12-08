@@ -111,7 +111,9 @@ class Agent:
         
         
     
-    def step_in_episode(self, obs, posterior = True):
+    def step_in_episode(self, obs, posterior = True, best_action = None, use_best_action = False):
+        if(use_best_action):
+            self.action = best_action
         with torch.no_grad():
             self.eval()
             self.hp, self.hq, inner_state_dict = self.world_model(
@@ -142,6 +144,7 @@ class Agent:
         batch = self.buffer.sample(batch_size)
         obs = batch["obs"]
         action = batch["action"] 
+        best_action = batch["best_action"] 
         reward = batch["reward"]
         done = batch["done"]
         mask = batch["mask"]
