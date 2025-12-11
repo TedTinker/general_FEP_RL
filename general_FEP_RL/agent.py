@@ -152,15 +152,12 @@ class Agent:
         
         complete_action = {}
         for key, value in action.items(): 
-            print("action:", key, value.shape)
             empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
                                     
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
-        
-        print("hq:", hq[0][:,0])
-        
+                
         accuracy_losses = {}
         accuracy_loss = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
@@ -220,9 +217,9 @@ class Agent:
         # Train critics
         with torch.no_grad():
             for key, value in best_action.items(): 
-                print("best_action:", key, value.shape)
-                print("h:", hq[0][:,1:].shape)
-            new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:,1:].detach(), best_action)
+                print("\nbest_action:", key, value.shape)
+                print(hq[0].shape)
+            new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0].detach(), best_action)
             for key, new_log_pis in new_log_pis_dict.items():
                 new_log_pis_dict[key] = new_log_pis[:,1:]  
             for key, i_loss in imitation_loss.items():
