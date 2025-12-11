@@ -152,6 +152,7 @@ class Agent:
         
         complete_action = {}
         for key, value in action.items(): 
+            print("action:", key, value.shape)
             empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
@@ -216,6 +217,8 @@ class Agent:
                 
         # Train critics
         with torch.no_grad():
+            for key, value in best_action.items(): 
+                print("best_action:", key, value.shape)
             new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0].detach(), best_action)
             for key, new_log_pis in new_log_pis_dict.items():
                 new_log_pis_dict[key] = new_log_pis[:,1:]  
