@@ -235,9 +235,9 @@ class Agent:
             #    imitation_loss[key] = i_loss[:,1:]  
             
             for key, new_action in new_action_dict.items():
-                new_action_dict[key] = new_action[:,1:] 
+                print(new_action.shape)
                 
-            print(hq[0].shape, new_action_dict.shape)
+            print(hq[0].shape)
             
             Q_target_nexts = []
             for i in range(len(self.critics)):
