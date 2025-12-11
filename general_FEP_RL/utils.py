@@ -54,7 +54,7 @@ def estimate_total_duration(proportion_completed, start_time=start_time):
 
 
 
-"""def print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask):
+def print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask):
     
     rows = []
     
@@ -80,6 +80,6 @@ def estimate_total_duration(proportion_completed, start_time=start_time):
     print("-" * (label_width + key_width + 10))
     for label, key, shape in rows:
         print(f"{label:<{label_width}}  {key:<{key_width}}  {shape}")
-    print("\n\n")"""
+    print("\n\n")
 
 
