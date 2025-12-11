@@ -22,6 +22,7 @@ class VariableBuffer:
         return self.data[indices]
 
 
+
 class RecurrentReplayBuffer:
     def __init__(self, observation_dict, action_dict, capacity, max_steps):
         self.capacity = capacity
@@ -52,11 +53,19 @@ class RecurrentReplayBuffer:
         self.best_action_mask = VariableBuffer(capacity, max_steps)
 
     def reset_episode(self):
-        for buf in [*self.observation_buffers.values(), *self.action_buffers.values(),
-                    self.reward, self.done, self.mask]:
+        for buf in [*self.observation_buffers.values(), *self.action_buffers.values(), *self.best_action_buffers.values(),
+                    self.reward, self.done, self.mask, self.best_action_mask]:
             buf.reset_episode(self.episode_ptr)
 
-    def push(self, observation_dict, action_dict, reward, next_observation_dict, done, best_action_dict = None):
+    def push(
+            self, 
+            observation_dict, 
+            action_dict, 
+            reward, 
+            next_observation_dict, 
+            done, 
+            best_action_dict = None,
+            best_action_mask = None):
         if self.time_ptr == 0:
             self.reset_episode()
 
@@ -69,9 +78,11 @@ class RecurrentReplayBuffer:
         if(best_action_dict == None):
             for k, v in action_dict.items():
                 self.best_action_buffers[k].push(self.episode_ptr, self.time_ptr, v)
+            self.best_action_mask.push(self.episode_ptr, self.time_ptr, 0)
         else:
             for k, v in best_action_dict.items():
                 self.best_action_buffers[k].push(self.episode_ptr, self.time_ptr, v)
+            self.best_action_mask.push(self.episode_ptr, self.time_ptr, best_action_mask)
 
         self.reward.push(self.episode_ptr, self.time_ptr, reward)
         self.done.push(self.episode_ptr, self.time_ptr, done)
