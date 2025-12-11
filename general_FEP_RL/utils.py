@@ -67,12 +67,12 @@ def print_shapes(obs, action, complete_action, best_action, reward, done, mask, 
     for key, value in best_action.items():
         rows.append(("best_action", key, list(value.shape)))
     
-    rows.append(("", "reward", list(reward.shape)))
-    rows.append(("", "done", list(done.shape)))
-    rows.append(("", "mask", list(mask.shape)))
-    rows.append(("", "complete_mask", list(complete_mask.shape)))
+    rows.append(("reward", "", list(reward.shape)))
+    rows.append(("done", "", list(done.shape)))
+    rows.append(("mask", "", (mask.shape)))
+    rows.append(("complete_mask", "", list(complete_mask.shape)))
     
-    rows.append(("", "hq", list(hq[0].shape)))
+    rows.append(("hq", "", list(hq[0].shape)))
     
     label_width = max(len(label) for label, _, _ in rows)
     key_width = max(len(key) for _, key, _ in rows)
