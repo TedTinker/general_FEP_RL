@@ -155,6 +155,24 @@ class Agent:
             empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
+            
+            
+        print("\n\n")
+        for key, value in obs.items():
+            print("obs:", key, value.shape)
+        for key, value in action.items():
+            print("action:", key, value.shape)
+        for key, value in complete_action.items():
+            print("complete_action:", key, value.shape)
+        for key, value in best_action.items():
+            print("best_action:", key, value.shape)
+        print("reward:", reward.shape)
+        print("done:", done.shape)
+        print("mask:", mask.shape)
+        print("complete_mask:", complete_mask.shape)
+        for key, value in obs.items():
+            print("obs:", key, value.shape)
+        print("\n\n")
                                     
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
                 
@@ -216,14 +234,7 @@ class Agent:
                 
         # Train critics
         with torch.no_grad():
-            for key, value in best_action.items(): 
-                print("\nbest_action:", key, value.shape)
-                print(hq[0].shape)
             new_action_dict, new_log_pis_dict = self.actor(hq[0].detach(), None) #best_action)
-            
-            for key, value in action.items(): 
-                print("action:", key, value.shape)
-                print("new_action:", key, new_action_dict[key].shape)
             
             for key, new_log_pis in new_log_pis_dict.items():
                 new_log_pis_dict[key] = new_log_pis[:,1:]  
