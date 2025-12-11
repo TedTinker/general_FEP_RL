@@ -159,17 +159,17 @@ class Agent:
             
         print("\n\n")
         for key, value in obs.items():
-            print("obs:", key, list(value.shape))
+            print(f"obs: \t{key} \t{list(value.shape)}")
         for key, value in action.items():
-            print("action:", key, list(value.shape))
+            print(f"action: \t{key} \t{list(value.shape)}")
         for key, value in complete_action.items():
-            print("complete_action:", key, list(value.shape))
+            print(f"complete_action: \t{key} \t{list(value.shape)}")
         for key, value in best_action.items():
-            print("best_action:", key, list(value.shape))
-        print("reward:", list(reward.shape))
-        print("done:", list(done.shape))
-        print("mask:", list(mask.shape))
-        print("complete_mask:", list(complete_mask.shape))
+            print(f"best_action: \t{key} \t{list(value.shape)}")
+        print(f"reward: \t{list(reward.shape)}")
+        print(f"done: \t{list(done.shape)}")
+        print(f"mask: \t{list(mask.shape)}")
+        print(f"complete_mask: \t{list(complete_mask.shape)}")
         print("\n\n")
                                     
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
