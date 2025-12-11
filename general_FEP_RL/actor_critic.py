@@ -52,6 +52,7 @@ class Actor(nn.Module):
             imitation_loss = {}
             for key, model in self.action_dict.items():
                 loss_func = self.action_dict[key]["decoder"].loss_func
+                print(key, best_action[key].shape, action[key].shape)
                 loss_value = loss_func(best_action[key], action[key])
                 imitation_loss[key] = loss_value
             return(action, log_prob, imitation_loss)
