@@ -222,8 +222,8 @@ class Agent:
             new_action_dict, new_log_pis_dict = self.actor(hq[0].detach(), None) #best_action)
             
             for key, value in action.items(): 
-                print("\naction:", key, value.shape)
-                print(hq[0].shape)
+                print("action:", key, value.shape)
+                print("new_action:", key, new_action_dict[key].shape)
             
             for key, new_log_pis in new_log_pis_dict.items():
                 new_log_pis_dict[key] = new_log_pis[:,1:]  
