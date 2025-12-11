@@ -225,7 +225,7 @@ class Agent:
         with torch.no_grad():
             new_action_dict, new_log_pis_dict = self.actor(hq[0].detach(), None) #best_action)
             
-            for key, value in new_action_dict:
+            for key, value in new_action_dict.items():
                 print("NEW ACTION:", key, value.shape)
             
             for key, new_log_pis in new_log_pis_dict.items():
