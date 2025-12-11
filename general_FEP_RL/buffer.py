@@ -49,6 +49,7 @@ class RecurrentReplayBuffer:
         self.reward = VariableBuffer(capacity, max_steps)
         self.done = VariableBuffer(capacity, max_steps)
         self.mask = VariableBuffer(capacity, max_steps)
+        self.best_action_mask = VariableBuffer(capacity, max_steps)
 
     def reset_episode(self):
         for buf in [*self.observation_buffers.values(), *self.action_buffers.values(),
@@ -101,5 +102,6 @@ class RecurrentReplayBuffer:
             "reward": self.reward.sample(indices),
             "done": self.done.sample(indices),
             "mask": self.mask.sample(indices),
+            "best_action_mask": self.best_action_mask.sample(indices),
         }
         return batch
