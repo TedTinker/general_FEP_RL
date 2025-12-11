@@ -156,14 +156,12 @@ class Agent:
             empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
-            
-            
-            
-        print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask)
-        
-        
+
+
                                     
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
+        
+        print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask, hq)
                 
         accuracy_losses = {}
         accuracy_loss = torch.zeros((1,)).requires_grad_()

@@ -54,7 +54,7 @@ def estimate_total_duration(proportion_completed, start_time=start_time):
 
 
 
-def print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask):
+def print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask, hq):
     
     rows = []
     
@@ -71,6 +71,8 @@ def print_shapes(obs, action, complete_action, best_action, reward, done, mask, 
     rows.append(("", "done", list(done.shape)))
     rows.append(("", "mask", list(mask.shape)))
     rows.append(("", "complete_mask", list(complete_mask.shape)))
+    
+    rows.append(("", "hq", list(hq[0].shape)))
     
     label_width = max(len(label) for label, _, _ in rows)
     key_width = max(len(key) for _, key, _ in rows)
