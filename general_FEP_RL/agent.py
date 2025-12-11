@@ -229,14 +229,11 @@ class Agent:
             for key, value in new_action_dict.items():
                 print("NEW ACTION:", key, value.shape)
             
-            for key, new_log_pis in new_log_pis_dict.items():
-                new_log_pis_dict[key] = new_log_pis[:,1:]  
-            #for key, i_loss in imitation_loss.items():
-            #    imitation_loss[key] = i_loss[:,1:]  
+            for key, value in new_log_pis_dict.items():
+                new_log_pis_dict[key] = value[:,1:]  
+            #for key, value in imitation_loss.items():
+            #    imitation_loss[key] = value[:,1:]  
             
-            for key, new_action in new_action_dict.items():
-                print(new_action.shape)
-                
             print(hq[0].shape)
             
             Q_target_nexts = []
