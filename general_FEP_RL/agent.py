@@ -159,7 +159,7 @@ class Agent:
                                     
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
         
-        print("hq:", hq[0][0,1:])
+        print("hq:", hq[0][:,0])
         
         accuracy_losses = {}
         accuracy_loss = torch.zeros((1,)).requires_grad_()
