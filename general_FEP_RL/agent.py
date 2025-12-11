@@ -219,6 +219,7 @@ class Agent:
         with torch.no_grad():
             for key, value in best_action.items(): 
                 print("best_action:", key, value.shape)
+                print("h:", hq[0].shape)
             new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0].detach(), best_action)
             for key, new_log_pis in new_log_pis_dict.items():
                 new_log_pis_dict[key] = new_log_pis[:,1:]  
