@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-#from general_FEP_RL.utils import print_shapes
+from general_FEP_RL.utils import print_shapes
 from general_FEP_RL.utils_torch import tile_batch_dim
 from general_FEP_RL.buffer import RecurrentReplayBuffer
 from general_FEP_RL.world_model import World_Model
@@ -159,27 +159,8 @@ class Agent:
             
             
             
-        rows = []
-        for key, value in obs.items():
-            rows.append(("obs", key, list(value.shape)))
-        for key, value in action.items():
-            rows.append(("action", key, list(value.shape)))
-        for key, value in complete_action.items():
-            rows.append(("complete_action", key, list(value.shape)))
-        for key, value in best_action.items():
-            rows.append(("best_action", key, list(value.shape)))
-        rows.append(("", "reward", list(reward.shape)))
-        rows.append(("", "done", list(done.shape)))
-        rows.append(("", "mask", list(mask.shape)))
-        rows.append(("", "complete_mask", list(complete_mask.shape)))
-        label_width = max(len(label) for label, _, _ in rows)
-        key_width = max(len(key) for _, key, _ in rows)
-        print("\n\n")
-        print(f"{'Section':<{label_width}}  {'Key':<{key_width}}  Shape")
-        print("-" * (label_width + key_width + 10))
-        for label, key, shape in rows:
-            print(f"{label:<{label_width}}  {key:<{key_width}}  {shape}")
-        print("\n\n")
+        print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask)
+        
         
                                     
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
