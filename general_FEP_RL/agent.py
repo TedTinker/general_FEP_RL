@@ -159,7 +159,7 @@ class Agent:
             
             
             
-        print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask)
+        #print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask)
         
         
                                     
