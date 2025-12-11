@@ -69,7 +69,7 @@ def print_shapes(obs, action, complete_action, best_action, reward, done, mask, 
     
     rows.append(("reward", "", list(reward.shape)))
     rows.append(("done", "", list(done.shape)))
-    rows.append(("mask", "", (mask.shape)))
+    rows.append(("mask", "", list(mask.shape)))
     rows.append(("complete_mask", "", list(complete_mask.shape)))
     
     rows.append(("hq", "", list(hq[0].shape)))

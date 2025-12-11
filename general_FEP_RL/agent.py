@@ -163,6 +163,8 @@ class Agent:
         
         print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask, hq)
                 
+        
+        
         accuracy_losses = {}
         accuracy_loss = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
@@ -222,6 +224,9 @@ class Agent:
         # Train critics
         with torch.no_grad():
             new_action_dict, new_log_pis_dict = self.actor(hq[0].detach(), None) #best_action)
+            
+            for key, value in new_action_dict:
+                print("NEW ACTION:", key, value.shape)
             
             for key, new_log_pis in new_log_pis_dict.items():
                 new_log_pis_dict[key] = new_log_pis[:,1:]  
