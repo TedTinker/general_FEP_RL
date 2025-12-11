@@ -219,7 +219,7 @@ class Agent:
             for key, value in best_action.items(): 
                 print("\nbest_action:", key, value.shape)
                 print(hq[0].shape)
-            new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0].detach(), None) #best_action)
+            new_action_dict, new_log_pis_dict = self.actor(hq[0].detach(), None) #best_action)
             
             for key, value in action.items(): 
                 print("\naction:", key, value.shape)
@@ -227,8 +227,8 @@ class Agent:
             
             for key, new_log_pis in new_log_pis_dict.items():
                 new_log_pis_dict[key] = new_log_pis[:,1:]  
-            for key, i_loss in imitation_loss.items():
-                imitation_loss[key] = i_loss[:,1:]  
+            #for key, i_loss in imitation_loss.items():
+            #    imitation_loss[key] = i_loss[:,1:]  
                 
             Q_target_nexts = []
             for i in range(len(self.critics)):
