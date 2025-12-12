@@ -150,13 +150,21 @@ class Agent:
         done = batch["done"]
         mask = batch["mask"]
         best_action_mask = batch["best_action_mask"]
-        complete_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1)
         
         complete_action = {}
         for key, value in action.items(): 
             empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
+            
+        complete_best_action = {}
+        for key, value in best_action.items(): 
+            empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
+            empty_action = tile_batch_dim(empty_action, batch_size)
+            complete_best_action[key] = torch.cat([empty_action, value], dim = 1)
+            
+        complete_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1)
+        complete_best_action_mask = torch.cat([torch.ones(best_action_mask.shape[0], 1, 1), mask], dim = 1)
 
 
                                     
