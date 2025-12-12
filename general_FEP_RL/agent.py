@@ -240,7 +240,7 @@ class Agent:
                 Q_target_nexts.append(Q_target_next)                
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
-            
+            Q_target_next = Q_target_next[:,1:]
             
             
             print("Q:", Q_target_next.shape)
@@ -249,7 +249,8 @@ class Agent:
                 print("NEW ACTION:", key, value.shape)
                 
             for key, value in new_log_pis_dict.items():
-                print("NEW log_pis_dict:", key, value.shape)
+                new_log_pis_dict[key] = value[:, 1:]
+                print("NEW log_pis_dict:", key, new_log_pis_dict[key].shape)
                 
             for key, value in imitation_loss.items():
                 print("imitation_loss:", key, value.shape)
