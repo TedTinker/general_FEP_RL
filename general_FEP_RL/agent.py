@@ -183,7 +183,7 @@ class Agent:
             scalar = self.observation_dict[key]["accuracy_scalar"]
             obs_accuracy_loss = loss_func(true_obs, predicted_obs)
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim)))
-            obs_accuracy_loss = obs_accuracy_loss * mask.squeeze(-1) * scalar
+            obs_accuracy_loss = obs_accuracy_loss * scalar * mask.squeeze(-1)
             accuracy_losses[key] = obs_accuracy_loss.mean().item()
             accuracy_loss = accuracy_loss + obs_accuracy_loss.mean()
             
@@ -301,12 +301,12 @@ class Agent:
             
         imitation_losses = {}
         total_imitation_loss = torch.zeros_like(Q)
-        """for key in new_action_dict.keys():
+        for key in new_action_dict.keys():
             scalar = self.action_dict[key]["delta"]
-            action_imitation_loss = imitation_loss[key] * mask.squeeze(-1) * scalar
-            # USE IMITIATION MASK! 
+            print(imitation_loss[key].shape, mask.squeeze(-1).shape, best_action_mask.squeeze(-1).shape)
+            action_imitation_loss = imitation_loss[key] * scalar * mask.squeeze(-1) * best_action_mask.squeeze(-1)
             imitation_losses[key] = action_imitation_loss.mean().item()
-            total_imitation_loss = total_imitation_loss + action_imitation_loss.mean()"""
+            total_imitation_loss = total_imitation_loss + action_imitation_loss.mean()
                     
         actor_loss = (complete_entropy - Q - total_imitation_loss) * mask    
         actor_loss = actor_loss.mean() / mask.mean()
