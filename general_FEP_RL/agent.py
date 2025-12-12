@@ -311,7 +311,7 @@ class Agent:
             action_imitation_loss = action_imitation_loss * mask.squeeze(-1) * scalar
             imitation_losses[key] = imitation_loss.mean().item()
             imitation_loss = imitation_loss + action_imitation_loss.mean()"""
-        imitation_loss = 0
+        imitation_loss = torch.zeros((1,)).requires_grad_()
             
         print(complete_entropy.shape, Q.shape, imitation_loss.shape, mask.shape)
         
