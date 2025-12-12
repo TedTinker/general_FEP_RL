@@ -260,11 +260,13 @@ class Agent:
             print(done.shape, done)
             
             Q_targets = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy) 
+            Q_targets *= mask
         
         critic_losses = []
         for i in range(len(self.critics)):
-            Q = self.critics[i](hq[0][:,:-1].detach(), action)
-            critic_loss = 0.5*F.mse_loss(Q*mask, Q_targets*mask)
+            Q = self.critics[i](hq[0][1:,:-2].detach(), action) * mask
+            print("Critic Q:", Q.shape)
+            critic_loss = 0.5*F.mse_loss(Q, Q_targets)
             critic_losses.append(critic_loss.item())
             self.critic_opts[i].zero_grad()
             critic_loss.backward()
