@@ -477,8 +477,8 @@ class World_Model(nn.Module):
             pred_obs_q = self.predict(hidden_states_q[0][:, 1:-1], skip_non_action)
         
             return(
-                [h for h in hidden_states_p], 
-                [h for h in hidden_states_q], 
+                hidden_states_p, 
+                hidden_states_q, 
                 catted_inner_state_dicts, 
                 pred_obs_p, 
                 pred_obs_q)
