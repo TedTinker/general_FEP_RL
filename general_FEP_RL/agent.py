@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from general_FEP_RL.utils import print_shapes
+#from general_FEP_RL.utils import print_shapes
 from general_FEP_RL.utils_torch import tile_batch_dim
 from general_FEP_RL.buffer import RecurrentReplayBuffer
 from general_FEP_RL.world_model import World_Model
@@ -164,13 +164,12 @@ class Agent:
             complete_best_action[key] = torch.cat([value, empty_action], dim = 1)
             
         complete_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1)
-        complete_best_action_mask = torch.cat([torch.ones(best_action_mask.shape[0], 1, 1), mask], dim = 1)
 
 
                                     
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
         
-        print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask, hq)
+        #print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask, hq)
                 
         
         
@@ -303,7 +302,6 @@ class Agent:
         total_imitation_loss = torch.zeros_like(Q)
         for key in new_action_dict.keys():
             scalar = self.action_dict[key]["delta"]
-            print(imitation_loss[key].mean(-1).shape, mask.squeeze(-1).shape, best_action_mask.squeeze(-1).shape)
             action_imitation_loss = imitation_loss[key].mean(-1) * scalar * mask.squeeze(-1) * best_action_mask.squeeze(-1)
             imitation_losses[key] = action_imitation_loss.mean().item()
             total_imitation_loss = total_imitation_loss + action_imitation_loss.mean()
