@@ -238,7 +238,8 @@ class Agent:
                 print("NEW ACTION:", key, value.shape)
                 
             for key, value in new_log_pis_dict.items():
-                print("NEW log_pis_dict:", key, value.shape)
+                new_log_pis_dict[key] = value[:,1:]
+                print("NEW log_pis_dict:", key, value[:,1:].shape)
                 
             for key, value in imitation_loss.items():
                 print("imitation_loss:", key, value.shape)
