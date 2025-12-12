@@ -247,6 +247,8 @@ class Agent:
                 
             for key, value in imitation_loss.items():
                 imitation_loss[key] = value[:, 1:]
+            # USE IMITIATION MASK! 
+            print(best_action_mask.shape)
 
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
@@ -268,7 +270,7 @@ class Agent:
             
         
         # Train actor
-        new_action_dict, new_log_pis_dict = self.actor(hq[0][:,1:-1].detach())
+        new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:,1:-1].detach(), best_action)
         
         Qs = []
         for i in range(len(self.critics)):
@@ -299,22 +301,15 @@ class Agent:
             
             complete_entropy += total_entropy 
             
-        """imitation_losses = {}
-        imitation_loss = torch.zeros_like(Q)
+        imitation_losses = {}
+        total_imitation_loss = torch.zeros_like(Q)
         for key in new_action_dict.keys():
-            this_action = new_action_dict[key]
-            the_best_action = best_action[key]
-            loss_func = self.action_dict[key]["decoder"].loss_func
             scalar = self.action_dict[key]["delta"]
-            action_imitation_loss = loss_func(the_best_action, this_action)
-            action_imitation_loss = action_imitation_loss.mean(dim=tuple(range(2, imitation_loss.ndim)))
-            action_imitation_loss = action_imitation_loss * mask.squeeze(-1) * scalar
-            imitation_losses[key] = imitation_loss.mean().item()
-            imitation_loss = imitation_loss + action_imitation_loss.mean()"""
-        imitation_loss = torch.zeros_like(Q)
-            
-        print(complete_entropy.shape, Q.shape, imitation_loss.shape, mask.shape)
-        
+            action_imitation_loss = imitation_loss[key] * mask.squeeze(-1) * scalar
+            # USE IMITIATION MASK! 
+            imitation_losses[key] = action_imitation_loss.mean().item()
+            total_imitation_loss = total_imitation_loss + action_imitation_loss.mean()
+                    
         actor_loss = (complete_entropy - Q - imitation_loss) * mask    
         actor_loss = actor_loss.mean() / mask.mean()
         
