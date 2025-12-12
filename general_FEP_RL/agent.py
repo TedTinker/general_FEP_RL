@@ -303,14 +303,14 @@ class Agent:
             
         imitation_losses = {}
         total_imitation_loss = torch.zeros_like(Q)
-        for key in new_action_dict.keys():
+        """for key in new_action_dict.keys():
             scalar = self.action_dict[key]["delta"]
             action_imitation_loss = imitation_loss[key] * mask.squeeze(-1) * scalar
             # USE IMITIATION MASK! 
             imitation_losses[key] = action_imitation_loss.mean().item()
-            total_imitation_loss = total_imitation_loss + action_imitation_loss.mean()
+            total_imitation_loss = total_imitation_loss + action_imitation_loss.mean()"""
                     
-        actor_loss = (complete_entropy - Q - imitation_loss) * mask    
+        actor_loss = (complete_entropy - Q - total_imitation_loss) * mask    
         actor_loss = actor_loss.mean() / mask.mean()
         
         self.actor_opt.zero_grad()
