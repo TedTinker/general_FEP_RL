@@ -256,16 +256,14 @@ class Agent:
                 new_entropy += self.alphas[key] * new_log_pis
                 print(new_log_pis.shape)
             print("total_reward:", total_reward.shape, "Q_target_next", Q_target_next.shape, "new_entropy:", new_entropy.shape)
-            
-            print(done.shape, done)
-            
+                        
             Q_targets = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy) 
             Q_targets *= mask
         
         critic_losses = []
         for i in range(len(self.critics)):
             print("critic inputs:", hq[0].shape)
-            for key, value in action_dict.items():
+            for key, value in action.items():
                 print("ACTION:", key, value.shape)
             Q = self.critics[i](hq[0][1:,:-2].detach(), action) * mask
             print("Critic Q:", Q.shape)
