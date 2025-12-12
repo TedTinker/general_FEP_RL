@@ -170,7 +170,7 @@ class Agent:
                                     
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
         
-        #print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask, hq)
+        print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask, hq)
                 
         
         
