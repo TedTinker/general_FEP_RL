@@ -239,13 +239,10 @@ class Agent:
                 
             for key, value in new_log_pis_dict.items():
                 print("NEW log_pis_dict:", key, value.shape)
+                
+            for key, value in imitation_loss.items():
+                print("imitation_loss:", key, value.shape)
             
-            for key, value in new_log_pis_dict.items():
-                new_log_pis_dict[key] = value[:,1:]  
-            #for key, value in imitation_loss.items():
-            #    imitation_loss[key] = value[:,1:]  
-            
-            print(hq[0].shape)
             
             Q_target_nexts = []
             for i in range(len(self.critics)):
