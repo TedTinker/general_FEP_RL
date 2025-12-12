@@ -313,6 +313,8 @@ class Agent:
             imitation_loss = imitation_loss + action_imitation_loss.mean()"""
         imitation_loss = 0
             
+        print(complete_entropy.shape, Q.shape, imitation_loss.shape, mask.shape)
+        
         actor_loss = (complete_entropy - Q - imitation_loss) * mask    
         actor_loss = actor_loss.mean() / mask.mean()
         

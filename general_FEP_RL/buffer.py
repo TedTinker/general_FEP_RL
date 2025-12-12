@@ -64,8 +64,7 @@ class RecurrentReplayBuffer:
             reward, 
             next_observation_dict, 
             done, 
-            best_action_dict = None,
-            best_action_mask = None):
+            best_action_dict = None):
         if self.time_ptr == 0:
             self.reset_episode()
 
@@ -82,7 +81,7 @@ class RecurrentReplayBuffer:
         else:
             for k, v in best_action_dict.items():
                 self.best_action_buffers[k].push(self.episode_ptr, self.time_ptr, v)
-            self.best_action_mask.push(self.episode_ptr, self.time_ptr, best_action_mask)
+            self.best_action_mask.push(self.episode_ptr, self.time_ptr, 0)
 
         self.reward.push(self.episode_ptr, self.time_ptr, reward)
         self.done.push(self.episode_ptr, self.time_ptr, done)
