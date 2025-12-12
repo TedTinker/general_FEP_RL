@@ -248,15 +248,16 @@ class Agent:
             for i in range(len(self.critics)):
                 Q_target_next = self.critic_targets[i](hq[0].detach(), new_action_dict)
                 Q_target_nexts.append(Q_target_next)                
-            for Q in Q_target_next:
-                print(Q.shape)
                         
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
+            print(Q_target_next.shape)
             Q_target_next = Q_target_next[:,1:]
+            print(Q_target_next.shape)
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
                 new_entropy += self.alphas[key] * new_log_pis
+                print(new_log_pis.shape)
             Q_targets = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy) 
         
         critic_losses = []
