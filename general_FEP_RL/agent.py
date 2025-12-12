@@ -264,6 +264,9 @@ class Agent:
         
         critic_losses = []
         for i in range(len(self.critics)):
+            print("critic inputs:", hq[0].shape)
+            for key, value in action_dict.items():
+                print("ACTION:", key, value.shape)
             Q = self.critics[i](hq[0][1:,:-2].detach(), action) * mask
             print("Critic Q:", Q.shape)
             critic_loss = 0.5*F.mse_loss(Q, Q_targets)
