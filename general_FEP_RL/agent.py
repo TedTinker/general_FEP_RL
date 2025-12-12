@@ -246,9 +246,7 @@ class Agent:
                 new_log_pis_dict[key] = value[:, 1:]
                 
             for key, value in imitation_loss.items():
-                imitation_loss[key] = value[:, 1:]
-            # USE IMITIATION MASK! 
-            print(best_action_mask.shape)
+                imitation_loss[key] = value[:, 1:] * best_action_mask
 
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
