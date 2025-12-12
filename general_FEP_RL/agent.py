@@ -259,6 +259,7 @@ class Agent:
             for key, new_log_pis in new_log_pis_dict.items():
                 new_entropy += self.alphas[key] * new_log_pis
                 print(new_log_pis.shape)
+            print("total_reward:", total_reward.shape, "Q_target_next", Q_target_next.shape, "new_entropy:", new_entropy.shape)
             Q_targets = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy) 
         
         critic_losses = []
