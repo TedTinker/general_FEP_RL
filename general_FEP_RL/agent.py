@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-#from general_FEP_RL.utils import print_shapes
+from general_FEP_RL.utils import print_shapes
 from general_FEP_RL.utils_torch import tile_batch_dim
 from general_FEP_RL.buffer import RecurrentReplayBuffer
 from general_FEP_RL.world_model import World_Model
