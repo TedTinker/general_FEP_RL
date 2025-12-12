@@ -281,7 +281,7 @@ class Agent:
         alpha_entropies = {}
         alpha_normal_entropies = {}
         total_entropies = {}
-        complete_entropy = torch.zeros_like(Q).requires_grad_()
+        complete_entropy = torch.zeros_like(Q)
         for key in new_action_dict.keys():
             flattened_new_action = new_action_dict[key].flatten(start_dim = 2)
             loc = torch.zeros_like(flattened_new_action, device=flattened_new_action.device).float() 
@@ -300,7 +300,7 @@ class Agent:
             complete_entropy += total_entropy 
             
         """imitation_losses = {}
-        imitation_loss = torch.zeros_like(Q).requires_grad_()
+        imitation_loss = torch.zeros_like(Q)
         for key in new_action_dict.keys():
             this_action = new_action_dict[key]
             the_best_action = best_action[key]
@@ -311,7 +311,7 @@ class Agent:
             action_imitation_loss = action_imitation_loss * mask.squeeze(-1) * scalar
             imitation_losses[key] = imitation_loss.mean().item()
             imitation_loss = imitation_loss + action_imitation_loss.mean()"""
-        imitation_loss = torch.zeros_like(Q).requires_grad_()
+        imitation_loss = torch.zeros_like(Q)
             
         print(complete_entropy.shape, Q.shape, imitation_loss.shape, mask.shape)
         
