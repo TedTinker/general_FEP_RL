@@ -444,13 +444,11 @@ class World_Model(nn.Module):
             new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
                 self.bottom_to_top_step(prev_hidden_states, step_obs, step_prev_action)
                 
-            # This needs to be adjusted.
             prev_hidden_states = new_hidden_states_q
             hidden_states_p_list.append(new_hidden_states_p)
             hidden_states_q_list.append(new_hidden_states_q)
             inner_state_dicts_list.append(inner_state_dict)
                                        
-        # This needs to be adjusted.
         hidden_states_p = [] 
         hidden_states_q = [] 
         for i in range(len(hidden_states_p_list[0])):
