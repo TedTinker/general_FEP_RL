@@ -234,6 +234,17 @@ class Agent:
         with torch.no_grad():
             new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:, 1:-1].detach(), best_action)
             
+            Q_target_nexts = []
+            for i in range(len(self.critics)):
+                Q_target_next = self.critic_targets[i](hq[0][:, 1:].detach(), new_action_dict)
+                Q_target_nexts.append(Q_target_next)                
+            Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
+            Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
+            
+            
+            
+            print("Q:", Q_target_next.shape)
+            
             for key, value in new_action_dict.items():
                 print("NEW ACTION:", key, value.shape)
                 
@@ -242,15 +253,9 @@ class Agent:
                 
             for key, value in imitation_loss.items():
                 print("imitation_loss:", key, value.shape)
+
             
             
-            Q_target_nexts = []
-            for i in range(len(self.critics)):
-                Q_target_next = self.critic_targets[i](hq[0][:, 1:-1].detach(), new_action_dict)
-                Q_target_nexts.append(Q_target_next)                
-                        
-            Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
-            Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
                 new_entropy += self.alphas[key] * new_log_pis
