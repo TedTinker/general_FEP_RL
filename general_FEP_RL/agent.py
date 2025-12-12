@@ -241,39 +241,22 @@ class Agent:
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
             Q_target_next = Q_target_next[:,1:]
-            
-            
-            print("Q:", Q_target_next.shape)
-            
-            for key, value in new_action_dict.items():
-                print("NEW ACTION:", key, value.shape)
                 
             for key, value in new_log_pis_dict.items():
                 new_log_pis_dict[key] = value[:, 1:]
-                print("NEW log_pis_dict:", key, new_log_pis_dict[key].shape)
                 
             for key, value in imitation_loss.items():
                 imitation_loss[key] = value[:, 1:]
-                print("imitation_loss:", key, value.shape)
 
-            
-            
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
-                new_entropy += self.alphas[key] * new_log_pis
-                print(new_log_pis.shape)
-            print("total_reward:", total_reward.shape, "Q_target_next", Q_target_next.shape, "new_entropy:", new_entropy.shape)
-                        
+                new_entropy += self.alphas[key] * new_log_pis                        
             Q_targets = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy) 
             Q_targets *= mask
         
         critic_losses = []
         for i in range(len(self.critics)):
-            print("critic inputs:", hq[0][:, 1:-1].shape)
-            for key, value in action.items():
-                print("ACTION:", key, value.shape)
             Q = self.critics[i](hq[0][:, 1:-1].detach(), action) * mask
-            print("Critic Q:", Q.shape)
             critic_loss = 0.5*F.mse_loss(Q, Q_targets)
             critic_losses.append(critic_loss.item())
             self.critic_opts[i].zero_grad()
