@@ -161,7 +161,7 @@ class Agent:
         for key, value in best_action.items(): 
             empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
-            complete_best_action[key] = torch.cat([empty_action, value], dim = 1)
+            complete_best_action[key] = torch.cat([value, empty_action], dim = 1)
             
         complete_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1)
         complete_best_action_mask = torch.cat([torch.ones(best_action_mask.shape[0], 1, 1), mask], dim = 1)
@@ -232,7 +232,7 @@ class Agent:
                 
         # Train critics
         with torch.no_grad():
-            new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:, 1:].detach(), best_action)
+            new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:, 1:].detach(), complete_best_action)
             
             Q_target_nexts = []
             for i in range(len(self.critics)):
