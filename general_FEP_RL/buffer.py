@@ -77,7 +77,7 @@ class RecurrentReplayBuffer:
             
         if(best_action_dict == None):
             for k, v in action_dict.items():
-                self.best_action_buffers[k].push(self.episode_ptr, self.time_ptr, v)
+                self.best_action_buffers[k].push(self.episode_ptr, self.time_ptr, torch.zeros_like(v))
             self.best_action_mask.push(self.episode_ptr, self.time_ptr, 0)
         else:
             for k, v in best_action_dict.items():
