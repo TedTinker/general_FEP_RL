@@ -342,7 +342,7 @@ class World_Model(nn.Module):
                 
                 
             
-    # Encode incoming observations. # PROBLEM HERE!
+    # Encode incoming observations.
     def obs_in(self, obs):
         encoded_obs = {}
         for key, value in sorted(obs.items()):
@@ -371,7 +371,7 @@ class World_Model(nn.Module):
     
     
     
-    # This was originally made to utilize multiple layers, which is not currently implemented.
+    # Use layers from bottom to top, then top to bottom.
     def bottom_to_top_step(self, prev_hidden_states, encoded_obs, encoded_prev_action):
 
         inner_state_dict_list = []
@@ -421,7 +421,7 @@ class World_Model(nn.Module):
         for key, value in sorted(obs.items()):    
             episodes, steps = value.shape[0], value.shape[1]
                                     
-        if(prev_hidden_states == None): # This should initialize all hidden_states
+        if(prev_hidden_states == None):
             prev_hidden_states = [torch.zeros(episodes, 1, hidden_state_size) for hidden_state_size in self.hidden_state_sizes]
                         
         encoded_obs = self.obs_in(obs)

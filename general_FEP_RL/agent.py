@@ -231,7 +231,7 @@ class Agent:
                 
         # Train critics
         with torch.no_grad():
-            new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:, 1:].detach(), complete_best_action)
+            new_action_dict, new_log_pis_dict = self.actor(hq[0][:, 1:].detach())
             
             Q_target_nexts = []
             for i in range(len(self.critics)):
@@ -243,9 +243,6 @@ class Agent:
                 
             for key, value in new_log_pis_dict.items():
                 new_log_pis_dict[key] = value[:, 1:]
-                
-            for key, value in imitation_loss.items():
-                imitation_loss[key] = value[:, 1:] * best_action_mask
 
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
