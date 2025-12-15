@@ -52,8 +52,6 @@ def estimate_total_duration(proportion_completed, start_time=start_time):
 
 
 
-
-
 def print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask, hq):
     
     rows = []
