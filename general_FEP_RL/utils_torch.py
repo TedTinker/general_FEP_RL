@@ -8,13 +8,70 @@ import torch.nn.functional as F
 
 
 
+# Pad a batch with zeros.
+def pad_zeros(value, length):
+    rows_to_add = length - value.size(-2)
+    if(rows_to_add == 0):
+        return(value)
+    padding_shape = list(value.shape)
+    padding_shape[-2] = rows_to_add
+    if(value.get_device() == -1):
+        device = "cpu"
+    else:
+        device = value.get_device()
+    padding = torch.zeros(padding_shape).to(device)
+    padding[..., 0] = 1
+    value = torch.cat([value, padding], dim=-2)
+    return value
+
 # Expanding tensor to batch size.
 def tile_batch_dim(tensor, batch_size):
     shape = list(tensor.shape)
     repeat_pattern = [batch_size] + [1] * (len(shape) - 1)
     return tensor.repeat(*repeat_pattern)
 
+def print_step_in_episode(step_dict):
+        for key, value in step_dict.items():
+            if(type(value) == dict):
+                for sub_key, sub_value in value.items():
+                    if(type(sub_value) == torch.Tensor):
+                        print(f"{key}:\t{sub_key}:\t{list(sub_value.shape)}")
+                    elif(type(sub_value) == dict):
+                        for sub_sub_key, sub_sub_value in sub_value.items():
+                            print(f"{key}:\t{sub_key}:\t{sub_sub_key}:\t{list(sub_sub_value.shape)}")
+                    else:
+                        print(f"{key}:\t{type(sub_value)}")
+            elif(type(value) == list):
+                for sub_value in value:
+                    print(f"{key}:\t{list(sub_value.shape)}")
+                    
+class Interpolate(nn.Module):
+    def __init__(self, size=None, scale_factor=None, mode='nearest', align_corners=None, antialias=False):
+        super().__init__()
+        self.size = size
+        self.scale_factor = scale_factor
+        self.mode = mode
+        self.align_corners = align_corners
+        self.antialias = antialias
 
+    def forward(self, x):
+        return F.interpolate(
+            x,
+            size=self.size,
+            scale_factor=self.scale_factor,
+            mode=self.mode,
+            align_corners=self.align_corners,
+            antialias=self.antialias
+        )
+    
+# Add position layers.
+def add_position_layers(x, learned_pos, scale = 1):
+    pos = learned_pos.repeat(x.shape[0], 1, 1, 1)
+    pos = F.interpolate(pos, scale_factor = scale, mode = "bilinear", align_corners = True)
+    x = torch.cat([x, pos], dim = 1)
+    return(x)
+    
+    
 
 # Calculating Kullback-Leibler divergence.
 def calculate_dkl(mu_1, std_1, mu_2, std_2):
