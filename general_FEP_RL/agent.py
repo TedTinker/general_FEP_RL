@@ -347,6 +347,7 @@ class Agent:
             "accuracy_losses" : accuracy_losses,
             "complexity_losses" : complexity_losses,
             "curiosities" : curiosities,
+            "imitations" : imitations,
             "alpha_entropies" : alpha_entropies,
             "alpha_normal_entropies" : alpha_normal_entropies,
             "total_entropies" : total_entropies
