@@ -8,22 +8,6 @@ import torch.nn.functional as F
 
 
 
-# Pad a batch with zeros.
-def pad_zeros(value, length):
-    rows_to_add = length - value.size(-2)
-    if(rows_to_add == 0):
-        return(value)
-    padding_shape = list(value.shape)
-    padding_shape[-2] = rows_to_add
-    if(value.get_device() == -1):
-        device = "cpu"
-    else:
-        device = value.get_device()
-    padding = torch.zeros(padding_shape).to(device)
-    padding[..., 0] = 1
-    value = torch.cat([value, padding], dim=-2)
-    return value
-
 # Expanding tensor to batch size.
 def tile_batch_dim(tensor, batch_size):
     shape = list(tensor.shape)
@@ -45,7 +29,7 @@ def print_step_in_episode(step_dict):
                 for sub_value in value:
                     print(f"{key}:\t{list(sub_value.shape)}")
                     
-class Interpolate(nn.Module):
+"""class Interpolate(nn.Module):
     def __init__(self, size=None, scale_factor=None, mode='nearest', align_corners=None, antialias=False):
         super().__init__()
         self.size = size
@@ -69,7 +53,7 @@ def add_position_layers(x, learned_pos, scale = 1):
     pos = learned_pos.repeat(x.shape[0], 1, 1, 1)
     pos = F.interpolate(pos, scale_factor = scale, mode = "bilinear", align_corners = True)
     x = torch.cat([x, pos], dim = 1)
-    return(x)
+    return(x)"""
     
     
 
