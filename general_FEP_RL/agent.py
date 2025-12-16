@@ -231,7 +231,7 @@ class Agent:
             
             
         # Get imitation
-        new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:, 1:-1].detach(), complete_best_action)
+        new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:, 1:-1].detach(), best_action)
         imitations = {}
         imitation = torch.zeros_like(reward).requires_grad_()
         
