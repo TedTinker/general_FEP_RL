@@ -185,7 +185,6 @@ class Agent:
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim))).unsqueeze(-1)
             obs_accuracy_loss = obs_accuracy_loss * scalar * mask
             accuracy_losses[key] = obs_accuracy_loss.mean().item()
-            print(reward.shape, accuracy_loss.shape, obs_accuracy_loss.shape)
             accuracy_loss = accuracy_loss + obs_accuracy_loss
             
         complexity_losses = {}
@@ -194,6 +193,7 @@ class Agent:
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]["dkl"].mean(-1).unsqueeze(-1) * complete_mask
             complexity_loss = complexity_loss + dkl * self.observation_dict[key]["beta"]
+            print(dkl.shape, complexity_loss.shape)
             complexity_losses[key] = complexity_loss
             
         for i in range(len(self.hidden_state_sizes) - 1):
