@@ -175,7 +175,7 @@ class Agent:
         
         
         accuracy_losses = {}
-        accuracy_loss = torch.zeros((1,)).requires_grad_()
+        accuracy_loss = torch.zeros_like(reward).requires_grad_()
         for key, value in self.observation_dict.items():
             true_obs = obs[key][:, 1:]
             predicted_obs = pred_obs_q[key]
@@ -185,25 +185,25 @@ class Agent:
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim)))
             obs_accuracy_loss = obs_accuracy_loss * scalar * mask.squeeze(-1)
             accuracy_losses[key] = obs_accuracy_loss.mean().item()
-            accuracy_loss = accuracy_loss + obs_accuracy_loss.mean()
+            accuracy_loss = accuracy_loss + obs_accuracy_loss
             
         complexity_losses = {}
-        complexity_loss = torch.zeros((1,)).requires_grad_()
+        complexity_loss = torch.zeros_like(reward).requires_grad_()
 
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]["dkl"].mean(-1).unsqueeze(-1) * complete_mask
-            complexity_loss = complexity_loss + dkl.mean() * self.observation_dict[key]["beta"]
+            complexity_loss = complexity_loss + dkl * self.observation_dict[key]["beta"]
             complexity_losses[key] = complexity_loss
             
         for i in range(len(self.hidden_state_sizes) - 1):
             dkl = inner_state_dict[i+1]["dkl"].mean(-1).unsqueeze(-1) * complete_mask 
-            complexity_loss = complexity_loss + dkl.mean() * self.beta[i]
+            complexity_loss = complexity_loss + dkl * self.beta[i]
             complexity_losses[f"hidden_layer_{i+2}"] = complexity_loss
             
         
                                 
         self.world_model_opt.zero_grad()
-        (accuracy_loss + complexity_loss).backward()
+        (accuracy_loss + complexity_loss).mean().backward()
         self.world_model_opt.step()
                 
 
