@@ -185,6 +185,7 @@ class Agent:
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim)))
             obs_accuracy_loss = obs_accuracy_loss * scalar * mask.squeeze(-1)
             accuracy_losses[key] = obs_accuracy_loss.mean().item()
+            print(accuracy_loss.shape, obs_accuracy_loss)
             accuracy_loss = accuracy_loss + obs_accuracy_loss
             
         complexity_losses = {}
