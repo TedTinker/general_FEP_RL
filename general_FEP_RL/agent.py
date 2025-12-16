@@ -242,7 +242,6 @@ class Agent:
             
             
 
-        print("TOTAL:", reward.shape, curiosity.shape, imitation.shape)
         total_reward = reward + curiosity + imitation
         
 
@@ -256,9 +255,6 @@ class Agent:
                 Q_target_nexts.append(Q_target_next)                
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
-                
-            #for key, value in new_log_pis_dict.items():
-            #    new_log_pis_dict[key] = value[:, 2:]
 
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
@@ -269,7 +265,6 @@ class Agent:
         critic_losses = []
         for i in range(len(self.critics)):
             Q = self.critics[i](hq[0][:, 1:-1].detach(), action) * mask
-            print("Q:", Q.shape, Q_target.shape)
             critic_loss = 0.5*F.mse_loss(Q, Q_target)
             critic_losses.append(critic_loss.item())
             self.critic_opts[i].zero_grad()
