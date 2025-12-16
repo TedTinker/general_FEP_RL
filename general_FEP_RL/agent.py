@@ -201,9 +201,7 @@ class Agent:
             complexity = dkl[:,1:] * self.observation_dict[key]["beta"]
             complexity_losses[f"hidden_layer_{i+2}"] = complexity.mean().item()
             complexity_loss = complexity_loss + complexity
-            
-        print(accuracy_loss.shape, complexity_loss.shape)
-            
+                        
         
                                 
         self.world_model_opt.zero_grad()
@@ -216,16 +214,22 @@ class Agent:
         curiosities = {}
         curiosity = torch.zeros_like(reward).requires_grad_()
         
+        print(complexity_losses[key].shape)
+        
         for key, value in self.observation_dict.items():
+            complexity = complexity_losses[key]
             obs_curiosity = self.observation_dict[key]["eta"] * \
-                torch.clamp(complexity_losses[key] * self.observation_dict[key]["eta_before_clamp"], min = 0, max = 1) 
+                torch.clamp(complexity * self.observation_dict[key]["eta_before_clamp"], 
+                            min = torch.zeros_like(complexity), max = torch.ones_like(complexity)) 
             complexity_losses[key] = complexity_losses[key].mean().item()
             curiosities[key] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
             
         for i in range(len(self.hidden_state_sizes) - 1):
+            complexity = complexity_losses[f"hidden_layer_{i+2}"]
             obs_curiosity = self.eta[i] * \
-                torch.clamp(complexity_losses[f"hidden_layer_{i+2}"] * self.eta_before_clamp[i], min = 0, max = 1) 
+                torch.clamp(complexity * self.eta_before_clamp[i], 
+                            min = torch.zeros_like(complexity), max = torch.ones_like(complexity))
             complexity_losses[f"hidden_layer_{i+2}"] = complexity_losses[f"hidden_layer_{i+2}"].mean().item()
             curiosities[f"hidden_layer_{i+2}"] = obs_curiosity.mean().item()
             print(obs_curiosity.shape)
