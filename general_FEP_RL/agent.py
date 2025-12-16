@@ -192,14 +192,14 @@ class Agent:
 
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]["dkl"].mean(-1).unsqueeze(-1) * complete_mask
-            complexity = dkl[:,1:] * self.observation_dict[key]["beta"]
-            complexity_losses[key] = complexity
+            complexity = dkl * self.observation_dict[key]["beta"]
+            complexity_losses[key] = complexity[:,1:]
             complexity_loss = complexity_loss + complexity.mean()
             
         for i in range(len(self.hidden_state_sizes) - 1):
             dkl = inner_state_dict[i+1]["dkl"].mean(-1).unsqueeze(-1) * complete_mask 
-            complexity = dkl[:,1:] * self.observation_dict[key]["beta"]
-            complexity_losses[f"hidden_layer_{i+2}"] = complexity
+            complexity = dkl * self.observation_dict[key]["beta"]
+            complexity_losses[f"hidden_layer_{i+2}"] = complexity[:,1:]
             complexity_loss = complexity_loss + complexity.mean()
                         
         
@@ -236,16 +236,13 @@ class Agent:
         imitation = torch.zeros_like(reward).requires_grad_()
         
         for key, value in imitation_loss.items():
-            print()
             imitation_component = -1 * value * self.action_dict[key]["delta"] * best_action_mask
-            print(imitation_component.shape)
-            print(reward.shape)
             imitations[key] = imitation_component.mean().item()
-            print(imitation.shape, imitation_component.shape)
             imitation = imitation + imitation_component.mean(dim=-1, keepdim=True)
             
             
 
+        print("TOTAL:", reward.shape, curiosity.shape, imitation.shape)
         total_reward = reward + curiosity + imitation
         
 
@@ -267,13 +264,14 @@ class Agent:
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
                 new_entropy += self.alphas[key] * new_log_pis                        
-            Q_targets = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy) 
-            Q_targets *= mask
+            Q_target = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy) 
+            Q_target *= mask
         
         critic_losses = []
         for i in range(len(self.critics)):
             Q = self.critics[i](hq[0][:, 1:-1].detach(), action) * mask
-            critic_loss = 0.5*F.mse_loss(Q, Q_targets)
+            print("Q:", Q.shape, Q_target.shape)
+            critic_loss = 0.5*F.mse_loss(Q, Q_target)
             critic_losses.append(critic_loss.item())
             self.critic_opts[i].zero_grad()
             critic_loss.backward()
