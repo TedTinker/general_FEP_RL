@@ -226,7 +226,6 @@ class Agent:
                 torch.clamp(complexity_losses[f"hidden_layer_{i+2}"] * self.eta_before_clamp[i], min = 0, max = 1)
             complexity_losses[f"hidden_layer_{i+2}"] = complexity_losses[f"hidden_layer_{i+2}"].mean().item()
             curiosities[f"hidden_layer_{i+2}"] = obs_curiosity.mean().item()
-            print(obs_curiosity.shape)
             curiosity = curiosity + obs_curiosity
             
             
@@ -238,13 +237,11 @@ class Agent:
         
         for key, value in imitation_loss.items():
             print()
-            print(value.shape)
-            print(complete_best_action_mask.shape)
             imitation_component = -1 * value * self.action_dict[key]["delta"] * complete_best_action_mask
             print(imitation_component.shape)
-            print(curiosity.shape)
             print(reward.shape)
             imitations[key] = imitation_component.mean().item()
+            print(imitation.shape, imitation_component.shape)
             imitation = imitation + imitation_component.mean(dim=-1, keepdim=True)
             
             
