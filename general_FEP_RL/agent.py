@@ -175,7 +175,7 @@ class Agent:
         
         
         accuracy_losses = {}
-        accuracy_loss = torch.zeros_like(reward).requires_grad_()
+        accuracy_loss = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
             true_obs = obs[key][:, 1:]
             predicted_obs = pred_obs_q[key]
@@ -185,27 +185,27 @@ class Agent:
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim))).unsqueeze(-1)
             obs_accuracy_loss = obs_accuracy_loss * scalar * mask
             accuracy_losses[key] = obs_accuracy_loss.mean().item()
-            accuracy_loss = accuracy_loss + obs_accuracy_loss
+            accuracy_loss = accuracy_loss + obs_accuracy_loss.mean()
             
         complexity_losses = {}
-        complexity_loss = torch.zeros_like(reward).requires_grad_()
+        complexity_loss = torch.zeros((1,)).requires_grad_()
 
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]["dkl"].mean(-1).unsqueeze(-1) * complete_mask
             complexity = dkl[:,1:] * self.observation_dict[key]["beta"]
-            complexity_losses[key] = complexity.mean().item()
-            complexity_loss = complexity_loss + complexity
+            complexity_losses[key] = complexity
+            complexity_loss = complexity_loss + complexity.mean()
             
         for i in range(len(self.hidden_state_sizes) - 1):
             dkl = inner_state_dict[i+1]["dkl"].mean(-1).unsqueeze(-1) * complete_mask 
             complexity = dkl[:,1:] * self.observation_dict[key]["beta"]
-            complexity_losses[f"hidden_layer_{i+2}"] = complexity.mean().item()
-            complexity_loss = complexity_loss + complexity
+            complexity_losses[f"hidden_layer_{i+2}"] = complexity
+            complexity_loss = complexity_loss + complexity.mean()
                         
         
                                 
         self.world_model_opt.zero_grad()
-        (accuracy_loss + complexity_loss).mean().backward()
+        (accuracy_loss + complexity_loss).backward()
         self.world_model_opt.step()
                 
 
@@ -213,23 +213,17 @@ class Agent:
         # Get curiosity  
         curiosities = {}
         curiosity = torch.zeros_like(reward).requires_grad_()
-        
-        print(complexity_losses[key].shape)
-        
+                
         for key, value in self.observation_dict.items():
-            complexity = complexity_losses[key]
             obs_curiosity = self.observation_dict[key]["eta"] * \
-                torch.clamp(complexity * self.observation_dict[key]["eta_before_clamp"], 
-                            min = torch.zeros_like(complexity), max = torch.ones_like(complexity)) 
+                torch.clamp(complexity_losses[key] * self.observation_dict[key]["eta_before_clamp"], min = 0, max = 1)
             complexity_losses[key] = complexity_losses[key].mean().item()
             curiosities[key] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
             
         for i in range(len(self.hidden_state_sizes) - 1):
-            complexity = complexity_losses[f"hidden_layer_{i+2}"]
             obs_curiosity = self.eta[i] * \
-                torch.clamp(complexity * self.eta_before_clamp[i], 
-                            min = torch.zeros_like(complexity), max = torch.ones_like(complexity))
+                torch.clamp(complexity_losses[f"hidden_layer_{i+2}"] * self.eta_before_clamp[i], min = 0, max = 1)
             complexity_losses[f"hidden_layer_{i+2}"] = complexity_losses[f"hidden_layer_{i+2}"].mean().item()
             curiosities[f"hidden_layer_{i+2}"] = obs_curiosity.mean().item()
             print(obs_curiosity.shape)
