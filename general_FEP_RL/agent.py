@@ -210,7 +210,7 @@ class Agent:
         
         # Get curiosity  
         curiosities = {}
-        curiosity = torch.zeros((1,)).requires_grad_()
+        curiosity = torch.zeros_like(reward).requires_grad_()
         
         for key, value in self.observation_dict.items():
             obs_curiosity = self.observation_dict[key]["eta"] * \
@@ -232,7 +232,7 @@ class Agent:
         # Get imitation
         new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:, 1:].detach(), complete_best_action)
         imitations = {}
-        imitation = torch.zeros_like(reward)
+        imitation = torch.zeros_like(reward).requires_grad_()
         
         for key, value in imitation_loss.items():
             print()
