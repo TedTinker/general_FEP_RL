@@ -258,7 +258,7 @@ class Agent:
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
                 
             for key, value in new_log_pis_dict.items():
-                new_log_pis_dict[key] = value[:, 1:]
+                new_log_pis_dict[key] = value[:, 2:]
 
             new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
             for key, new_log_pis in new_log_pis_dict.items():
