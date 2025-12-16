@@ -234,8 +234,8 @@ class Agent:
         
         for key, value in imitation_loss.items():
             print(value.shape)
-            print(best_action_mask.squeeze(-1).shape)
-            imitation_component = -1 * value * self.action_dict[key]["delta"] * best_action_mask.squeeze(-1)
+            print(best_action_mask.shape)
+            imitation_component = -1 * value * self.action_dict[key]["delta"] * best_action_mask
             imitations[key] = imitation_component.mean.item()
             imitation = imitation + imitation_component.mean(dim=-1, keepdim=True)
             
@@ -246,9 +246,7 @@ class Agent:
 
                 
         # Train critics
-        with torch.no_grad():
-            new_action_dict, new_log_pis_dict = self.actor(hq[0][:, 1:].detach())
-            
+        with torch.no_grad():            
             Q_target_nexts = []
             for i in range(len(self.critics)):
                 Q_target_next = self.critic_targets[i](hq[0][:, 1:].detach(), new_action_dict)
