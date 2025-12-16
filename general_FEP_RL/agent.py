@@ -239,6 +239,7 @@ class Agent:
             print(complete_best_action_mask.shape)
             imitation_component = -1 * value * self.action_dict[key]["delta"] * complete_best_action_mask
             print(imitation_component.shape)
+            print(curiosity.shape)
             print(reward.shape)
             imitations[key] = imitation_component.mean().item()
             imitation = imitation + imitation_component.mean(dim=-1, keepdim=True)
@@ -250,7 +251,8 @@ class Agent:
 
                 
         # Train critics
-        with torch.no_grad():            
+        with torch.no_grad():         
+            new_action_dict, new_log_pis_dict = self.actor(hq[0][:, 1:].detach())
             Q_target_nexts = []
             for i in range(len(self.critics)):
                 Q_target_next = self.critic_targets[i](hq[0][:, 1:].detach(), new_action_dict)
