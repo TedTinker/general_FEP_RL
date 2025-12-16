@@ -192,13 +192,14 @@ class Agent:
 
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]["dkl"].mean(-1).unsqueeze(-1) * complete_mask
-            complexity = dkl.mean()[:,1:] * self.observation_dict[key]["beta"]
+            print(dkl.shape, reward.shape)
+            complexity = dkl.mean() * self.observation_dict[key]["beta"]
             complexity_losses[key] = complexity
             complexity_loss = complexity_loss + complexity
             
         for i in range(len(self.hidden_state_sizes) - 1):
             dkl = inner_state_dict[i+1]["dkl"].mean(-1).unsqueeze(-1) * complete_mask 
-            complexity = dkl.mean()[:,1:] * self.observation_dict[key]["beta"]
+            complexity = dkl.mean() * self.observation_dict[key]["beta"]
             complexity_losses[f"hidden_layer_{i+2}"] = complexity
             complexity_loss = complexity_loss + complexity
             
