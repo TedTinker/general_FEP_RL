@@ -485,6 +485,7 @@ class World_Model(nn.Module):
         
     def summary(self):
                 
+        """ # This part does not work if there are multiple world_layers.
         dummies = generate_dummy_inputs(self.observation_dict, self.action_dict, self.hidden_state_sizes)        
 
         for i, world_layer in enumerate(self.world_layers):
@@ -492,15 +493,21 @@ class World_Model(nn.Module):
             if(i == 0):
                 dummy_inputs = dummies["hidden"][0], dummies["obs_enc_out"], dummies["act_enc_out"], 0
             else:
-                dummy_inputs = dummies["hidden"][i]
-
-            
+                dummy_inputs = dummies["hidden"][i], None, None, 
+                
             with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
                 with record_function("model_inference"):
                     print(summary(
                         self.world_layers[i], 
                         input_data=(dummy_inputs)))
             #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+        
+            #prev_hidden_state, 
+            #encoded_obs = None, 
+            #encoded_prev_action = None,
+            #lower_zp_zq = None,
+            #higher_hidden_state = None)
+        """
         
         print("\n\nOBSERVATIONS")
         for key, value in sorted(self.observation_dict.items()):
@@ -576,7 +583,7 @@ if __name__ == "__main__":
         hidden_state_sizes = hidden_state_sizes,
         observation_dict = observation_dict, 
         action_dict = action_dict,
-        time_scales = [1],
+        time_scales = [1, 2],
         verbose = True)
     print("\n\n")
     print(fm)
