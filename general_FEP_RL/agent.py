@@ -236,9 +236,10 @@ class Agent:
         for key, value in imitation_loss.items():
             print()
             print(value.shape)
-            print(best_action_mask.shape)
+            print(complete_best_action_mask.shape)
             imitation_component = -1 * value * self.action_dict[key]["delta"] * complete_best_action_mask
             print(imitation_component.shape)
+            print(reward.shape)
             imitations[key] = imitation_component.mean().item()
             imitation = imitation + imitation_component.mean(dim=-1, keepdim=True)
             
