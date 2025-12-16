@@ -224,6 +224,7 @@ class Agent:
                 torch.clamp(complexity_losses[f"hidden_layer_{i+2}"] * self.eta_before_clamp[i], min = 0, max = 1) 
             complexity_losses[f"hidden_layer_{i+2}"] = complexity_losses[f"hidden_layer_{i+2}"].mean().item()
             curiosities[f"hidden_layer_{i+2}"] = obs_curiosity.mean().item()
+            print(obs_curiosity.shape)
             curiosity = curiosity + obs_curiosity
             
             
