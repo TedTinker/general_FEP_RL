@@ -164,6 +164,7 @@ class Agent:
             complete_best_action[key] = torch.cat([value, empty_action], dim = 1)
             
         complete_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1)
+        complete_best_action_mask = torch.cat([torch.ones(best_action_mask.shape[0], 1, 1), mask], dim = 1)
 
 
                                     
@@ -235,7 +236,7 @@ class Agent:
         for key, value in imitation_loss.items():
             print(value.shape)
             print(best_action_mask.shape)
-            imitation_component = -1 * value * self.action_dict[key]["delta"] * best_action_mask
+            imitation_component = -1 * value * self.action_dict[key]["delta"] * complete_best_action_mask
             imitations[key] = imitation_component.mean.item()
             imitation = imitation + imitation_component.mean(dim=-1, keepdim=True)
             
