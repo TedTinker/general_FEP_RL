@@ -234,9 +234,11 @@ class Agent:
         imitation = torch.zeros_like(reward)
         
         for key, value in imitation_loss.items():
+            print()
             print(value.shape)
             print(best_action_mask.shape)
             imitation_component = -1 * value * self.action_dict[key]["delta"] * complete_best_action_mask
+            print(imitation_component.shape)
             imitations[key] = imitation_component.mean().item()
             imitation = imitation + imitation_component.mean(dim=-1, keepdim=True)
             
