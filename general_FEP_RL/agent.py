@@ -249,14 +249,13 @@ class Agent:
                 
         # Train critics
         with torch.no_grad():         
-            new_action_dict, new_log_pis_dict = self.actor(hq[0][:, 1:].detach())
+            new_action_dict, new_log_pis_dict = self.actor(hq[0][:, 2:].detach())
             Q_target_nexts = []
             for i in range(len(self.critics)):
-                Q_target_next = self.critic_targets[i](hq[0][:, 1:].detach(), new_action_dict)
+                Q_target_next = self.critic_targets[i](hq[0][:, 2:].detach(), new_action_dict)
                 Q_target_nexts.append(Q_target_next)                
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
-            Q_target_next = Q_target_next[:,1:]
                 
             for key, value in new_log_pis_dict.items():
                 new_log_pis_dict[key] = value[:, 1:]
