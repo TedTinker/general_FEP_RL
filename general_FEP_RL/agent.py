@@ -35,6 +35,7 @@ class Agent:
                                         # decoder_arg_dict
                                         # accuracy_scalar
                                         # beta (complexity scalar)
+                                        # "eta_before_clamp"
                                         # eta
             
             action_dict,            # Keys: action_names

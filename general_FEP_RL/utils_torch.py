@@ -97,7 +97,7 @@ def generate_dummy_inputs(obs_dict, act_dict, hidden_state_sizes, batch=8, steps
 
 
 # For starting neural networks.
-def init_weights(m):
+"""def init_weights(m):
     if isinstance(m, (nn.Conv2d, nn.Linear)):
         nn.init.xavier_normal_(m.weight)
         if m.bias is not None:
@@ -106,6 +106,26 @@ def init_weights(m):
         if hasattr(m, 'weight') and m.weight is not None:
             nn.init.ones_(m.weight)
         if hasattr(m, 'bias') and m.bias is not None:
+            nn.init.zeros_(m.bias)"""
+            
+
+def init_weights(m):
+    # 1. Handle Convolutional and Linear Layers (Weight-bearing layers)
+    if isinstance(m, (nn.Conv2d, nn.Linear)):
+        # For PReLU, we use kaiming_normal. 
+        # If your PReLU starts with the default 0.25 slope, set a=0.25
+        nn.init.kaiming_normal_(m.weight, a=0.25, mode='fan_out', nonlinearity='leaky_relu')
+        
+        if m.bias is not None:
+            nn.init.constant_(m.bias, 0)
+
+    # 2. Handle Normalization Layers
+    # These should start 'neutral' (Weight=1, Bias=0) so they don't 
+    # distort the Kaiming-initialized signals immediately.
+    elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm, nn.LayerNorm, nn.InstanceNorm2d)):
+        if m.weight is not None:
+            nn.init.ones_(m.weight)
+        if m.bias is not None:
             nn.init.zeros_(m.bias)
             
 # How to use mean and standard deviation layers.
