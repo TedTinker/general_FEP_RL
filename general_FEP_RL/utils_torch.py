@@ -150,11 +150,11 @@ class mu_std(nn.Module):
         self.mu = mu 
         self.std = copy.deepcopy(mu)
 
-    def forward(self, x, use_std = True):
+    def forward(self, x):
         mu = self.mu(x)
         std = self.std(x)
         output, log_prob = recurrent_logprob(mu, std)
-        if(not self.entropy or not use_std):
+        if(not self.entropy):
             output = mu
         if log_prob.ndim > 2:
             # THIS SHOULD HAVE ONLY ONE CHANNEL!
