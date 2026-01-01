@@ -1,7 +1,7 @@
 #%%
 
 ### TO DO:
-    # Use imitation. THE DIFFICULTY HERE SHOWS PROBLEMS WITH TENSOR SHAPES!
+    # Right now we have multiple dicts named observation_dict, for example, which can be confusing.
 
 import torch
 import torch.nn.functional as F

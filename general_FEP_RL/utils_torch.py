@@ -97,31 +97,12 @@ def generate_dummy_inputs(obs_dict, act_dict, hidden_state_sizes, batch=8, steps
 
 
 # For starting neural networks.
-"""def init_weights(m):
-    if isinstance(m, (nn.Conv2d, nn.Linear)):
-        nn.init.xavier_normal_(m.weight)
-        if m.bias is not None:
-            nn.init.zeros_(m.bias)
-    elif isinstance(m, (nn.GroupNorm, nn.BatchNorm2d, nn.LayerNorm, nn.InstanceNorm2d)):
-        if hasattr(m, 'weight') and m.weight is not None:
-            nn.init.ones_(m.weight)
-        if hasattr(m, 'bias') and m.bias is not None:
-            nn.init.zeros_(m.bias)"""
-            
-
 def init_weights(m):
     # 1. Handle Convolutional and Linear Layers (Weight-bearing layers)
     if isinstance(m, (nn.Conv2d, nn.Linear)):
-        # For PReLU, we use kaiming_normal. 
-        # If your PReLU starts with the default 0.25 slope, set a=0.25
         nn.init.kaiming_normal_(m.weight, a=0.25, mode='fan_out', nonlinearity='leaky_relu')
-        
         if m.bias is not None:
             nn.init.constant_(m.bias, 0)
-
-    # 2. Handle Normalization Layers
-    # These should start 'neutral' (Weight=1, Bias=0) so they don't 
-    # distort the Kaiming-initialized signals immediately.
     elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm, nn.LayerNorm, nn.InstanceNorm2d)):
         if m.weight is not None:
             nn.init.ones_(m.weight)
@@ -169,12 +150,13 @@ class mu_std(nn.Module):
         self.mu = mu 
         self.std = copy.deepcopy(mu)
 
-    def forward(self, x):
+    def forward(self, x, use_std = True):
         mu = self.mu(x)
         std = self.std(x)
         output, log_prob = recurrent_logprob(mu, std)
-        if(not self.entropy):
+        if(not self.entropy or not use_std):
             output = mu
         if log_prob.ndim > 2:
+            # THIS SHOULD HAVE ONLY ONE CHANNEL!
             log_prob = log_prob.mean(dim=tuple(range(2, log_prob.ndim))).unsqueeze(-1)
         return output, log_prob
