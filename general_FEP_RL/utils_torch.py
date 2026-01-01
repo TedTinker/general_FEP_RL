@@ -154,7 +154,7 @@ class mu_std(nn.Module):
         mu = self.mu(x)
         std = self.std(x)
         output, log_prob = recurrent_logprob(mu, std)
-        if(not self.entropy or not use_std):
+        if(not self.entropy or not use_std         or True):
             output = mu
         if log_prob.ndim > 2:
             # THIS SHOULD HAVE ONLY ONE CHANNEL!
