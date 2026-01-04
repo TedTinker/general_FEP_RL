@@ -96,7 +96,11 @@ class Agent:
         
         self.tau = tau
         self.gamma = gamma
-        self.buffer = RecurrentReplayBuffer(self.world_model.observation_dict, self.world_model.action_dict, capacity, max_steps)
+        self.buffer = RecurrentReplayBuffer(
+            self.world_model.observation_model_dict, 
+            self.world_model.action_model_dict, 
+            capacity, 
+            max_steps)
         
         self.begin()
         
