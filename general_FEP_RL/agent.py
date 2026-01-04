@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-from utils_torch import tile_batch_dim
+from general_FEP_RL.utils_torch import tile_batch_dim
 from buffer import RecurrentReplayBuffer
 from world_model import World_Model
 from actor_critic import Actor, Critic
