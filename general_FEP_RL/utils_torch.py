@@ -70,6 +70,10 @@ def model_end(
         episodes, 
         steps, 
         model_output_list):
+    
+    print(episodes)
+    print(steps)
+    print(len(model_output_list))
     new_model_outputs = []
     for model_output, layer_type in model_output_list:
         if layer_type == 'lin':
