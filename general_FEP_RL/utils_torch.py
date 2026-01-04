@@ -70,18 +70,13 @@ def model_end(
         episodes, 
         steps, 
         model_output_list):
-    
-    print(episodes)
-    print(steps)
-    print(len(model_output_list))
-    for m in model_output_list:
-        print(m[0].shape)
     new_model_outputs = []
     for model_output, layer_type in model_output_list:
         if layer_type == 'lin':
             model_output = model_output.reshape(episodes, steps, model_output.shape[-1])
         elif layer_type == 'cnn':
             model_output = model_output.reshape(episodes, steps, model_output.shape[1], model_output.shape[2], model_output.shape[3])
+            # THIS IS SUPPOSED TO PERMUTE TOO!
         elif layer_type == 'recurrent':
             model_output = model_output.reshape(episodes, steps, model_output.shape[1], model_output.shape[2])
         new_model_outputs.append(model_output)
@@ -152,7 +147,7 @@ class mu_std(nn.Module):
         mu = self.mu(x)
         std = self.std(x)
         output, log_prob = recurrent_logprob(mu, std)
-        print("HERE!", log_prob.shape)
+        # log_prob SHOULD BE AVERAGE BASED ON MODEL_START OR NOT!
         if not self.entropy:    # If deterministic, ignore std.
             output = mu
         return output, log_prob

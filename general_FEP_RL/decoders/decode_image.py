@@ -52,11 +52,12 @@ class Decode_Image(nn.Module):
         self.mu_std = mu_std(mu, entropy = entropy)
         
         example_output, example_log_prob = self.mu_std(example)
+        example_log_prob = example_log_prob.mean(dim = (1, 2))
         if(verbose): 
             print("\toutput:", example_output.shape)
             print("\tlog_prob:", example_log_prob.shape)
         
-        [example_output, example_log_prob] = model_end(episodes, steps, [(example_output, "cnn"), (example_log_prob, "cnn")])
+        [example_output, example_log_prob] = model_end(episodes, steps, [(example_output, "cnn"), (example_log_prob, "lin")])
         example_output = example_output.reshape(episodes, steps, 28, 28, 1)
         self.example_output = example_output
         if(verbose): 
@@ -74,6 +75,7 @@ class Decode_Image(nn.Module):
         a = a.reshape(episodes * steps, 16, 28, 28)
         output, log_prob = self.mu_std(a)
         output = (output + 1) / 2
+        log_prob = log_prob.mean(dim = (1, 2))
         [output, log_prob] = model_end(episodes, steps, [(output, "cnn"), (log_prob, "lin")])
         output = output.reshape(episodes, steps, 28, 28, 1)
         return(output, log_prob)
@@ -89,7 +91,7 @@ class Decode_Image(nn.Module):
     
 # Let's check it out!
 if(__name__ == "__main__"):
-    di = Decode_Image(hidden_state_size = 128)
+    di = Decode_Image(hidden_state_size = 12, verbose = True)
     print("\n\n")
     print(di)
     print()
@@ -100,7 +102,7 @@ if(__name__ == "__main__"):
     
     
 
-    di = Decode_Image(hidden_state_size = 128, entropy = True)
+    di = Decode_Image(hidden_state_size = 128, entropy = True, verbose = True)
     print("\n\n")
     print(di)
     print()
