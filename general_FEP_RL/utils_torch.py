@@ -74,6 +74,8 @@ def model_end(
     print(episodes)
     print(steps)
     print(len(model_output_list))
+    for m in model_output_list:
+        print(m.shape)
     new_model_outputs = []
     for model_output, layer_type in model_output_list:
         if layer_type == 'lin':
