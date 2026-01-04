@@ -152,6 +152,7 @@ class mu_std(nn.Module):
         mu = self.mu(x)
         std = self.std(x)
         output, log_prob = recurrent_logprob(mu, std)
+        print("HERE!", log_prob.shape)
         if not self.entropy:    # If deterministic, ignore std.
             output = mu
         return output, log_prob
