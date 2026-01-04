@@ -56,7 +56,7 @@ class Decode_Image(nn.Module):
             print("\toutput:", example_output.shape)
             print("\tlog_prob:", example_log_prob.shape)
         
-        [example_output, example_log_prob] = model_end(episodes, steps, [(example_output, "cnn"), (example_log_prob, "lin")])
+        [example_output, example_log_prob] = model_end(episodes, steps, [(example_output, "cnn"), (example_log_prob, "cnn")])
         example_output = example_output.reshape(episodes, steps, 28, 28, 1)
         self.example_output = example_output
         if(verbose): 
