@@ -81,9 +81,8 @@ class Decode_Image(nn.Module):
     
     
     @staticmethod
-    def loss_func(true_values, predicted_values):
-        print(true_values.shape, predicted_values.shape)
-        loss_value = F.mse_loss(predicted_values, true_values, reduction = None)
+    def loss_func(predicted_values, target_values):
+        loss_value = F.mse_loss(predicted_values, target_values, reduction = None)
         return loss_value
     
     

@@ -8,11 +8,10 @@ import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
-#from general_FEP_RL.utils import print_shapes
-from general_FEP_RL.utils_torch import tile_batch_dim
-from general_FEP_RL.buffer import RecurrentReplayBuffer
-from general_FEP_RL.world_model import World_Model
-from general_FEP_RL.actor_critic import Actor, Critic
+from utils_torch import tile_batch_dim
+from buffer import RecurrentReplayBuffer
+from world_model import World_Model
+from actor_critic import Actor, Critic
     
     
 
@@ -120,7 +119,7 @@ class Agent:
             self.eval()
             self.hp, self.hq, inner_state_dict = self.world_model(
                 self.hq if posterior else self.hp, obs, self.action, one_step = True)
-            self.action, log_prob = self.actor(self.hq[0] if posterior else self.hp[0]) 
+            self.action = self.actor(self.hq[0] if posterior else self.hp[0]) 
             encoded_action = self.world_model.action_in(self.action)
             pred_obs_p = self.world_model.predict(self.hp[0], encoded_action)
             pred_obs_q = self.world_model.predict(self.hq[0], encoded_action)
@@ -132,7 +131,6 @@ class Agent:
         return {
             "obs" : obs,
             "action" : self.action,
-            "log_prob" : log_prob,
             "values" : values,
             "inner_state_dict" : inner_state_dict,
             "pred_obs_p" : pred_obs_p,
@@ -182,7 +180,7 @@ class Agent:
             predicted_obs = pred_obs_q[key]
             loss_func = self.observation_dict[key]["decoder"].loss_func
             scalar = self.observation_dict[key]["accuracy_scalar"]
-            obs_accuracy_loss = loss_func(true_obs, predicted_obs)
+            obs_accuracy_loss = loss_func(predicted_obs, true_obs)
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim))).unsqueeze(-1)
             obs_accuracy_loss = obs_accuracy_loss * scalar * mask
             accuracy_losses[key] = obs_accuracy_loss.mean().item()

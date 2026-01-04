@@ -1,17 +1,29 @@
-#%%
+#------------------
+# mtrnn.py provides an RNN layer which has a custom timescale and is gated. 
+#------------------
+
 import torch 
 from torch import nn 
-from torch.profiler import profile, record_function, ProfilerActivity
-from torchinfo import summary as torch_summary
 
-from general_FEP_RL.utils_torch import init_weights
+from utils_torch import init_weights
 
 
 
-# One cell in an (MTRNN) Multiple Timescall Recurrent Neural Network.
-# This is also a GRU (Gated Recurrent Unit).
+#------------------
+# One cell of the recurrent neural network.
+# r_t = σ(W^r_x x_t + W^r_h h^q_{t-1})
+# z_t = σ(W^z_x x_t + W^z_h h^q_{t-1})
+# \tilde{h}_t = tanh(W^n_x x_t + r_t ⊙ W^n_h h^q_{t-1})
+# \hat{h}_t = (1 − z_t) ⊙ \tilde{h}_t + z_t ⊙ h^q_{t-1}
+# h^q_t = (1/τ) \hat{h}_t + (1 − 1/τ) h^q_{t-1}
+#------------------
+
 class MTRNNCell(nn.Module):
-    def __init__(self, input_size, hidden_size, time_constant):
+    def __init__(
+            self, 
+            input_size,
+            hidden_size, 
+            time_constant):
         super(MTRNNCell, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -47,6 +59,8 @@ class MTRNNCell(nn.Module):
                 out_features = hidden_size))
         
         self.apply(init_weights)
+        
+        
 
     def forward(self, x, h):
         r = torch.sigmoid(self.r_x(x) + self.r_h(h))
@@ -54,14 +68,21 @@ class MTRNNCell(nn.Module):
         new_h = torch.tanh(self.n_x(x) + r * self.n_h(h))
         new_h = new_h * (1 - z)  + h * z
         new_h = new_h * self.new + h * self.old
-        if(len(new_h.shape) == 2):
+        if(len(new_h.shape) == 2):      # Must have shape (batch_size, steps, ...).
             new_h = new_h.unsqueeze(1)
         return new_h
     
     
     
+#------------------
+# Example. 
+#------------------
+
 if __name__ == "__main__":
-    
+        
+    from torch.profiler import profile, record_function, ProfilerActivity
+    from torchinfo import summary as torch_summary
+        
     episodes = 32 
     steps = 16
     
@@ -84,18 +105,29 @@ if __name__ == "__main__":
     
     
 
-# An MTRNN, applying the cell. 
+#------------------
+# Application of the cell.
+#------------------
+
 class MTRNN(nn.Module):
-    def __init__(self, input_size, hidden_size, time_constant):
+    def __init__(
+            self, 
+            input_size, 
+            hidden_size,
+            time_constant):
         super(MTRNN, self).__init__()
         self.hidden_size = hidden_size
         self.mtrnn_cell = MTRNNCell(input_size, hidden_size, time_constant)
         
         self.apply(init_weights)
+        
+        
 
     def forward(self, x, h = None):
-        if(h == None):
-            h = torch.zeros((x.shape[0], 1, self.hidden_size))
+        if(h is None):
+            h = torch.zeros(
+                (x.shape[0], 1, self.hidden_size),
+                device=x.device, dtype=x.dtype,)
         outputs = []
         for step in range(x.shape[1]):  
             h = self.mtrnn_cell(x[:, step], h[:, 0])
@@ -104,6 +136,10 @@ class MTRNN(nn.Module):
         return outputs
     
 
+
+#------------------
+# Example. 
+#------------------
 
 if __name__ == "__main__":
     mtrnn = MTRNN(
