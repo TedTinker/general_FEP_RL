@@ -62,7 +62,7 @@ class Actor(nn.Module):
             action[key] = a
             log_prob[key] = lp
         if best_action is None:
-            return action
+            return action, log_prob
         else:
             imitation_loss = {}
             for key, model in self.action_model_dict.items():
