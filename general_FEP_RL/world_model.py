@@ -1,3 +1,5 @@
+# I should add more LaTeX now!
+
 #------------------
 # world_model.py provides an architecture for creating predictions of future observations
 # based on multi-layer mtrnn. Actor and Critic utilize its hidden states.  
@@ -351,6 +353,7 @@ class World_Model(nn.Module):
         for key, value in sorted(self.action_model_dict.items()):
             encoded_action_size += value['encoder'].arg_dict['encode_size']
         
+        # World model encodes observations and predicts future observations. 
         self.observation_model_dict = nn.ModuleDict()
         for key, model in sorted(observation_dict.items()):
             self.observation_model_dict[key] = nn.ModuleDict()
@@ -359,6 +362,7 @@ class World_Model(nn.Module):
             self.observation_model_dict[key]['decoder'] = model['decoder'](
                 hidden_state_sizes[0] + encoded_action_size, arg_dict = model['decoder_arg_dict'], verbose = verbose)
                
+        # Multiple layers of MTRNN produce short-term and long-term memory.
         self.world_layers = nn.ModuleList()
         first_layer_zp_zq_size = sum(
             self.observation_model_dict[key]['encoder'].arg_dict['zp_zq_sizes'][-1] 
@@ -381,21 +385,21 @@ class World_Model(nn.Module):
                 
                 
             
-    # Encode incoming observations.
-    def obs_in(self, obs):
-        encoded_obs = {}
-        for key, value in sorted(obs.items()):
-            encoded_obs[key] = self.observation_model_dict[key]['encoder'](value)
-        return encoded_obs
-    
-    
-    
     # Encode incoming actions.
     def action_in(self, action):
         encoded_action = {}
         for key, value in sorted(action.items()):
             encoded_action[key] = self.action_model_dict[key]['encoder'](value)
         return encoded_action
+            
+            
+            
+    # Encode incoming observations.
+    def obs_in(self, obs):
+        encoded_obs = {}
+        for key, value in sorted(obs.items()):
+            encoded_obs[key] = self.observation_model_dict[key]['encoder'](value)
+        return encoded_obs
     
     
     
@@ -410,7 +414,7 @@ class World_Model(nn.Module):
     
     
     
-    # Use layers from bottom to top, then top to bottom.
+    # Transfer information from bottom layer to top layer, then top layer to bottom layer.
     def bottom_to_top_step(self, prev_hidden_states, encoded_obs, encoded_prev_action):
 
         inner_state_dict_list = []
@@ -455,6 +459,7 @@ class World_Model(nn.Module):
     
     
     
+    # Update hidden states and predict next observations.
     def forward(self, prev_hidden_states, obs, prev_action, one_step = False):
                            
         first = next(iter(obs.values()))
@@ -504,10 +509,11 @@ class World_Model(nn.Module):
             catted_inner_state_dicts[key] = {'zp': zp, 'zq': zq, 'dkl': dkl}
 
         if one_step:
-            # Cannot make prediction, because we need the next action.
+            # If working with only one step, we cannot predict the next
+            # observation, because we don't have the next action.
             return [h[:,1:] for h in hidden_states_p], [h[:,1:] for h in hidden_states_q], catted_inner_state_dicts
         else:
-            # Make predictions for all steps.
+            # If working with a whole episode, predict future observations. 
             skip_non_action = {}
             for key, value in sorted(encoded_prev_action.items()):    
                 skip_non_action[key] = value[:, 1:]
@@ -524,31 +530,27 @@ class World_Model(nn.Module):
         
         
         
+    # This function prints the complete architecture of the world model.
     def summary(self):
                 
-        ''' # This part does not work if there are multiple world_layers.
-        dummies = generate_dummy_inputs(self.observation_model_dict, self.action_model_dict, self.hidden_state_sizes)        
-
-        for i, world_layer in enumerate(self.world_layers):
-            print(f'\n\nWORLD_MODEL_LAYER {i}')
-            if i == 0:
-                dummy_inputs = dummies['hidden'][0], dummies['obs_enc_out'], dummies['act_enc_out'], 0
-            else:
-                dummy_inputs = dummies['hidden'][i], None, None, 
-                
-            with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-                with record_function('model_inference'):
-                    print(summary(
-                        self.world_layers[i], 
-                        input_data=(dummy_inputs)))
-            #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
+        # Layers can only be summarized if there is just one layer.
+        if len(self.world_layers) == 1:
+            dummies = generate_dummy_inputs(self.observation_model_dict, self.action_model_dict, self.hidden_state_sizes)        
+    
+            for i, world_layer in enumerate(self.world_layers):
+                print(f'\n\nWORLD_MODEL_LAYER {i}')
+                if i == 0:
+                    dummy_inputs = dummies['hidden'][0], dummies['obs_enc_out'], dummies['act_enc_out'], 0
+                else:
+                    dummy_inputs = dummies['hidden'][i], None, None
+                    
+                with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+                    with record_function('model_inference'):
+                        print(summary(
+                            self.world_layers[i], 
+                            input_data=(dummy_inputs)))
+                #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
         
-            #prev_hidden_state, 
-            #encoded_obs = None, 
-            #encoded_prev_action = None,
-            #lower_zp_zq = None,
-            #higher_hidden_state = None)
-        '''
         
         print('\n\nOBSERVATIONS')
         for key, value in sorted(self.observation_model_dict.items()):
@@ -611,12 +613,12 @@ if __name__ == '__main__':
             }
         }
     
-    hidden_state_sizes = [128, 128]
+    hidden_state_sizes = [128]
     fm = World_Model(            
         hidden_state_sizes = hidden_state_sizes,
         observation_dict = observation_dict, 
         action_dict = action_dict,
-        time_scales = [1, 2],
+        time_scales = [1],
         verbose = True)
     print('\n\n')
     print(fm)
