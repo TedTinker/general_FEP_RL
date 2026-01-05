@@ -346,8 +346,6 @@ class World_Model(nn.Module):
             self.action_model_dict[key] = nn.ModuleDict()
             self.action_model_dict[key]['encoder'] = model['encoder'](
                 arg_dict = model['encoder_arg_dict'], verbose = verbose)
-            self.action_model_dict[key]['decoder'] = model['decoder'](
-                hidden_state_sizes[0], entropy = True, arg_dict = model['decoder_arg_dict'], verbose = verbose)
         
         encoded_action_size = 0 
         for key, value in sorted(self.action_model_dict.items()):
@@ -579,14 +577,7 @@ class World_Model(nn.Module):
                         self.action_model_dict[key]['encoder'], 
                         input_data=(self.action_model_dict[key]['encoder'].example_input)))
             #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
-            
-            print(f'\n{key} DECODER')
-            with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-                with record_function('model_inference'):
-                    print(summary(
-                        self.action_model_dict[key]['decoder'], 
-                        input_data=(self.action_model_dict[key]['decoder'].example_input)))
-            #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
+
         
         
         
