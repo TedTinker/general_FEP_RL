@@ -98,7 +98,7 @@ class Agent:
         self.gamma = gamma
         self.buffer = RecurrentReplayBuffer(
             self.world_model.observation_model_dict, 
-            self.world_model.action_model_dict, 
+            self.actor.action_model_dict, 
             capacity, 
             max_steps)
         

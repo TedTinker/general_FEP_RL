@@ -43,8 +43,8 @@ class VariableBuffer:
 class RecurrentReplayBuffer:
     def __init__(
             self, 
-            observation_dict, 
-            action_dict, 
+            observation_model_dict, 
+            action_model_dict, 
             capacity, 
             max_steps):
         self.capacity = capacity
@@ -55,28 +55,29 @@ class RecurrentReplayBuffer:
 
         # Observations
         self.observation_buffers = {}
-        for key, value in observation_dict.items():
+        for key, model in observation_model_dict.items():
             self.observation_buffers[key] = VariableBuffer(
                 capacity, 
                 max_steps, 
-                shape = value['encoder'].example_input.shape[2:],
+                shape = model['encoder'].example_input.shape[2:],
                 observation = True)
 
         # Actions
         self.action_buffers = {}
-        for key, value in action_dict.items():
+        for key, model in action_model_dict.items():
+            print(key)
             self.action_buffers[key] = VariableBuffer(
                 capacity, 
                 max_steps, 
-                shape = value['decoder'].example_output.shape[2:])
+                shape = model['decoder'].example_output.shape[2:])
             
         # Best Actions
         self.best_action_buffers = {}
-        for key, value in action_dict.items():
+        for key, model in action_model_dict.items():
             self.best_action_buffers[key] = VariableBuffer(
                 capacity, 
                 max_steps, 
-                shape=value['decoder'].example_output.shape[2:])
+                shape=model['decoder'].example_output.shape[2:])
 
         # Scalars
         self.reward = VariableBuffer(capacity, max_steps)

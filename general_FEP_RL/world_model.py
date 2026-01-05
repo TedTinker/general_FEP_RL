@@ -340,7 +340,7 @@ class World_Model(nn.Module):
         self.hidden_state_sizes = hidden_state_sizes 
         self.example_input = torch.zeros((32, 16, hidden_state_sizes[0]))
         
-        # Agent can 
+        # World model encodes actions. 
         self.action_model_dict = nn.ModuleDict()
         for key, model in sorted(action_dict.items()):
             self.action_model_dict[key] = nn.ModuleDict()
@@ -577,7 +577,6 @@ class World_Model(nn.Module):
                         self.action_model_dict[key]['encoder'], 
                         input_data=(self.action_model_dict[key]['encoder'].example_input)))
             #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
-
         
         
         
