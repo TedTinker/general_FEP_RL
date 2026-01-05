@@ -533,7 +533,7 @@ class World_Model(nn.Module):
     # This function prints the complete architecture of the world model.
     def summary(self):
                 
-        # Layers can only be summarized if there is just one layer.
+        """# Layers can only be summarized if there is just one layer.
         if len(self.world_layers) == 1:
             dummies = generate_dummy_inputs(self.observation_model_dict, self.action_model_dict, self.hidden_state_sizes)        
     
@@ -549,7 +549,7 @@ class World_Model(nn.Module):
                         print(summary(
                             self.world_layers[i], 
                             input_data=(dummy_inputs)))
-                #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
+                #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))"""
         
         
         print('\n\nOBSERVATIONS')
