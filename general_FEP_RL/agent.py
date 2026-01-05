@@ -179,7 +179,7 @@ class Agent:
             
         complete_best_action = {}
         for key, value in best_action.items(): 
-            empty_action = torch.zeros_like(self.world_model.action_dict[key]['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0))
+            empty_action = torch.zeros_like(self.actor.action_dict[key]['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_best_action[key] = torch.cat([value, empty_action], dim = 1)
             
