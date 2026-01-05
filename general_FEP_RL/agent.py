@@ -108,7 +108,7 @@ class Agent:
         
     def begin(self, batch_size = 1):
         self.action = {} 
-        for key, model in self.world_model.action_model_dict.items(): 
+        for key, model in self.actor.action_model_dict.items(): 
             action = torch.zeros_like(model["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             self.action[key] = tile_batch_dim(action, batch_size)
         self.hp = [torch.zeros((batch_size, 1, hidden_state_size)) for hidden_state_size in self.hidden_state_sizes] 
