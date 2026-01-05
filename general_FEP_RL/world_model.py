@@ -1,4 +1,4 @@
-# I should add more LaTeX now!
+# I should add more LaTeX!
 
 #------------------
 # world_model.py provides an architecture for creating predictions of future observations
@@ -310,7 +310,10 @@ if __name__ == '__main__':
     print(wl)
     print()
     
-    dummies = generate_dummy_inputs(observation_model_dict, action_model_dict, hidden_state_size)
+    dummies = generate_dummy_inputs(
+        observation_model_dict,
+        action_model_dict, 
+        hidden_state_size)
     dummy_inputs = dummies['hidden'], dummies['obs_enc_out'], dummies['act_enc_out'], 0
         
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
@@ -614,21 +617,24 @@ if __name__ == '__main__':
         }
     
     hidden_state_sizes = [128]
-    fm = World_Model(            
+    wm = World_Model(            
         hidden_state_sizes = hidden_state_sizes,
         observation_dict = observation_dict, 
         action_dict = action_dict,
         time_scales = [1],
         verbose = True)
     print('\n\n')
-    print(fm)
+    print(wm)
     print()
     
     
 
-    dummies = generate_dummy_inputs(fm.observation_model_dict, fm.action_model_dict, hidden_state_size)
+    dummies = generate_dummy_inputs(
+        wm.observation_model_dict, 
+        wm.action_model_dict, 
+        hidden_state_size)
     dummy_inputs = [dummies['hidden'], dummies['hidden']], dummies['obs_enc_in'], dummies['act_enc_in'], 0
     
-    fm.summary()
+    wm.summary()
 
 # %%

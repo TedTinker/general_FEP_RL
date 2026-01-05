@@ -1,7 +1,8 @@
-#%%
+# I should add more LaTeX!
 
-### TO DO:
-    # Right now we have multiple dicts named observation_dict, for example, which can be confusing.
+#------------------
+# agent.py provides a class combining the world model, actor, and critics.
+#------------------
 
 import torch
 import torch.nn.functional as F
@@ -14,6 +15,11 @@ from general_FEP_RL.world_model import World_Model
 from general_FEP_RL.actor_critic import Actor, Critic
     
     
+
+#------------------
+# An agent acts based on an understanding of the relationship 
+# between its observations, its actions, and its environment.
+#------------------
 
 class Agent:
     
@@ -34,7 +40,7 @@ class Agent:
                                         # decoder_arg_dict
                                         # accuracy_scalar
                                         # beta (complexity scalar)
-                                        # "eta_before_clamp"
+                                        # 'eta_before_clamp'
                                         # eta
             
             action_dict,            # Keys: action_names
@@ -68,23 +74,30 @@ class Agent:
             capacity = 128, 
             max_steps = 32):
 
+        # Miscellaneous. 
         self.observation_dict = observation_dict
         self.action_dict = action_dict
         self.hidden_state_sizes = hidden_state_sizes
         self.beta = beta
         self.eta_before_clamp = eta_before_clamp
         self.eta = eta
+        self.tau = tau
+        self.gamma = gamma
 
+        # World model.
         self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales)
         self.world_model_opt = optim.Adam(self.world_model.parameters(), lr = lr, weight_decay = weight_decay)
                            
+        # Actor.
         self.actor = Actor(hidden_state_sizes[0], action_dict)
         self.actor_opt = optim.Adam(self.actor.parameters(), lr = lr, weight_decay = weight_decay) 
         
+        # Alpha values (entropy hyperparameter).
         self.alphas = {key : 1 for key in action_dict.keys()} 
         self.log_alphas = {key : torch.tensor([0.0]).requires_grad_() for key in action_dict.keys()}
         self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = lr, weight_decay = weight_decay) for key in action_dict.keys()} 
         
+        # Critics and target critics.
         self.critics = []
         self.critic_targets = []
         self.critic_opts = []
@@ -94,8 +107,7 @@ class Agent:
             self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
             self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr = lr, weight_decay = weight_decay))
         
-        self.tau = tau
-        self.gamma = gamma
+        # Recurrent replay buffer.
         self.buffer = RecurrentReplayBuffer(
             self.world_model.observation_model_dict, 
             self.actor.action_model_dict, 
@@ -106,18 +118,21 @@ class Agent:
         
         
         
+    # To begin an episode, initiate prior hidden state and action.
     def begin(self, batch_size = 1):
         self.action = {} 
         for key, model in self.actor.action_model_dict.items(): 
-            action = torch.zeros_like(model["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
+            action = torch.zeros_like(model['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             self.action[key] = tile_batch_dim(action, batch_size)
         self.hp = [torch.zeros((batch_size, 1, hidden_state_size)) for hidden_state_size in self.hidden_state_sizes] 
         self.hq = [torch.zeros((batch_size, 1, hidden_state_size)) for hidden_state_size in self.hidden_state_sizes] 
         
         
     
-    def step_in_episode(self, obs, posterior = True, best_action = None, use_best_action = False):
-        if(use_best_action):
+    # In each step, an agent processes an observation and an action to update hidden states.
+    # Then, make a new action and predict future observations and Q-values.
+    def step_in_episode(self, obs, posterior = True, best_action = None):
+        if best_action is not None:
             self.action = best_action
         with torch.no_grad():
             self.eval()
@@ -133,123 +148,123 @@ class Agent:
                 values.append(value)
                 
         return {
-            "obs" : obs,
-            "action" : self.action,
-            "values" : values,
-            "inner_state_dict" : inner_state_dict,
-            "pred_obs_p" : pred_obs_p,
-            "pred_obs_q" : pred_obs_q}
+            'obs' : obs,
+            'action' : self.action,
+            'values' : values,
+            'inner_state_dict' : inner_state_dict,
+            'pred_obs_p' : pred_obs_p,
+            'pred_obs_q' : pred_obs_q}
         
         
 
+    # Train the world model, actor, and critics.
     def epoch(self, batch_size):
         self.train()
                                 
+        # Gather data. 
         batch = self.buffer.sample(batch_size)
-        obs = batch["obs"]
-        action = batch["action"] 
-        best_action = batch["best_action"] 
-        reward = batch["reward"]
-        done = batch["done"]
-        mask = batch["mask"]
-        best_action_mask = batch["best_action_mask"]
+        obs = batch['obs']
+        action = batch['action'] 
+        best_action = batch['best_action'] 
+        reward = batch['reward']
+        done = batch['done']
+        mask = batch['mask']
+        best_action_mask = batch['best_action_mask']
         
         complete_action = {}
         for key, value in action.items(): 
-            empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
+            empty_action = torch.zeros_like(self.world_model.action_dict[key]['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
             
         complete_best_action = {}
         for key, value in best_action.items(): 
-            empty_action = torch.zeros_like(self.world_model.action_dict[key]["decoder"].example_output[0, 0].unsqueeze(0).unsqueeze(0))
+            empty_action = torch.zeros_like(self.world_model.action_dict[key]['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_best_action[key] = torch.cat([value, empty_action], dim = 1)
             
         complete_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1)
-        complete_best_action_mask = torch.cat([torch.ones(best_action_mask.shape[0], 1, 1), mask], dim = 1)
 
 
                                     
+        # Train world model to minimize Free Energy.
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
         
-        #print_shapes(obs, action, complete_action, best_action, reward, done, mask, complete_mask, hq)
-                
-        
-        
+        # Accuracy of observation prediction.
         accuracy_losses = {}
         accuracy_loss = torch.zeros((1,)).requires_grad_()
         for key, value in self.observation_dict.items():
             true_obs = obs[key][:, 1:]
             predicted_obs = pred_obs_q[key]
-            loss_func = self.observation_dict[key]["decoder"].loss_func
-            scalar = self.observation_dict[key]["accuracy_scalar"]
+            loss_func = self.observation_dict[key]['decoder'].loss_func
+            scalar = self.observation_dict[key]['accuracy_scalar']
             obs_accuracy_loss = loss_func(predicted_obs, true_obs)
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim))).unsqueeze(-1)
             obs_accuracy_loss = obs_accuracy_loss * scalar * mask
             accuracy_losses[key] = obs_accuracy_loss.mean().item()
             accuracy_loss = accuracy_loss + obs_accuracy_loss.mean()
             
+        # Complexity of predictions.
         complexity_losses = {}
         complexity_loss = torch.zeros((1,)).requires_grad_()
-
         for key, value in self.observation_dict.items():
-            dkl = inner_state_dict[key]["dkl"].mean(-1).unsqueeze(-1) * complete_mask
-            complexity = dkl * self.observation_dict[key]["beta"]
+            dkl = inner_state_dict[key]['dkl'].mean(-1).unsqueeze(-1) * complete_mask
+            complexity = dkl * self.observation_dict[key]['beta']
             complexity_losses[key] = complexity[:,1:]
             complexity_loss = complexity_loss + complexity.mean()
-            
         for i in range(len(self.hidden_state_sizes) - 1):
-            dkl = inner_state_dict[i+1]["dkl"].mean(-1).unsqueeze(-1) * complete_mask 
-            complexity = dkl * self.observation_dict[key]["beta"]
-            complexity_losses[f"hidden_layer_{i+2}"] = complexity[:,1:]
+            dkl = inner_state_dict[i+1]['dkl'].mean(-1).unsqueeze(-1) * complete_mask 
+            complexity = dkl * self.observation_dict[key]['beta']
+            complexity_losses[f'hidden_layer_{i+2}'] = complexity[:,1:]
             complexity_loss = complexity_loss + complexity.mean()
                         
         
                                 
+        # Minimize Free Energy.
         self.world_model_opt.zero_grad()
         (accuracy_loss + complexity_loss).backward()
         self.world_model_opt.step()
                 
 
         
-        # Get curiosity  
+        # Get curiosity values based on complexity.
         curiosities = {}
         curiosity = torch.zeros_like(reward).requires_grad_()
                 
         for key, value in self.observation_dict.items():
-            obs_curiosity = self.observation_dict[key]["eta"] * \
-                torch.clamp(complexity_losses[key] * self.observation_dict[key]["eta_before_clamp"], min = 0, max = 1)
+            obs_curiosity = self.observation_dict[key]['eta'] * \
+                torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'], min = 0, max = 1)
             complexity_losses[key] = complexity_losses[key].mean().item()
             curiosities[key] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
             
         for i in range(len(self.hidden_state_sizes) - 1):
             obs_curiosity = self.eta[i] * \
-                torch.clamp(complexity_losses[f"hidden_layer_{i+2}"] * self.eta_before_clamp[i], min = 0, max = 1)
-            complexity_losses[f"hidden_layer_{i+2}"] = complexity_losses[f"hidden_layer_{i+2}"].mean().item()
-            curiosities[f"hidden_layer_{i+2}"] = obs_curiosity.mean().item()
+                torch.clamp(complexity_losses[f'hidden_layer_{i+2}'] * self.eta_before_clamp[i], min = 0, max = 1)
+            complexity_losses[f'hidden_layer_{i+2}'] = complexity_losses[f'hidden_layer_{i+2}'].mean().item()
+            curiosities[f'hidden_layer_{i+2}'] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
             
             
             
-        # Get imitation
+        # Get imitation values based on user-provided best actions.
         new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:, 1:-1].detach(), best_action)
         imitations = {}
         imitation = torch.zeros_like(reward).requires_grad_()
         
         for key, value in imitation_loss.items():
-            imitation_component = -1 * value * self.action_dict[key]["delta"] * best_action_mask
+            imitation_component = -1 * value * self.action_dict[key]['delta'] * best_action_mask
             imitations[key] = imitation_component.mean().item()
             imitation = imitation + imitation_component.mean(dim=-1, keepdim=True)
             
             
 
+        # The actor and critics are concerned with both extrinsic rewards and intrinsic rewards.
         total_reward = reward + curiosity + imitation
         
 
                 
-        # Train critics
+        # Train critics. First, target critics predict future Q-values.
         with torch.no_grad():         
             new_action_dict, new_log_pis_dict = self.actor(hq[0][:, 2:].detach())
             Q_target_nexts = []
@@ -265,6 +280,7 @@ class Agent:
             Q_target = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy) 
             Q_target *= mask
         
+        # Then, critics predict rewards plus predicted Q-values, with Bellman's Equation.
         critic_losses = []
         for i in range(len(self.critics)):
             Q = self.critics[i](hq[0][:, 1:-1].detach(), action) * mask
@@ -278,9 +294,8 @@ class Agent:
                                             
             
         
-        # Train actor
+        # Train actor. First, actor makes new actions, and the critic grades them.
         new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:,1:-1].detach(), best_action)
-        
         Qs = []
         for i in range(len(self.critics)):
             Q = self.critics[i](hq[0][:,1:-1].detach(), new_action_dict)
@@ -289,6 +304,7 @@ class Agent:
         Q, _ = torch.min(Qs_stacked, dim=0)
         Q = Q.mean(-1).unsqueeze(-1)
         
+        # Then, calculate entropy values.
         alpha_entropies = {}
         alpha_normal_entropies = {}
         total_entropies = {}
@@ -301,7 +317,7 @@ class Agent:
             policy_prior_log_prrgbd = policy_prior.log_prob(flattened_new_action).unsqueeze(-1)
             
             alpha_entropy = self.alphas[key] * new_log_pis_dict[key]
-            alpha_normal_entropy = -self.action_dict[key]["alpha_normal"] * policy_prior_log_prrgbd
+            alpha_normal_entropy = -self.action_dict[key]['alpha_normal'] * policy_prior_log_prrgbd
             total_entropy = alpha_entropy + alpha_normal_entropy
             
             alpha_entropies[key] = alpha_entropy.mean().item()
@@ -310,10 +326,11 @@ class Agent:
             
             complete_entropy += total_entropy 
             
+        # Also calculate imatation value. 
         imitation_losses = {}
         total_imitation_loss = torch.zeros_like(Q)
         for key in new_action_dict.keys():
-            scalar = self.action_dict[key]["delta"]
+            scalar = self.action_dict[key]['delta']
             action_imitation_loss = imitation_loss[key].mean(-1) * scalar * mask.squeeze(-1) * best_action_mask.squeeze(-1)
             imitation_losses[key] = action_imitation_loss.mean().item()
             total_imitation_loss = total_imitation_loss + action_imitation_loss.mean()
@@ -327,11 +344,11 @@ class Agent:
         
             
             
-        # Train alpha
+        # Train alpha values to satisfy target entropies.
         alpha_losses = {}
         _, new_log_pis_dict = self.actor(hq[0][:,1:-1].detach())
         for key, log_pis in new_log_pis_dict.items():
-            alpha_loss = -(self.log_alphas[key] * (log_pis + self.action_dict[key]["target_entropy"]))*mask
+            alpha_loss = -(self.log_alphas[key] * (log_pis + self.action_dict[key]['target_entropy']))*mask
             alpha_loss = alpha_loss.mean() / mask.mean()
             self.alpha_opt[key].zero_grad()
             alpha_loss.backward()
@@ -342,18 +359,18 @@ class Agent:
         
         
         return({
-            "total_reward" : total_reward.mean().item(),
-            "reward" : reward.mean().item(),
-            "critic_losses" : critic_losses,
-            "actor_loss" : actor_loss.item(),
-            "alpha_losses" : alpha_losses,
-            "accuracy_losses" : accuracy_losses,
-            "complexity_losses" : complexity_losses,
-            "curiosities" : curiosities,
-            "imitations" : imitations,
-            "alpha_entropies" : alpha_entropies,
-            "alpha_normal_entropies" : alpha_normal_entropies,
-            "total_entropies" : total_entropies
+            'total_reward' : total_reward.mean().item(),
+            'reward' : reward.mean().item(),
+            'critic_losses' : critic_losses,
+            'actor_loss' : actor_loss.item(),
+            'alpha_losses' : alpha_losses,
+            'accuracy_losses' : accuracy_losses,
+            'complexity_losses' : complexity_losses,
+            'curiosities' : curiosities,
+            'imitations' : imitations,
+            'alpha_entropies' : alpha_entropies,
+            'alpha_normal_entropies' : alpha_normal_entropies,
+            'total_entropies' : total_entropies
             })
                                 
     
@@ -375,7 +392,11 @@ class Agent:
         
         
         
-if __name__ == "__main__":
+#------------------
+# Example
+#------------------
+
+if __name__ == '__main__':
     
     from general_FEP_RL.utils_torch import generate_dummy_inputs
     from general_FEP_RL.encoders.encode_image import Encode_Image
@@ -384,40 +405,40 @@ if __name__ == "__main__":
     
     
     observation_dict = {
-        "see_image" : {
-            "encoder" : Encode_Image,
-            "encoder_arg_dict" : {                
-                "encode_size" : 256,
-                "zp_zq_sizes" : [256]},
-            "decoder" : Decode_Image,
-            "decoder_arg_dict" : {},
-            "accuracy_scalar" : 1,                               
-            "complexity_scalar" : 1,                                 
-            "eta_before_clamp" : 1,
-            "eta" : 1},
-        "see_image_2" : {
-            "encoder" : Encode_Image,
-            "encoder_arg_dict" : {                
-                "encode_size" : 16,
-                "zp_zq_sizes" : [16]},
-            "decoder" : Decode_Image,
-            "decoder_arg_dict" : {},
-            "accuracy_scalar" : 1,                               
-            "complexity_scalar" : 1,  
-            "eta_before_clamp" : 1,                               
-            "eta" : 1}}
+        'see_image' : {
+            'encoder' : Encode_Image,
+            'encoder_arg_dict' : {                
+                'encode_size' : 256,
+                'zp_zq_sizes' : [256]},
+            'decoder' : Decode_Image,
+            'decoder_arg_dict' : {},
+            'accuracy_scalar' : 1,                               
+            'complexity_scalar' : 1,                                 
+            'eta_before_clamp' : 1,
+            'eta' : 1},
+        'see_image_2' : {
+            'encoder' : Encode_Image,
+            'encoder_arg_dict' : {                
+                'encode_size' : 16,
+                'zp_zq_sizes' : [16]},
+            'decoder' : Decode_Image,
+            'decoder_arg_dict' : {},
+            'accuracy_scalar' : 1,                               
+            'complexity_scalar' : 1,  
+            'eta_before_clamp' : 1,                               
+            'eta' : 1}}
     
     action_dict = {
-        "make_image" : {
-            "encoder" : Encode_Image,
-            "encoder_arg_dict" : {                
-                "encode_size" : 128,
-                "zp_zq_sizes" : [128]},
-            "decoder" : Decode_Image,
-            "decoder_arg_dict" : {},
-            "target_entropy" : 1,
-            "alpha_normal" : 1,
-            "delta" : 0}}
+        'make_image' : {
+            'encoder' : Encode_Image,
+            'encoder_arg_dict' : {                
+                'encode_size' : 128,
+                'zp_zq_sizes' : [128]},
+            'decoder' : Decode_Image,
+            'decoder_arg_dict' : {},
+            'target_entropy' : 1,
+            'alpha_normal' : 1,
+            'delta' : 0}}
     
     
     
@@ -434,11 +455,15 @@ if __name__ == "__main__":
         capacity = 128, 
         max_steps = 32)
     
-    dummies = generate_dummy_inputs(agent.world_model.observation_dict, agent.world_model.action_dict, agent.hidden_state_sizes, batch=1, steps=1)
-    dummy_inputs = dummies["obs_enc_in"]
+    dummies = generate_dummy_inputs(
+        agent.world_model.observation_model_dict, 
+        agent.world_model.action_model_dict, 
+        agent.hidden_state_sizes, 
+        batch=1, 
+        steps=1)
+    dummy_inputs = dummies['obs_enc_in']
         
     agent.step_in_episode(dummy_inputs)
-        
         
     agent.world_model.summary()
 ## %%
