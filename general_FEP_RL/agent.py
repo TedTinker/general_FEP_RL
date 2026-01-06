@@ -294,6 +294,9 @@ class Agent:
                 entropy_tp1 += self.alphas[k] * lp
         
             # Bellman target
+            
+            print(r_t.shape, d_t.shape, Q_tp1.shape, entropy_tp1.shape)
+            
             Q_target = r_t + self.gamma * (1.0 - d_t) * (Q_tp1 - entropy_tp1)
             Q_target = Q_target * m_t
         
