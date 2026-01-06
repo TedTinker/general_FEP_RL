@@ -228,7 +228,7 @@ class Agent:
         complexity_loss = 0
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]['dkl'].mean(-1).unsqueeze(-1) * complete_mask
-            complexity = dkl * self.observation_dict[key]['beta']
+            complexity = dkl * self.observation_dict[key]['beta_obs']
             complexity_losses[key] = complexity[:,1:]
             complexity_loss = complexity_loss + complexity.mean()
         for i, beta in enumerate(self.beta_hidden):
