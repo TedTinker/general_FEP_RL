@@ -267,7 +267,7 @@ class Agent:
             new_action_dict = {k: v[:, :1] for k, v in new_action_dict.items()}
             Q_target_nexts = []
             for i in range(len(self.critics)):
-                Q_target_next = self.critic_targets[i](hq[0][:, 1:].detach(), new_action_dict)
+                Q_target_next = self.critic_targets[i](hq[0][:, 1:-1].detach(), new_action_dict)
                 Q_target_nexts.append(Q_target_next)                
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
