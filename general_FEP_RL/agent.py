@@ -301,7 +301,6 @@ class Agent:
         
         critic_losses = []
         for i, critic in enumerate(self.critics):
-            print(h_t.shape, action["make_wheel_speeds"].shape, mask.shape)
 
             Q_pred = critic(h_t, action) * mask
             critic_loss = 0.5 * F.mse_loss(Q_pred, Q_target)
@@ -358,7 +357,7 @@ class Agent:
         
         for k in new_action_dict.keys():
             scalar = self.action_dict[k]['delta']
-            print(imitation_loss[k].mean(-1, keepdim=True).shape, mask.shape, ba_m_t["make_wheel_speeds"])
+            print(mask.shape, ba_m_t["make_wheel_speeds"].shape)
             il = imitation_loss[k].mean(-1, keepdim=True) * scalar * mask * ba_m_t
             imitations[k] = il.mean().item()
             total_imitation_loss += il.mean()
