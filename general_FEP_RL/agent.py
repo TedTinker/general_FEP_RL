@@ -267,9 +267,6 @@ class Agent:
         h_tp1  = hq_all[:, 2:]                  # (B, T,   H)  -> h_{t+1}
         
         a_t = {k: v[:, :-1] for k, v in action.items()}   # (B, T, ...)
-        r_t = total_reward[:, :-1]
-        d_t = done[:, :-1]
-        m_t = mask[:, :-1]
         ba_m_t = best_action_mask[:, :-1]
         
         
@@ -295,10 +292,10 @@ class Agent:
         
             # Bellman target
             
-            print(r_t.shape, d_t.shape, Q_tp1.shape, entropy_tp1.shape)
+            print(total_reward.shape, done.shape, Q_tp1.shape, entropy_tp1.shape)
             
-            Q_target = r_t + self.gamma * (1.0 - d_t) * (Q_tp1 - entropy_tp1)
-            Q_target = Q_target * m_t
+            Q_target = total_reward + self.gamma * (1.0 - done) * (Q_tp1 - entropy_tp1)
+            Q_target = Q_target * mask
         
         
         # ------------------------------------------------------------
@@ -307,7 +304,7 @@ class Agent:
         
         critic_losses = []
         for i, critic in enumerate(self.critics):
-            Q_pred = critic(h_t, a_t) * m_t
+            Q_pred = critic(h_t, a_t) * mask
             critic_loss = 0.5 * F.mse_loss(Q_pred, Q_target)
         
             critic_losses.append(critic_loss.item())
@@ -362,14 +359,14 @@ class Agent:
         
         for k in new_action_dict.keys():
             scalar = self.action_dict[k]['delta']
-            il = imitation_loss[k].mean(-1, keepdim=True) * scalar * m_t * ba_m_t
+            il = imitation_loss[k].mean(-1, keepdim=True) * scalar * mask * ba_m_t
             imitations[k] = il.mean().item()
             total_imitation_loss += il.mean()
         
         
         # Final actor loss
-        actor_loss = (entropy - Q - total_imitation_loss) * m_t
-        actor_loss = actor_loss.sum() / m_t.sum()
+        actor_loss = (entropy - Q - total_imitation_loss) * mask
+        actor_loss = actor_loss.sum() / mask.sum()
         
         self.actor_opt.zero_grad()
         actor_loss.backward()
@@ -384,8 +381,8 @@ class Agent:
         _, logp_t = self.actor(h_t)
         
         for k, lp in logp_t.items():
-            alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy'])) * m_t
-            alpha_loss = alpha_loss.sum() / m_t.sum()
+            alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy'])) * mask
+            alpha_loss = alpha_loss.sum() / mask.sum()
         
             self.alpha_opt[k].zero_grad()
             alpha_loss.backward()
