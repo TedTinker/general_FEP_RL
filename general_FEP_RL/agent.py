@@ -1,10 +1,12 @@
 # I should add more LaTeX!
+# THIS IS FUNCTIONING, BUT HAVING MANY ISSUES!
 
 #------------------
 # agent.py provides a class combining the world model, actor, and critics.
 #------------------
 
 import torch
+from torch import nn
 import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 import torch.optim as optim
@@ -39,7 +41,7 @@ class Agent:
                                             # loss_func
                                         # decoder_arg_dict
                                         # accuracy_scalar
-                                        # beta (complexity scalar)
+                                        # beta_obs (complexity scalar)
                                         # 'eta_before_clamp'
                                         # eta
             
@@ -61,7 +63,7 @@ class Agent:
             
             hidden_state_sizes,
             time_scales = [1],
-            beta = [],
+            beta_hidden = [],
             eta_before_clamp = [],
             eta = [],
             
@@ -78,7 +80,7 @@ class Agent:
         self.observation_dict = observation_dict
         self.action_dict = action_dict
         self.hidden_state_sizes = hidden_state_sizes
-        self.beta = beta
+        self.beta_hidden = beta_hidden
         self.eta_before_clamp = eta_before_clamp
         self.eta = eta
         self.tau = tau
@@ -94,8 +96,11 @@ class Agent:
         
         # Alpha values (entropy hyperparameter).
         self.alphas = {key : 1 for key in action_dict.keys()} 
-        self.log_alphas = {key : torch.tensor([0.0]).requires_grad_() for key in action_dict.keys()}
-        self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = lr, weight_decay = weight_decay) for key in action_dict.keys()} 
+        self.log_alphas = nn.ParameterDict({
+            key: nn.Parameter(torch.zeros(1))
+            for key in action_dict})        
+        self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = lr, weight_decay = weight_decay) 
+                          for key in action_dict.keys()} 
         
         # Critics and target critics.
         self.critics = []
@@ -132,10 +137,10 @@ class Agent:
     # In each step, an agent processes an observation and an action to update hidden states.
     # Then, make a new action and predict future observations and Q-values.
     def step_in_episode(self, obs, posterior = True, best_action = None):
-        if best_action is not None:
-            self.action = best_action
         with torch.no_grad():
-            self.eval()
+            if best_action is not None:
+                self.action = best_action
+            self.set_eval()
             self.hp, self.hq, inner_state_dict = self.world_model(
                 self.hq if posterior else self.hp, obs, self.action, one_step = True)
             self.action, log_prob = self.actor(self.hq[0] if posterior else self.hp[0]) 
@@ -160,7 +165,7 @@ class Agent:
 
     # Train the world model, actor, and critics.
     def epoch(self, batch_size):
-        self.train()
+        self.set_train()
                                 
         # Gather data. 
         batch = self.buffer.sample(batch_size)
@@ -172,18 +177,26 @@ class Agent:
         mask = batch['mask']
         best_action_mask = batch['best_action_mask']
         
+        # Shapes: (batch, steps, ...)
+        # Steps: 
+        #   t = 0, 1, 2, 3, ..., n.
+        # obs includes final observation, t = n+1.
+        
+        # Add initial action t = -1.
         complete_action = {}
         for key, value in action.items(): 
             empty_action = torch.zeros_like(self.actor.action_model_dict[key]['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
             
+        # Add initial best action t = -1
         complete_best_action = {}
         for key, value in best_action.items(): 
             empty_action = torch.zeros_like(self.actor.action_model_dict[key]['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_best_action[key] = torch.cat([value, empty_action], dim = 1)
             
+        # This mask also masks t = -1 
         complete_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1)
 
 
@@ -191,9 +204,14 @@ class Agent:
         # Train world model to minimize Free Energy.
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
         
+        # hp and hq steps: 
+        #   t = -1, 0, 1, ..., n+1
+        
+        
+        
         # Accuracy of observation prediction.
         accuracy_losses = {}
-        accuracy_loss = torch.zeros((1,)).requires_grad_()
+        accuracy_loss = 0
         for key, value in self.observation_dict.items():
             true_obs = obs[key][:, 1:]
             predicted_obs = pred_obs_q[key]
@@ -207,15 +225,15 @@ class Agent:
             
         # Complexity of predictions.
         complexity_losses = {}
-        complexity_loss = torch.zeros((1,)).requires_grad_()
+        complexity_loss = 0
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]['dkl'].mean(-1).unsqueeze(-1) * complete_mask
             complexity = dkl * self.observation_dict[key]['beta']
             complexity_losses[key] = complexity[:,1:]
             complexity_loss = complexity_loss + complexity.mean()
-        for i in range(len(self.hidden_state_sizes) - 1):
+        for i, beta in enumerate(self.beta_hidden):
             dkl = inner_state_dict[i+1]['dkl'].mean(-1).unsqueeze(-1) * complete_mask 
-            complexity = dkl * self.observation_dict[key]['beta']
+            complexity = dkl * beta
             complexity_losses[f'hidden_layer_{i+2}'] = complexity[:,1:]
             complexity_loss = complexity_loss + complexity.mean()
                         
@@ -229,13 +247,14 @@ class Agent:
 
         
         # Get curiosity values based on complexity.
+        # Idea: Maybe complexity should equal curiosity?
         curiosities = {}
-        curiosity = torch.zeros_like(reward).requires_grad_()
+        curiosity = torch.zeros_like(reward)
                 
         for key, value in self.observation_dict.items():
             obs_curiosity = self.observation_dict[key]['eta'] * \
                 torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'], min = 0, max = 1)
-            complexity_losses[key] = complexity_losses[key].mean().item()
+            complexity_losses[key] = complexity_losses[key].mean().item() # Replace tensor with scalar for plotting.
             curiosities[key] = obs_curiosity.mean().item()
             curiosity = curiosity + obs_curiosity
             
@@ -243,25 +262,13 @@ class Agent:
             obs_curiosity = self.eta[i] * \
                 torch.clamp(complexity_losses[f'hidden_layer_{i+2}'] * self.eta_before_clamp[i], min = 0, max = 1)
             complexity_losses[f'hidden_layer_{i+2}'] = complexity_losses[f'hidden_layer_{i+2}'].mean().item()
-            curiosities[f'hidden_layer_{i+2}'] = obs_curiosity.mean().item()
+            curiosities[f'hidden_layer_{i+2}'] = obs_curiosity.mean().item() # Replace tensor with scalar for plotting.
             curiosity = curiosity + obs_curiosity
             
             
             
-        # Get imitation values based on user-provided best actions.
-        new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:, 1:-1].detach(), best_action)
-        imitations = {}
-        imitation = torch.zeros_like(reward).requires_grad_()
-        
-        for key, value in imitation_loss.items():
-            imitation_component = -1 * value * self.action_dict[key]['delta'] * best_action_mask
-            imitations[key] = imitation_component.mean().item()
-            imitation = imitation + imitation_component.mean(dim=-1, keepdim=True)
-            
-            
-
         # The actor and critics are concerned with both extrinsic rewards and intrinsic rewards.
-        total_reward = reward + curiosity + imitation
+        total_reward = (reward + curiosity).detach()
         
 
                 
@@ -312,13 +319,8 @@ class Agent:
         complete_entropy = torch.zeros_like(Q)
         for key in new_action_dict.keys():
             flattened_new_action = new_action_dict[key].flatten(start_dim = 2)
-            loc = torch.zeros_like(flattened_new_action, device=flattened_new_action.device).float() 
-            scale_tril = torch.eye(flattened_new_action.shape[-1], device=flattened_new_action.device) 
-            policy_prior = MultivariateNormal(loc=loc, scale_tril=scale_tril)
-            policy_prior_log_prrgbd = policy_prior.log_prob(flattened_new_action).unsqueeze(-1)
-            
             alpha_entropy = self.alphas[key] * new_log_pis_dict[key]
-            alpha_normal_entropy = -self.action_dict[key]['alpha_normal'] * policy_prior_log_prrgbd
+            alpha_normal_entropy = 0.5 * self.action_dict[key]['alpha_normal'] * (flattened_new_action**2).sum(-1, keepdim=True)
             total_entropy = alpha_entropy + alpha_normal_entropy
             
             alpha_entropies[key] = alpha_entropy.mean().item()
@@ -328,13 +330,13 @@ class Agent:
             complete_entropy += total_entropy 
             
         # Also calculate imatation value. 
-        imitation_losses = {}
+        imitations = {}
         total_imitation_loss = torch.zeros_like(Q)
         for key in new_action_dict.keys():
             scalar = self.action_dict[key]['delta']
             action_imitation_loss = imitation_loss[key].mean(-1) * scalar * mask.squeeze(-1) * best_action_mask.squeeze(-1)
-            imitation_losses[key] = action_imitation_loss.mean().item()
-            total_imitation_loss = total_imitation_loss + action_imitation_loss.mean()
+            imitations[key] = action_imitation_loss.mean().item()
+            total_imitation_loss += action_imitation_loss.mean()
                     
         actor_loss = (complete_entropy - Q - total_imitation_loss) * mask    
         actor_loss = actor_loss.mean() / mask.mean()
@@ -377,14 +379,14 @@ class Agent:
     
 
     # These need to be changed!
-    def eval(self):
+    def set_eval(self):
         self.world_model.eval()
         self.actor.eval()
         for i in range(len(self.critics)):
             self.critics[i].eval()
             self.critic_targets[i].eval()
 
-    def train(self):
+    def set_train(self):
         self.world_model.train()
         self.actor.train()
         for i in range(len(self.critics)):
@@ -443,11 +445,12 @@ if __name__ == '__main__':
     
     
     
+    # SOMETHING IS WRONG WITH MULTI-LAYER PVRNN!
     agent = Agent(
         observation_dict = observation_dict,       
         action_dict = action_dict,       
-        hidden_state_sizes = [128],
-        time_scales = [1],
+        hidden_state_sizes = [128, 128],
+        time_scales = [1, 2],
         number_of_critics = 2, 
         tau = .99,
         lr = .0001,

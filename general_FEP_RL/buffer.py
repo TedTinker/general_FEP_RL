@@ -43,7 +43,7 @@ class VariableBuffer:
 class RecurrentReplayBuffer:
     def __init__(
             self, 
-            observation_model_dict, 
+            observation_model_dict,     # The models carry the shapes of example tensors.
             action_model_dict, 
             capacity, 
             max_steps):
