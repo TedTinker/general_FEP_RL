@@ -1,6 +1,3 @@
-# I should add more LaTeX!
-# THIS IS FUNCTIONING, BUT HAVING MANY ISSUES!
-
 #------------------
 # agent.py provides a class combining the world model, actor, and critics.
 #------------------
@@ -8,7 +5,6 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.distributions import MultivariateNormal
 import torch.optim as optim
 
 from general_FEP_RL.utils_torch import tile_batch_dim
@@ -189,13 +185,6 @@ class Agent:
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
             
-        # Add initial best action t = -1
-        complete_best_action = {}
-        for key, value in best_action.items(): 
-            empty_action = torch.zeros_like(self.actor.action_model_dict[key]['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0))
-            empty_action = tile_batch_dim(empty_action, batch_size)
-            complete_best_action[key] = torch.cat([value, empty_action], dim = 1)
-            
         # This mask also masks t = -1 
         complete_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1)
 
@@ -275,9 +264,10 @@ class Agent:
         # Train critics. First, target critics predict future Q-values.
         with torch.no_grad():         
             new_action_dict, new_log_pis_dict = self.actor(hq[0][:, 2:].detach())
+            new_action_dict = {k: v[:, 1:] for k, v in new_action_dict.items()}
             Q_target_nexts = []
             for i in range(len(self.critics)):
-                Q_target_next = self.critic_targets[i](hq[0][:, 2:].detach(), new_action_dict)
+                Q_target_next = self.critic_targets[i](hq[0][:, 1:].detach(), new_action_dict)
                 Q_target_nexts.append(Q_target_next)                
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
@@ -291,7 +281,8 @@ class Agent:
         # Then, critics predict rewards plus predicted Q-values, with Bellman's Equation.
         critic_losses = []
         for i in range(len(self.critics)):
-            Q = self.critics[i](hq[0][:, 1:-1].detach(), action) * mask
+            action = {k: v[:, :-1] for k, v in action.items()}
+            Q = self.critics[i](hq[0][:, :-1].detach(), action) * mask
             critic_loss = 0.5*F.mse_loss(Q, Q_target)
             critic_losses.append(critic_loss.item())
             self.critic_opts[i].zero_grad()
