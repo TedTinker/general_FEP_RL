@@ -302,7 +302,7 @@ class Agent:
         
         critic_losses = []
         for i, critic in enumerate(self.critics):
-            print(h_t.shape, a_t.keys(), mask.shape)
+            print(h_t.shape, a_t["make_wheel_speeds"].shape, mask.shape)
 
             Q_pred = critic(h_t, a_t) * mask
             critic_loss = 0.5 * F.mse_loss(Q_pred, Q_target)
