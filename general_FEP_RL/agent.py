@@ -266,9 +266,6 @@ class Agent:
         h_t    = hq_all[:, 1:-1]                # (B, T,   H)  -> h_t
         h_tp1  = hq_all[:, 2:]                  # (B, T,   H)  -> h_{t+1}
         
-        ba_m_t = best_action_mask[:, :-1]
-        
-        
         # ------------------------------------------------------------
         # Train critics: compute Bellman targets
         # ------------------------------------------------------------
@@ -357,8 +354,8 @@ class Agent:
         
         for k in new_action_dict.keys():
             scalar = self.action_dict[k]['delta']
-            print(imitation_loss[k].mean(-1, keepdim=True).shape, mask.shape) #, ba_m_t["make_wheel_speeds"].shape)
-            il = imitation_loss[k].mean(-1, keepdim=True) * scalar * mask * ba_m_t
+            print(imitation_loss[k].mean(-1, keepdim=True).shape, mask.shape) #, best_action_mask["make_wheel_speeds"].shape)
+            il = imitation_loss[k].mean(-1, keepdim=True) * scalar * mask * best_action_mask
             imitations[k] = il.mean().item()
             total_imitation_loss += il.mean()
         
