@@ -263,8 +263,7 @@ class Agent:
                 
         # Train critics. First, target critics predict future Q-values.
         with torch.no_grad():         
-            new_action_dict, new_log_pis_dict = self.actor(hq[0][:, 2:].detach())
-            new_action_dict = {k: v[:, 1:] for k, v in new_action_dict.items()}
+            new_action_dict, new_log_pis_dict = self.actor(hq[0][:, 1:].detach())
             Q_target_nexts = []
             for i in range(len(self.critics)):
                 Q_target_next = self.critic_targets[i](hq[0][:, 1:].detach(), new_action_dict)
