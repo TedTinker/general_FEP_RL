@@ -258,98 +258,138 @@ class Agent:
             
         # The actor and critics are concerned with both extrinsic rewards and intrinsic rewards.
         total_reward = (reward + curiosity).detach()
-        # The actor and critic use world model's lowest hidden states at input.
-        hq = hq[0].detach()
-
-                
-        # Train critics. First, target critics predict future Q-values.
-        with torch.no_grad():         
-            new_action_dict, new_log_pis_dict = self.actor(hq[:, 1:-1].detach())
-            new_action_dict = {k: v[:, :1] for k, v in new_action_dict.items()}
-            Q_target_nexts = []
-            for i in range(len(self.critics)):
-                Q_target_next = self.critic_targets[i](hq[:, 1:-1].detach(), new_action_dict)
-                Q_target_nexts.append(Q_target_next)                
-            Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
-            Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
-
-            new_entropy = torch.zeros_like(list(new_log_pis_dict.values())[0])
-            for key, new_log_pis in new_log_pis_dict.items():
-                new_entropy += self.alphas[key] * new_log_pis                        
-            Q_target = total_reward + self.gamma * (1 - done) * (Q_target_next - new_entropy) 
-            Q_target *= mask
+        # ------------------------------------------------------------
+        # Prepare time-aligned tensors (t = 0 ... T-1)
+        # ------------------------------------------------------------
         
-        # Then, critics predict rewards plus predicted Q-values, with Bellman's Equation.
+        hq_all = hq[0].detach()                 # (B, T+2, H)
+        h_t    = hq_all[:, 1:-1]                # (B, T,   H)  -> h_t
+        h_tp1  = hq_all[:, 2:]                  # (B, T,   H)  -> h_{t+1}
+        
+        a_t = {k: v[:, :-1] for k, v in action.items()}   # (B, T, ...)
+        r_t = total_reward[:, :-1]
+        d_t = done[:, :-1]
+        m_t = mask[:, :-1]
+        ba_m_t = best_action_mask[:, :-1]
+        
+        
+        # ------------------------------------------------------------
+        # Train critics: compute Bellman targets
+        # ------------------------------------------------------------
+        
+        with torch.no_grad():
+            # Sample next actions from current policy at h_{t+1}
+            a_tp1, logp_tp1 = self.actor(h_tp1)
+        
+            # Target critics estimate Q(h_{t+1}, a_{t+1})
+            Q_tp1_list = [
+                critic_tgt(h_tp1, a_tp1)
+                for critic_tgt in self.critic_targets
+            ]
+            Q_tp1 = torch.min(torch.stack(Q_tp1_list, dim=0), dim=0)[0]
+        
+            # Entropy term
+            entropy_tp1 = torch.zeros_like(Q_tp1)
+            for k, lp in logp_tp1.items():
+                entropy_tp1 += self.alphas[k] * lp
+        
+            # Bellman target
+            Q_target = r_t + self.gamma * (1.0 - d_t) * (Q_tp1 - entropy_tp1)
+            Q_target = Q_target * m_t
+        
+        
+        # ------------------------------------------------------------
+        # Critic update
+        # ------------------------------------------------------------
+        
         critic_losses = []
-        for i in range(len(self.critics)):
-            action = {k: v[:, :-1] for k, v in action.items()}
-            Q = self.critics[i](hq[:, :-1].detach(), action) * mask
-            critic_loss = 0.5*F.mse_loss(Q, Q_target)
+        for i, critic in enumerate(self.critics):
+            Q_pred = critic(h_t, a_t) * m_t
+            critic_loss = 0.5 * F.mse_loss(Q_pred, Q_target)
+        
             critic_losses.append(critic_loss.item())
+        
             self.critic_opts[i].zero_grad()
             critic_loss.backward()
             self.critic_opts[i].step()
-            for critic_target, critic in zip(self.critic_targets[i].parameters(), self.critics[i].parameters()):
-                critic_target.data.copy_(self.tau*critic.data + (1.0-self.tau)*critic_target.data)
-                                            
-            
         
-        # Train actor. First, actor makes new actions, and the critic grades them.
-        new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[:, 1:-1].detach(), best_action)
-        Qs = []
-        for i in range(len(self.critics)):
-            Q = self.critics[i](hq[:, 1:-1].detach(), new_action_dict)
-            Qs.append(Q)
-        Qs_stacked = torch.stack(Qs, dim=0)
-        Q, _ = torch.min(Qs_stacked, dim=0)
-        Q = Q.mean(-1).unsqueeze(-1)
+            # Polyak averaging
+            for tgt_p, p in zip(self.critic_targets[i].parameters(), critic.parameters()):
+                tgt_p.data.copy_(self.tau * p.data + (1.0 - self.tau) * tgt_p.data)
         
-        # Then, calculate entropy values.
+        
+        # ------------------------------------------------------------
+        # Actor update
+        # ------------------------------------------------------------
+        
+        new_action_dict, new_log_pis_dict, imitation_loss = self.actor(h_t, best_action)
+        
+        Q_list = [critic(h_t, new_action_dict) for critic in self.critics]
+        Q = torch.min(torch.stack(Q_list, dim=0), dim=0)[0]
+        Q = Q.mean(-1, keepdim=True)
+        
+        # Entropy terms
         alpha_entropies = {}
         alpha_normal_entropies = {}
         total_entropies = {}
-        complete_entropy = torch.zeros_like(Q)
-        for key in new_action_dict.keys():
-            flattened_new_action = new_action_dict[key].flatten(start_dim = 2)
-            alpha_entropy = self.alphas[key] * new_log_pis_dict[key]
-            alpha_normal_entropy = 0.5 * self.action_dict[key]['alpha_normal'] * (flattened_new_action**2).sum(-1, keepdim=True)
+        entropy = torch.zeros_like(Q)
+        
+        for k in new_action_dict.keys():
+            lp = new_log_pis_dict[k]
+            alpha_entropy = self.alphas[k] * lp
+        
+            flat_a = new_action_dict[k].flatten(start_dim=2)
+            alpha_normal_entropy = (
+                0.5 * self.action_dict[k]['alpha_normal']
+                * (flat_a ** 2).sum(-1, keepdim=True)
+            )
+        
             total_entropy = alpha_entropy + alpha_normal_entropy
-            
-            alpha_entropies[key] = alpha_entropy.mean().item()
-            alpha_normal_entropies[key] = alpha_normal_entropy.mean().item()
-            total_entropies[key] = total_entropy.mean().item()
-            
-            complete_entropy += total_entropy 
-            
-        # Also calculate imatation value. 
+        
+            alpha_entropies[k] = alpha_entropy.mean().item()
+            alpha_normal_entropies[k] = alpha_normal_entropy.mean().item()
+            total_entropies[k] = total_entropy.mean().item()
+        
+            entropy += total_entropy
+        
+        
+        # Imitation loss
         imitations = {}
         total_imitation_loss = torch.zeros_like(Q)
-        for key in new_action_dict.keys():
-            scalar = self.action_dict[key]['delta']
-            action_imitation_loss = imitation_loss[key].mean(-1) * scalar * mask.squeeze(-1) * best_action_mask.squeeze(-1)
-            imitations[key] = action_imitation_loss.mean().item()
-            total_imitation_loss += action_imitation_loss.mean()
-                    
-        actor_loss = (complete_entropy - Q - total_imitation_loss) * mask    
-        actor_loss = actor_loss.mean() / mask.mean()
+        
+        for k in new_action_dict.keys():
+            scalar = self.action_dict[k]['delta']
+            il = imitation_loss[k].mean(-1, keepdim=True) * scalar * m_t * ba_m_t
+            imitations[k] = il.mean().item()
+            total_imitation_loss += il.mean()
+        
+        
+        # Final actor loss
+        actor_loss = (entropy - Q - total_imitation_loss) * m_t
+        actor_loss = actor_loss.sum() / m_t.sum()
         
         self.actor_opt.zero_grad()
         actor_loss.backward()
         self.actor_opt.step()
         
-            
-            
-        # Train alpha values to satisfy target entropies.
+        
+        # ------------------------------------------------------------
+        # Alpha (temperature) update
+        # ------------------------------------------------------------
+        
         alpha_losses = {}
-        _, new_log_pis_dict = self.actor(hq[:,1:-1].detach())
-        for key, log_pis in new_log_pis_dict.items():
-            alpha_loss = -(self.log_alphas[key] * (log_pis + self.action_dict[key]['target_entropy']))*mask
-            alpha_loss = alpha_loss.mean() / mask.mean()
-            self.alpha_opt[key].zero_grad()
+        _, logp_t = self.actor(h_t)
+        
+        for k, lp in logp_t.items():
+            alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy'])) * m_t
+            alpha_loss = alpha_loss.sum() / m_t.sum()
+        
+            self.alpha_opt[k].zero_grad()
             alpha_loss.backward()
-            self.alpha_opt[key].step()
-            self.alphas[key] = torch.exp(self.log_alphas[key])
-            alpha_losses[key] = alpha_loss.detach()
+            self.alpha_opt[k].step()
+        
+            self.alphas[k] = torch.exp(self.log_alphas[k])
+            alpha_losses[k] = alpha_loss.detach()
             
         
         
