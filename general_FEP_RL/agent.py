@@ -258,16 +258,17 @@ class Agent:
             
         # The actor and critics are concerned with both extrinsic rewards and intrinsic rewards.
         total_reward = (reward + curiosity).detach()
-        
+        # The actor and critic use world model's lowest hidden states at input.
+        hq = hq[0].detach()
 
                 
         # Train critics. First, target critics predict future Q-values.
         with torch.no_grad():         
-            new_action_dict, new_log_pis_dict = self.actor(hq[0][:, 1:-1].detach())
+            new_action_dict, new_log_pis_dict = self.actor(hq[:, 1:-1].detach())
             new_action_dict = {k: v[:, :1] for k, v in new_action_dict.items()}
             Q_target_nexts = []
             for i in range(len(self.critics)):
-                Q_target_next = self.critic_targets[i](hq[0][:, 1:-1].detach(), new_action_dict)
+                Q_target_next = self.critic_targets[i](hq[:, 1:-1].detach(), new_action_dict)
                 Q_target_nexts.append(Q_target_next)                
             Q_target_nexts_stacked = torch.stack(Q_target_nexts, dim=0)
             Q_target_next, _ = torch.min(Q_target_nexts_stacked, dim=0)
@@ -282,7 +283,7 @@ class Agent:
         critic_losses = []
         for i in range(len(self.critics)):
             action = {k: v[:, :-1] for k, v in action.items()}
-            Q = self.critics[i](hq[0][:, :-1].detach(), action) * mask
+            Q = self.critics[i](hq[:, :-1].detach(), action) * mask
             critic_loss = 0.5*F.mse_loss(Q, Q_target)
             critic_losses.append(critic_loss.item())
             self.critic_opts[i].zero_grad()
@@ -294,10 +295,10 @@ class Agent:
             
         
         # Train actor. First, actor makes new actions, and the critic grades them.
-        new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[0][:, 1:-1].detach(), best_action)
+        new_action_dict, new_log_pis_dict, imitation_loss = self.actor(hq[:, 1:-1].detach(), best_action)
         Qs = []
         for i in range(len(self.critics)):
-            Q = self.critics[i](hq[0][:, 1:-1].detach(), new_action_dict)
+            Q = self.critics[i](hq[:, 1:-1].detach(), new_action_dict)
             Qs.append(Q)
         Qs_stacked = torch.stack(Qs, dim=0)
         Q, _ = torch.min(Qs_stacked, dim=0)
@@ -340,7 +341,7 @@ class Agent:
             
         # Train alpha values to satisfy target entropies.
         alpha_losses = {}
-        _, new_log_pis_dict = self.actor(hq[0][:,1:-1].detach())
+        _, new_log_pis_dict = self.actor(hq[:,1:-1].detach())
         for key, log_pis in new_log_pis_dict.items():
             alpha_loss = -(self.log_alphas[key] * (log_pis + self.action_dict[key]['target_entropy']))*mask
             alpha_loss = alpha_loss.mean() / mask.mean()
