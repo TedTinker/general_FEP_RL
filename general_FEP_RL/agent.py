@@ -266,7 +266,6 @@ class Agent:
         h_t    = hq_all[:, 1:-1]                # (B, T,   H)  -> h_t
         h_tp1  = hq_all[:, 2:]                  # (B, T,   H)  -> h_{t+1}
         
-        a_t = {k: v[:, :-1] for k, v in action.items()}   # (B, T, ...)
         ba_m_t = best_action_mask[:, :-1]
         
         
@@ -302,9 +301,9 @@ class Agent:
         
         critic_losses = []
         for i, critic in enumerate(self.critics):
-            print(h_t.shape, a_t["make_wheel_speeds"].shape, mask.shape)
+            print(h_t.shape, action["make_wheel_speeds"].shape, mask.shape)
 
-            Q_pred = critic(h_t, a_t) * mask
+            Q_pred = critic(h_t, action) * mask
             critic_loss = 0.5 * F.mse_loss(Q_pred, Q_target)
         
             critic_losses.append(critic_loss.item())
