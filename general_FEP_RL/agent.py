@@ -291,9 +291,7 @@ class Agent:
                 entropy_tp1 += self.alphas[k] * lp
         
             # Bellman target
-            
-            print(total_reward.shape, done.shape, Q_tp1.shape, entropy_tp1.shape)
-            
+                        
             Q_target = total_reward + self.gamma * (1.0 - done) * (Q_tp1 - entropy_tp1)
             Q_target = Q_target * mask
         
@@ -304,6 +302,8 @@ class Agent:
         
         critic_losses = []
         for i, critic in enumerate(self.critics):
+            print(h_t.shape, a_t.shape, mask.shape)
+
             Q_pred = critic(h_t, a_t) * mask
             critic_loss = 0.5 * F.mse_loss(Q_pred, Q_target)
         
