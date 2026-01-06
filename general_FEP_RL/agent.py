@@ -258,44 +258,31 @@ class Agent:
             
         # The actor and critics are concerned with both extrinsic rewards and intrinsic rewards.
         total_reward = (reward + curiosity).detach()
-        # ------------------------------------------------------------
-        # Prepare time-aligned tensors (t = 0 ... T-1)
-        # ------------------------------------------------------------
         
         hq_all = hq[0].detach()                 # (B, T+2, H)
         h_t    = hq_all[:, 1:-1]                # (B, T,   H)  -> h_t
         h_tp1  = hq_all[:, 2:]                  # (B, T,   H)  -> h_{t+1}
         
-        # ------------------------------------------------------------
-        # Train critics: compute Bellman targets
-        # ------------------------------------------------------------
         
+        
+        # Target critics make target Q-values.
         with torch.no_grad():
-            # Sample next actions from current policy at h_{t+1}
             a_tp1, logp_tp1 = self.actor(h_tp1)
         
-            # Target critics estimate Q(h_{t+1}, a_{t+1})
             Q_tp1_list = [
                 critic_tgt(h_tp1, a_tp1)
-                for critic_tgt in self.critic_targets
-            ]
+                for critic_tgt in self.critic_targets]
             Q_tp1 = torch.min(torch.stack(Q_tp1_list, dim=0), dim=0)[0]
         
-            # Entropy term
             entropy_tp1 = torch.zeros_like(Q_tp1)
             for k, lp in logp_tp1.items():
                 entropy_tp1 += self.alphas[k] * lp
-        
-            # Bellman target
-                        
+                                
             Q_target = total_reward + self.gamma * (1.0 - done) * (Q_tp1 - entropy_tp1)
             Q_target = Q_target * mask
         
         
-        # ------------------------------------------------------------
-        # Critic update
-        # ------------------------------------------------------------
-        
+        # Train critics predict Q-values.
         critic_losses = []
         for i, critic in enumerate(self.critics):
 
@@ -308,22 +295,18 @@ class Agent:
             critic_loss.backward()
             self.critic_opts[i].step()
         
-            # Polyak averaging
             for tgt_p, p in zip(self.critic_targets[i].parameters(), critic.parameters()):
                 tgt_p.data.copy_(self.tau * p.data + (1.0 - self.tau) * tgt_p.data)
         
         
-        # ------------------------------------------------------------
-        # Actor update
-        # ------------------------------------------------------------
         
+        # Train agent to minimize expected free energy.
         new_action_dict, new_log_pis_dict, imitation_loss = self.actor(h_t, best_action)
         
         Q_list = [critic(h_t, new_action_dict) for critic in self.critics]
         Q = torch.min(torch.stack(Q_list, dim=0), dim=0)[0]
         Q = Q.mean(-1, keepdim=True)
         
-        # Entropy terms
         alpha_entropies = {}
         alpha_normal_entropies = {}
         total_entropies = {}
@@ -336,8 +319,7 @@ class Agent:
             flat_a = new_action_dict[k].flatten(start_dim=2)
             alpha_normal_entropy = (
                 0.5 * self.action_dict[k]['alpha_normal']
-                * (flat_a ** 2).sum(-1, keepdim=True)
-            )
+                * (flat_a ** 2).sum(-1, keepdim=True))
         
             total_entropy = alpha_entropy + alpha_normal_entropy
         
@@ -347,20 +329,15 @@ class Agent:
         
             entropy += total_entropy
         
-        
-        # Imitation loss
         imitations = {}
         total_imitation_loss = torch.zeros_like(Q)
         
         for k in new_action_dict.keys():
             scalar = self.action_dict[k]['delta']
-            print(imitation_loss[k].mean(-1, keepdim=True).shape, mask.shape) #, best_action_mask["make_wheel_speeds"].shape)
             il = imitation_loss[k].mean(-1, keepdim=True) * scalar * mask * best_action_mask
             imitations[k] = il.mean().item()
             total_imitation_loss += il.mean()
         
-        
-        # Final actor loss
         actor_loss = (entropy - Q - total_imitation_loss) * mask
         actor_loss = actor_loss.sum() / mask.sum()
         
@@ -369,10 +346,8 @@ class Agent:
         self.actor_opt.step()
         
         
-        # ------------------------------------------------------------
-        # Alpha (temperature) update
-        # ------------------------------------------------------------
         
+        # Train alpha values.
         alpha_losses = {}
         _, logp_t = self.actor(h_t)
         
@@ -406,10 +381,10 @@ class Agent:
                                 
     
 
-    # These need to be changed!
+    # These should make zp_zq and actors use only mu, not sampling with std.
     def set_eval(self):
         self.world_model.eval()
-        self.actor.eval()
+        self.actor.eval() 
         for i in range(len(self.critics)):
             self.critics[i].eval()
             self.critic_targets[i].eval()
