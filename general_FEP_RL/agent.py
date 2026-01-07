@@ -199,6 +199,8 @@ class Agent:
         
         
         # Accuracy of observation prediction.
+        # Given T steps and i = 0, ..., n parts of observations,
+        # Accuracy = E_{q(z_{0:T,i})}[log p(o_{1:T+1,i}|z_{0:T,i})]) * mask_{0:T}
         accuracy_losses = {}
         accuracy_loss = 0
         for key, value in self.observation_dict.items():
@@ -213,6 +215,8 @@ class Agent:
             accuracy_loss = accuracy_loss + obs_accuracy_loss.mean()
             
         # Complexity of predictions.
+        # Given T steps and i = 0, ..., n parts of observations,
+        # Complexity = beta_i DKL[q(z_{0:T,i}) || p(z_{0:T,i})] * mask_{0:T}
         complexity_losses = {}
         complexity_loss = 0
         for key, value in self.observation_dict.items():
@@ -228,7 +232,7 @@ class Agent:
                         
         
                                 
-        # Minimize Free Energy.
+        # Minimize Free Energy = Complexity - Accuracy
         self.world_model_opt.zero_grad()
         (accuracy_loss + complexity_loss).backward()
         self.world_model_opt.step()
@@ -236,7 +240,6 @@ class Agent:
 
         
         # Get curiosity values based on complexity.
-        # Idea: Maybe complexity should equal curiosity?
         curiosities = {}
         curiosity = torch.zeros_like(reward)
                 
@@ -256,7 +259,12 @@ class Agent:
             
             
             
-        # The actor and critics are concerned with both extrinsic rewards and intrinsic rewards.
+        # The actor and critics are concerned with both extrinsic rewards and intrinsic rewards in Expected Free Energy.
+        # G(o_t, a_t) = 
+        #   -DKL[q(z_t | o_t, h_{t-1}) || p(z_t | h_{t-1})]     (Curiosity)
+        #   -r(s_t, a_t)}                                      (Extrinsic Reward)
+        #   -H(\pi_\phi(a_t | o_t))                            (Entropy)
+        #   -E_{\pi_\phi(a_t | o_t)} [\log p(a_t^\ast | o_t)]  (Imitation)
         total_reward = (reward + curiosity).detach()
         
         hq_all = hq[0].detach()                 # (B, T+2, H)
@@ -282,6 +290,7 @@ class Agent:
             Q_target = Q_target * mask
         
         
+        
         # Train critics predict Q-values.
         critic_losses = []
         for i, critic in enumerate(self.critics):
@@ -295,6 +304,8 @@ class Agent:
             critic_loss.backward()
             self.critic_opts[i].step()
         
+            # Update target critics.
+            # \bar{\theta} = \tau \theta + (1 - \tau)\bar{\theta}
             for tgt_p, p in zip(self.critic_targets[i].parameters(), critic.parameters()):
                 tgt_p.data.copy_(self.tau * p.data + (1.0 - self.tau) * tgt_p.data)
         
@@ -381,9 +392,10 @@ class Agent:
                                 
     
 
-    # These should make zp_zq and actors use only mu, not sampling with std.
+    # These should also make actor use the mu without std.
     def set_eval(self):
         self.world_model.eval()
+        self.world_model.use_sample = False
         self.actor.eval() 
         for i in range(len(self.critics)):
             self.critics[i].eval()
@@ -391,6 +403,7 @@ class Agent:
 
     def set_train(self):
         self.world_model.train()
+        self.world_model.use_sample = True
         self.actor.train()
         for i in range(len(self.critics)):
             self.critics[i].train()
@@ -448,12 +461,13 @@ if __name__ == '__main__':
     
     
     
-    # SOMETHING IS WRONG WITH MULTI-LAYER PVRNN!
     agent = Agent(
         observation_dict = observation_dict,       
         action_dict = action_dict,       
         hidden_state_sizes = [128],
         time_scales = [1],
+        eta_before_clamp = [],
+        eta = [],
         number_of_critics = 2, 
         tau = .99,
         lr = .0001,
@@ -473,4 +487,36 @@ if __name__ == '__main__':
     agent.step_in_episode(dummy_inputs)
         
     agent.world_model.summary()
+    
+    
+    
+    """
+    # SOMETHING IS WRONG WITH MULTI-LAYER PVRNN!
+    agent = Agent(
+        observation_dict = observation_dict,       
+        action_dict = action_dict,       
+        hidden_state_sizes = [128, 128],
+        time_scales = [1, 2],
+        eta_before_clamp = [1],
+        eta = [1],
+        number_of_critics = 2, 
+        tau = .99,
+        lr = .0001,
+        weight_decay = .00001,
+        gamma = .99,
+        capacity = 128, 
+        max_steps = 32)
+    
+    dummies = generate_dummy_inputs(
+        agent.world_model.observation_model_dict, 
+        agent.world_model.action_model_dict, 
+        agent.hidden_state_sizes, 
+        batch=1, 
+        steps=1)
+    dummy_inputs = dummies['obs_enc_in']
+        
+    agent.step_in_episode(dummy_inputs)
+        
+    agent.world_model.summary()
+    """
 ## %%

@@ -47,14 +47,15 @@ def init_weights(m):
 # Assumes tensors for cnn have channels as last dimension, and moves them to front.
 #------------------
 
-def model_start(model_input_list):
+def model_start(model_input_list):      # model_input_list looks like [(tensor, "cnn"), (tensor, "lin")].
     new_model_inputs = []
     for model_input, layer_type in model_input_list:
         episodes, steps = model_input.shape[0], model_input.shape[1]
         if layer_type == 'lin':
             model_input = model_input.reshape(episodes * steps, model_input.shape[2])
         elif layer_type == 'cnn':
-            model_input = model_input.reshape(episodes * steps, model_input.shape[2], model_input.shape[3], model_input.shape[4]).permute(0, -1, 1, 2)
+            _, _, h, w, c = model_input.shape
+            model_input = model_input.reshape(episodes * steps, h, w, c).permute(0, -1, 1, 2)
         elif layer_type == 'recurrent':
             model_input = model_input.reshape(episodes * steps, model_input.shape[2], model_input.shape[3])
         new_model_inputs.append(model_input)
@@ -69,14 +70,14 @@ def model_start(model_input_list):
 def model_end(
         episodes, 
         steps, 
-        model_output_list):
+        model_output_list):             # model_output_list looks like [(tensor, "cnn"), (tensor, "lin")].
     new_model_outputs = []
     for model_output, layer_type in model_output_list:
         if layer_type == 'lin':
             model_output = model_output.reshape(episodes, steps, model_output.shape[-1])
         elif layer_type == 'cnn':
-            model_output = model_output.reshape(episodes, steps, model_output.shape[1], model_output.shape[2], model_output.shape[3])
-            # THIS IS SUPPOSED TO PERMUTE TOO!
+            _, h, w, c = model_output.shape
+            model_output = model_output.reshape([episodes, steps, c, h, w]).permute(0, 1, 3, 4, 2)
         elif layer_type == 'recurrent':
             model_output = model_output.reshape(episodes, steps, model_output.shape[1], model_output.shape[2])
         new_model_outputs.append(model_output)
@@ -156,7 +157,7 @@ class mu_std(nn.Module):
     
 #------------------
 # Calculate Kullback-Leibler divergence between the prior and estimated posterior.
-# D_{KL}[q(z_{t,i})||p(z_{t,i})]
+# DKL[q(z_t) || p(z_t)]
 #------------------
 
 def calculate_dkl(

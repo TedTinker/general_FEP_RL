@@ -17,7 +17,13 @@ from general_FEP_RL.mtrnn import MTRNN
 
 #------------------
 # A module for every prior p estimated posterior q inner state. 
-# DKL comparing them is used to measure complexity and curiosity.
+# \mu^p_t, \sigma^p_t = MLP_i(h^q_{t-1} || action_{t-1})
+# \mu^q_t, \sigma^q_t = MLP_i(h^q_{t-1} || action_{t-1} || o^{encoded}_t)
+
+# q(z_t) = \mathcal{N}(\mu^q_t,\sigma^q_t))
+# p(z_t) = \mathcal{N}(\mu^p_t,\sigma^p_t))
+
+# DKL[q(z_t) || p(z_t)] is used to measure complexity and curiosity.
 #------------------
 
 class ZP_ZQ(nn.Module):
@@ -77,11 +83,17 @@ class ZP_ZQ(nn.Module):
     def forward(
             self, 
             zp_inputs, 
-            zq_inputs):                                    
+            zq_inputs,
+            use_sample = True):                                    
         zp_mu, zp_std = parametrize_normal(zp_inputs, self.zp_mu, self.zp_std)
-        zp = sample(zp_mu, zp_std)
         zq_mu, zq_std = parametrize_normal(zq_inputs, self.zq_mu, self.zq_std)
-        zq = sample(zq_mu, zq_std)
+
+        if(use_sample):
+            zp = sample(zp_mu, zp_std)
+            zq = sample(zq_mu, zq_std)
+        else:
+            zp = zp_mu 
+            zq = zq_mu
         dkl = calculate_dkl(zq_mu, zq_std, zp_mu, zp_std)
         return {
             'zp' : zp, 
@@ -117,7 +129,7 @@ if __name__ == '__main__':
 
 
 #------------------
-# This makes q, p, and dkl for each module of the sensation, or higher layers of slower memories.
+# This makes q, p, and dkl for each module of the sensation or higher layers of longer-term memory.
 #------------------
 
 class World_Model_Layer(nn.Module):
@@ -145,7 +157,7 @@ class World_Model_Layer(nn.Module):
             total_action_size = sum(                                            # Consider action encoding size.
                 action_model_dict[key]['encoder'].arg_dict['encode_size'] 
                 for key in sorted(action_model_dict.keys()))
-            for key, model in sorted(observation_model_dict.items()):            # Consider observation encoding size and inner state sizes
+            for key, model in sorted(observation_model_dict.items()):           # Consider observation encoding size and inner state sizes
                 zp_zq_size = model['encoder'].arg_dict['zp_zq_sizes']
                 obs_size = model['encoder'].arg_dict['encode_size']
 
@@ -177,14 +189,15 @@ class World_Model_Layer(nn.Module):
             encoded_obs = None, 
             encoded_prev_action = None,
             lower_zp_zq = None,
-            higher_hidden_state = None):
+            higher_hidden_state = None,
+            use_sample = True):
         
         episodes, steps = prev_hidden_state.shape[0], prev_hidden_state.shape[1]
         
         def process_z_func_outputs(zp_inputs, zq_inputs, z_func):
             zp_inputs = zp_inputs.reshape(episodes * steps, zp_inputs.shape[2])
             zq_inputs = zq_inputs.reshape(episodes * steps, zq_inputs.shape[2])
-            inner_states = z_func(zp_inputs, zq_inputs)
+            inner_states = z_func(zp_inputs, zq_inputs, use_sample = use_sample)
             return inner_states
                 
         if self.bottom_layer:
@@ -232,14 +245,19 @@ class World_Model_Layer(nn.Module):
             encoded_obs = None, 
             encoded_prev_action = None,
             lower_zp_zq = None,
-            higher_hidden_state = None):
+            higher_hidden_state = None,
+            use_sample = True):
         mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.bottom_up(
             prev_hidden_state,
             encoded_obs,
             encoded_prev_action,
             lower_zp_zq,
-            higher_hidden_state)        
-        new_hidden_state_p, new_hidden_state_q = self.top_down(mtrnn_inputs_p, mtrnn_inputs_q, prev_hidden_state)
+            higher_hidden_state,
+            use_sample)        
+        new_hidden_state_p, new_hidden_state_q = self.top_down(
+            mtrnn_inputs_p, 
+            mtrnn_inputs_q, 
+            prev_hidden_state)
         return new_hidden_state_p, new_hidden_state_q, inner_state_dict
         
         
@@ -342,6 +360,7 @@ class World_Model(nn.Module):
             verbose = False):
         super(World_Model, self).__init__()
                 
+        self.use_sample = True
         self.hidden_state_sizes = hidden_state_sizes 
         self.example_input = torch.zeros((32, 16, hidden_state_sizes[0]))
         
@@ -366,6 +385,8 @@ class World_Model(nn.Module):
                 hidden_state_sizes[0] + encoded_action_size, arg_dict = model['decoder_arg_dict'], verbose = verbose)
                
         # Multiple layers of MTRNN produce short-term and long-term memory.
+        # On the bottom layer, with an observation of n parts,
+        # h^q_t = RNN(h^q_{t-1}, z^q_{t,0} || ... || z^q_{t,n}).
         self.world_layers = nn.ModuleList()
         first_layer_zp_zq_size = sum(
             self.observation_model_dict[key]['encoder'].arg_dict['zp_zq_sizes'][-1] 
@@ -430,7 +451,8 @@ class World_Model(nn.Module):
                 encoded_obs = encoded_obs if i==0 else None, 
                 encoded_prev_action = encoded_prev_action if i==0 else None,
                 lower_zp_zq = None if i==0 else first_layer_zp_zq if i==1 else inner_state_dict_list[-1][i-1]['zq'].unsqueeze(1),
-                higher_hidden_state = None if i+1 == len(self.world_layers) else prev_hidden_states[i+1])
+                higher_hidden_state = None if i+1 == len(self.world_layers) else prev_hidden_states[i+1],
+                use_sample = self.use_sample)
             if i==0:
                 first_layer_zp_zq = torch.cat([value['zq'] for key, value in sorted(inner_state_dict.items())], dim = -1).unsqueeze(1)
             inner_state_dict_list.append(inner_state_dict)

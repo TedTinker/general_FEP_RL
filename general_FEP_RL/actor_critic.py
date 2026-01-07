@@ -1,8 +1,3 @@
-# CONCERN: In equations here and in the paper, are the actor and critic 
-# matching the correct hidden state / previous hidden state?
-
-
-
 #------------------
 # actor_critic.py provides a model for an actor (policy) and critic (Q-network).
 #------------------
