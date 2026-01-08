@@ -396,7 +396,11 @@ class Agent:
     def set_eval(self):
         self.world_model.eval()
         self.world_model.use_sample = False
+        
         self.actor.eval() 
+        for key, model in self.actor.action_model_dict.items():            
+            model.mu_std.eval = True
+                
         for i in range(len(self.critics)):
             self.critics[i].eval()
             self.critic_targets[i].eval()
@@ -404,7 +408,11 @@ class Agent:
     def set_train(self):
         self.world_model.train()
         self.world_model.use_sample = True
+        
         self.actor.train()
+        for key, model in self.actor.action_model_dict.items():            
+            model.mu_std.eval = False
+        
         for i in range(len(self.critics)):
             self.critics[i].train()
             self.critic_targets[i].train()
