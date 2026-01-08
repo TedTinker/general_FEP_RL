@@ -76,7 +76,7 @@ def model_end(
         if layer_type == 'lin':
             model_output = model_output.reshape(episodes, steps, model_output.shape[-1])
         elif layer_type == 'cnn':
-            _, h, w, c = model_output.shape
+            _, c, h, w = model_output.shape
             model_output = model_output.reshape([episodes, steps, c, h, w]).permute(0, 1, 3, 4, 2)
         elif layer_type == 'recurrent':
             model_output = model_output.reshape(episodes, steps, model_output.shape[1], model_output.shape[2])
