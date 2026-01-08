@@ -398,8 +398,8 @@ class Agent:
         self.world_model.use_sample = False
         
         self.actor.eval() 
-        for key, model in self.actor.action_model_dict.items():            
-            model.mu_std.eval = True
+        for key, module in self.actor.action_model_dict.items():            
+            module["decoder"].mu_std.eval = True
                 
         for i in range(len(self.critics)):
             self.critics[i].eval()
@@ -410,8 +410,8 @@ class Agent:
         self.world_model.use_sample = True
         
         self.actor.train()
-        for key, model in self.actor.action_model_dict.items():            
-            model.mu_std.eval = False
+        for key, module in self.actor.action_model_dict.items():            
+            module["decoder"].mu_std.eval = False
         
         for i in range(len(self.critics)):
             self.critics[i].train()
