@@ -440,12 +440,12 @@ class Agent:
         state["critic_targets"] = [tc.state_dict() for tc in self.critic_targets]
     
         # -------- Entropy / temperature parameters --------
-        state["alpha"] = {
+        state["alphas"] = {
             k: v.detach().cpu()
-            for k, v in self.alpha.items()}
-        state["log_alpha"] = {
+            for k, v in self.alphas.items()}
+        state["log_alphas"] = {
             k: v.detach().cpu()
-            for k, v in self.log_alpha.items()}
+            for k, v in self.log_alphas.items()}
     
         # -------- Metadata --------
         state["meta"] = {
@@ -496,15 +496,15 @@ def load_state_dict(self, file, keys=[]):
             tc.load_state_dict(tc_state)
 
     # -------- Entropy / temperature --------
-    if "alpha" in keys and "alpha" in state:
-        for k in self.alpha:
-            if k in state["alpha"]:
-                self.alpha[k].data.copy_(state["alpha"][k])
+    if "alphas" in keys and "alphas" in state:
+        for k in self.alphas:
+            if k in state["alphas"]:
+                self.alphas[k].data.copy_(state["alphas"][k])
 
-    if "log_alpha" in keys and "log_alpha" in state:
-        for k in self.log_alpha:
-            if k in state["log_alpha"]:
-                self.log_alpha[k].data.copy_(state["log_alpha"][k])
+    if "log_alphas" in keys and "log_alphas" in state:
+        for k in self.log_alphas:
+            if k in state["log_alphas"]:
+                self.log_alpha[k].data.copy_(state["log_alphas"][k])
 
     # -------- Metadata (optional sanity check) --------
     if "meta" in state:
