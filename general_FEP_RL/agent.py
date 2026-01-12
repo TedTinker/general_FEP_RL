@@ -437,7 +437,7 @@ class Agent:
     
         # -------- Critics --------
         state["critics"] = [critic.state_dict() for critic in self.critics]
-        state["target_critics"] = [tc.state_dict() for tc in self.target_critics]
+        state["critic_targets"] = [tc.state_dict() for tc in self.critic_targets]
     
         # -------- Entropy / temperature parameters --------
         state["alpha"] = {
@@ -491,8 +491,8 @@ def load_state_dict(self, file, keys=[]):
             critic.load_state_dict(critic_state)
 
     # -------- Target critics --------
-    if "target_critics" in keys and "target_critics" in state:
-        for tc, tc_state in zip(self.target_critics, state["target_critics"]):
+    if "critic_targets" in keys and "critic_targets" in state:
+        for tc, tc_state in zip(self.critic_targets, state["critic_targets"]):
             tc.load_state_dict(tc_state)
 
     # -------- Entropy / temperature --------
