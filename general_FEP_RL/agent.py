@@ -76,6 +76,7 @@ class Agent:
         self.observation_dict = observation_dict
         self.action_dict = action_dict
         self.hidden_state_sizes = hidden_state_sizes
+        self.time_scales = time_scales
         self.beta_hidden = beta_hidden
         self.eta_before_clamp = eta_before_clamp
         self.eta = eta
