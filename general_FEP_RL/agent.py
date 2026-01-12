@@ -417,6 +417,110 @@ class Agent:
             self.critics[i].train()
             self.critic_targets[i].train()
         
+    
+    
+    def get_state_dict(self, file = None):
+        state = {}
+    
+        # -------- World model --------
+        state["world_model"] = self.world_model.state_dict()
+    
+        # Observation models (explicit, for convenience)
+        state["observation_models"] = {}
+        for key, model in self.world_model.observation_model_dict.items():
+            state["observation_models"][key] = {
+                "encoder": model["encoder"].state_dict(),
+                "decoder": model["decoder"].state_dict()}
+    
+        # -------- Actor --------
+        state["actor"] = self.actor.state_dict()
+    
+        # -------- Critics --------
+        state["critics"] = [critic.state_dict() for critic in self.critics]
+        state["target_critics"] = [tc.state_dict() for tc in self.target_critics]
+    
+        # -------- Entropy / temperature parameters --------
+        state["alpha"] = {
+            k: v.detach().cpu()
+            for k, v in self.alpha.items()}
+        state["log_alpha"] = {
+            k: v.detach().cpu()
+            for k, v in self.log_alpha.items()}
+    
+        # -------- Metadata --------
+        state["meta"] = {
+            "hidden_state_sizes": self.hidden_state_sizes,
+            "time_scales": self.time_scales,
+            "gamma": self.gamma}
+        
+        if file is not None:
+            torch.save(state, f"{file}.pth")
+    
+        return state
+        
+    
+    
+def load_state_dict(self, file, keys=[]):
+    state = torch.load(f"{file}.pth", map_location="cpu")
+
+    # -------- World model --------
+    if "world_model" in keys and "world_model" in state:
+        self.world_model.load_state_dict(state["world_model"])
+
+    # -------- Observation models (encoders / decoders) --------
+    if "observation_models" in keys and "observation_models" in state:
+        for obs_key, obs_state in state["observation_models"].items():
+            if obs_key not in self.world_model.observation_model_dict:
+                continue
+
+            model = self.world_model.observation_model_dict[obs_key]
+
+            if "encoder" in obs_state:
+                model["encoder"].load_state_dict(obs_state["encoder"])
+
+            if "decoder" in obs_state:
+                model["decoder"].load_state_dict(obs_state["decoder"])
+
+    # -------- Actor --------
+    if "actor" in keys and "actor" in state:
+        self.actor.load_state_dict(state["actor"])
+
+    # -------- Critics --------
+    if "critics" in keys and "critics" in state:
+        for critic, critic_state in zip(self.critics, state["critics"]):
+            critic.load_state_dict(critic_state)
+
+    # -------- Target critics --------
+    if "target_critics" in keys and "target_critics" in state:
+        for tc, tc_state in zip(self.target_critics, state["target_critics"]):
+            tc.load_state_dict(tc_state)
+
+    # -------- Entropy / temperature --------
+    if "alpha" in keys and "alpha" in state:
+        for k in self.alpha:
+            if k in state["alpha"]:
+                self.alpha[k].data.copy_(state["alpha"][k])
+
+    if "log_alpha" in keys and "log_alpha" in state:
+        for k in self.log_alpha:
+            if k in state["log_alpha"]:
+                self.log_alpha[k].data.copy_(state["log_alpha"][k])
+
+    # -------- Metadata (optional sanity check) --------
+    if "meta" in state:
+        meta = state["meta"]
+
+        if hasattr(self, "hidden_state_sizes"):
+            if meta.get("hidden_state_sizes") != self.hidden_state_sizes:
+                print("Warning: hidden_state_sizes differ from checkpoint")
+
+        if hasattr(self, "time_scales"):
+            if meta.get("time_scales") != self.time_scales:
+                print("Warning: time_scales differ from checkpoint")
+
+    return state
+
+        
         
         
 #------------------
