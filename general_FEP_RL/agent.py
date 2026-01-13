@@ -276,39 +276,52 @@ class Agent:
         
         # Target critics make target Q-values.
         with torch.no_grad():
+
+            # Next-step action and log-prob
             a_tp1, logp_tp1 = self.actor(h_tp1)
         
+            # Target critics evaluate next-step value
             Q_tp1_list = [
                 critic_tgt(h_tp1, a_tp1)
-                for critic_tgt in self.critic_targets]
+                for critic_tgt in self.critic_targets
+            ]
             Q_tp1 = torch.min(torch.stack(Q_tp1_list, dim=0), dim=0)[0]
+            # Q_tp1 shape: (B, T, 1)
         
-            entropy_tp1 = torch.zeros_like(Q_tp1)
+            # Entropy bonus (rewarded entropy)
+            entropy_bonus_tp1 = torch.zeros_like(Q_tp1)
             for k, lp in logp_tp1.items():
-                entropy_tp1 += self.alphas[k] * - lp  / mask.sum()
-                                
-            Q_target = total_reward + self.gamma * (1.0 - done) * (Q_tp1 + entropy_tp1)
-            Q_target = Q_target * mask 
+                # lp = log π(a|h) <= 0
+                # -lp = entropy bonus >= 0
+                entropy_bonus_tp1 += self.alphas[k] * (-lp)
+        
+            # Bellman target (EFE-style)
+            Q_target = (
+                total_reward
+                + self.gamma * (1.0 - done) * (Q_tp1 + entropy_bonus_tp1)
+            )
+        
+            # Mask invalid timesteps
+            Q_target = Q_target * mask
         
         
-        
-        # Train critics predict Q-values.
+        # Train critics to match Q_target
         critic_losses = []
-        for i, critic in enumerate(self.critics):
-
-            Q_pred = critic(h_t.detach, action) * mask
-            critic_loss = 0.5 * F.mse_loss(Q_pred, Q_target) / mask.sum()
-            
         
+        for i, critic in enumerate(self.critics):
+            Q_pred = critic(h_t.detach(), action)
+            Q_pred = Q_pred * mask
+            critic_loss = 0.5 * ((Q_pred - Q_target) ** 2).sum() / mask.sum()
             critic_losses.append(critic_loss.item())
         
             self.critic_opts[i].zero_grad()
             critic_loss.backward()
             self.critic_opts[i].step()
         
-            # Update target critics.
-            # \bar{\theta} = \tau \theta + (1 - \tau)\bar{\theta}
-            for tgt_p, p in zip(self.critic_targets[i].parameters(), critic.parameters()):
+            # Soft-update target critic
+            for tgt_p, p in zip(
+                self.critic_targets[i].parameters(),
+                critic.parameters()):
                 tgt_p.data.copy_(self.tau * p.data + (1.0 - self.tau) * tgt_p.data)
         
         
