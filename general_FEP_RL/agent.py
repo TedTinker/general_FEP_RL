@@ -224,12 +224,12 @@ class Agent:
             dkl = inner_state_dict[key]['dkl'].mean(-1).unsqueeze(-1) * complete_mask
             complexity = dkl * self.observation_dict[key]['beta_obs']
             complexity_losses[key] = complexity[:,1:]
-            complexity_loss = complexity_loss + complexity.mean()
+            complexity_loss = complexity_loss + complexity.mean() / mask.sum()
         for i, beta in enumerate(self.beta_hidden):
             dkl = inner_state_dict[i+1]['dkl'].mean(-1).unsqueeze(-1) * complete_mask 
             complexity = dkl * beta
             complexity_losses[f'hidden_layer_{i+2}'] = complexity[:,1:]
-            complexity_loss = complexity_loss + complexity.mean()
+            complexity_loss = complexity_loss + complexity.mean() / mask.sum()
                         
         
                                 
@@ -285,10 +285,10 @@ class Agent:
         
             entropy_tp1 = torch.zeros_like(Q_tp1)
             for k, lp in logp_tp1.items():
-                entropy_tp1 += self.alphas[k] * lp
+                entropy_tp1 += self.alphas[k] * - lp  / mask.sum()
                                 
-            Q_target = total_reward + self.gamma * (1.0 - done) * (Q_tp1 - entropy_tp1)
-            Q_target = Q_target * mask
+            Q_target = total_reward + self.gamma * (1.0 - done) * (Q_tp1 + entropy_tp1)
+            Q_target = Q_target * mask 
         
         
         
@@ -296,8 +296,9 @@ class Agent:
         critic_losses = []
         for i, critic in enumerate(self.critics):
 
-            Q_pred = critic(h_t, action) * mask
-            critic_loss = 0.5 * F.mse_loss(Q_pred, Q_target)
+            Q_pred = critic(h_t.detach, action) * mask
+            critic_loss = 0.5 * F.mse_loss(Q_pred, Q_target) / mask.sum()
+            
         
             critic_losses.append(critic_loss.item())
         
@@ -315,7 +316,7 @@ class Agent:
         # Train agent to minimize expected free energy.
         new_action_dict, new_log_pis_dict, imitation_loss = self.actor(h_t, best_action)
         
-        Q_list = [critic(h_t, new_action_dict) for critic in self.critics]
+        Q_list = [critic(h_t.detach(), new_action_dict) for critic in self.critics]
         Q = torch.min(torch.stack(Q_list, dim=0), dim=0)[0]
         Q = Q.mean(-1, keepdim=True)
         
@@ -507,7 +508,7 @@ class Agent:
         if "log_alphas" in keys and "log_alphas" in state:
             for k in self.log_alphas:
                 if k in state["log_alphas"]:
-                    self.log_alpha[k].data.copy_(state["log_alphas"][k])
+                    self.log_alphas[k].data.copy_(state["log_alphas"][k])
     
         # -------- Metadata (optional sanity check) --------
         if "meta" in state:
