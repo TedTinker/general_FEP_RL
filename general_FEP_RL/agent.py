@@ -391,6 +391,9 @@ class Agent:
         
         
         return({
+            'obs' : obs,
+            'pred_obs_p' : pred_obs_p, 
+            'pred_obs_q' : pred_obs_q,
             'total_reward' : total_reward.mean().item(),
             'reward' : reward.mean().item(),
             'critic_losses' : critic_losses,
