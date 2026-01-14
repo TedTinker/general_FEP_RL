@@ -391,21 +391,21 @@ class Agent:
         
         
         return({
-            'obs' : obs.detach(),
-            'pred_obs_p' : pred_obs_p.detach(), 
-            'pred_obs_q' : pred_obs_q.detach(),
+            'obs' : obs,
+            'pred_obs_p' : pred_obs_p, 
+            'pred_obs_q' : pred_obs_q,
             'total_reward' : total_reward.mean().item(),
             'reward' : reward.mean().item(),
             'critic_losses' : critic_losses,
             'actor_loss' : actor_loss.item(),
-            'alpha_losses' : alpha_losses.detach(),
-            'accuracy_losses' : accuracy_losses.detach(),
-            'complexity_losses' : complexity_losses.detach(),
-            'curiosities' : curiosities.detach(),
-            'imitations' : imitations.detach(),
-            'alpha_entropies' : alpha_entropies.detach(),
-            'alpha_normal_entropies' : alpha_normal_entropies.detach(),
-            'total_entropies' : total_entropies.detach()
+            'alpha_losses' : alpha_losses,
+            'accuracy_losses' : accuracy_losses,
+            'complexity_losses' : complexity_losses,
+            'curiosities' : curiosities,
+            'imitations' : imitations,
+            'alpha_entropies' : alpha_entropies,
+            'alpha_normal_entropies' : alpha_normal_entropies,
+            'total_entropies' : total_entropies
             })
                                 
     
