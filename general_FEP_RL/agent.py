@@ -140,6 +140,8 @@ class Agent:
             self.set_eval()
             self.hp, self.hq, inner_state_dict = self.world_model(
                 self.hq if posterior else self.hp, obs, self.action, one_step = True)
+            self.hp = [h.detach() for h in self.hp]
+            self.hq = [h.detach() for h in self.hq]
             self.action, log_prob = self.actor(self.hq[0] if posterior else self.hp[0]) 
             encoded_action = self.world_model.action_in(self.action)
             pred_obs_p = self.world_model.predict(self.hp[0], encoded_action)
@@ -278,11 +280,11 @@ class Agent:
         with torch.no_grad():
 
             # Next-step action and log-prob
-            a_tp1, logp_tp1 = self.actor(h_tp1)
+            a_tp1, logp_tp1 = self.actor(h_tp1.detach())
         
             # Target critics evaluate next-step value
             Q_tp1_list = [
-                critic_tgt(h_tp1, a_tp1)
+                critic_tgt(h_tp1.detach(), a_tp1)
                 for critic_tgt in self.critic_targets
             ]
             Q_tp1 = torch.min(torch.stack(Q_tp1_list, dim=0), dim=0)[0]
@@ -327,7 +329,7 @@ class Agent:
         
         
         # Train agent to minimize expected free energy.
-        new_action_dict, new_log_pis_dict, imitation_loss = self.actor(h_t, best_action)
+        new_action_dict, new_log_pis_dict, imitation_loss = self.actor(h_t.detach(), best_action)
         
         Q_list = [critic(h_t.detach(), new_action_dict) for critic in self.critics]
         Q = torch.min(torch.stack(Q_list, dim=0), dim=0)[0]
@@ -375,7 +377,7 @@ class Agent:
         
         # Train alpha values.
         alpha_losses = {}
-        _, logp_t = self.actor(h_t)
+        _, logp_t = self.actor(h_t.detach())
         
         for k, lp in logp_t.items():
             alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy'])) * mask
@@ -391,9 +393,9 @@ class Agent:
         
         
         return({
-            'obs' : obs,
-            'pred_obs_p' : pred_obs_p, 
-            'pred_obs_q' : pred_obs_q,
+            'obs' : {k: v.detach().cpu() for k, v in obs.items()},
+            'pred_obs_p': {k: v.detach().cpu() for k, v in pred_obs_p.items()},
+            'pred_obs_q': {k: v.detach().cpu() for k, v in pred_obs_q.items()},
             'total_reward' : total_reward.mean().item(),
             'reward' : reward.mean().item(),
             'critic_losses' : critic_losses,

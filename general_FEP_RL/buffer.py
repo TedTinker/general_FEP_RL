@@ -104,6 +104,10 @@ class RecurrentReplayBuffer:
             best_action_dict = None):
         if self.time_ptr == 0:
             self.reset_episode()
+            
+        observation_dict = {k: v.detach().cpu() for k, v in observation_dict.items()}
+        action_dict = {k: v.detach().cpu() for k, v in action_dict.items()}
+        next_observation_dict = {k: v.detach().cpu() for k, v in next_observation_dict.items()}
 
         for k, v in observation_dict.items():
             self.observation_buffers[k].push(self.episode_ptr, self.time_ptr, v)
@@ -116,6 +120,7 @@ class RecurrentReplayBuffer:
                 self.best_action_buffers[k].push(self.episode_ptr, self.time_ptr, torch.zeros_like(v))
             self.best_action_mask.push(self.episode_ptr, self.time_ptr, 0)
         else:
+            best_action_dict = {k: v.detach().cpu() for k, v in best_action_dict.items()}
             for k, v in best_action_dict.items():
                 self.best_action_buffers[k].push(self.episode_ptr, self.time_ptr, v)
             self.best_action_mask.push(self.episode_ptr, self.time_ptr, 1)
