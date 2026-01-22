@@ -134,11 +134,14 @@ class Agent:
     
     # In each step, an agent processes an observation and an action to update hidden states.
     # Then, make a new action and predict future observations and Q-values.
-    def step_in_episode(self, obs, posterior = True, best_action = None):
+    def step_in_episode(self, obs, posterior = True, best_action = None, eval = False):
         with torch.no_grad():
             if best_action is not None:
                 self.action = best_action
-            self.set_eval()
+            if eval:
+                self.set_eval()
+            else:
+                self.set_train()
             self.hp, self.hq, inner_state_dict = self.world_model(
                 self.hq if posterior else self.hp, obs, self.action, one_step = True)
             self.hp = [h.detach() for h in self.hp]
