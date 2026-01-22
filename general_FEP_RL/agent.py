@@ -524,7 +524,7 @@ class Agent:
         if "alphas" in keys and "alphas" in state:
             for k in self.alphas:
                 if k in state["alphas"]:
-                    self.alphas[k].data.copy_(state["alphas"][k])
+                    self.alphas[k] = state["alphas"][k]
     
         if "log_alphas" in keys and "log_alphas" in state:
             for k in self.log_alphas:
@@ -592,7 +592,7 @@ if __name__ == '__main__':
                 'zp_zq_sizes' : [128]},
             'decoder' : Decode_Image,
             'decoder_arg_dict' : {},
-            'target_entropy' : 1,
+            'target_entropy' : -1,
             'alpha_normal' : 1,
             'delta' : 0}}
     
