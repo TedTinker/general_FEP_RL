@@ -266,9 +266,9 @@ class Agent:
         # The actor and critics are concerned with both extrinsic rewards and intrinsic rewards in Expected Free Energy.
         # G(o_t, a_t) = 
         #   -DKL[q(z_t | o_t, h_{t-1}) || p(z_t | h_{t-1})]     (Curiosity)
-        #   -r(s_t, a_t)}                                      (Extrinsic Reward)
-        #   -H(\pi_\phi(a_t | o_t))                            (Entropy)
-        #   -E_{\pi_\phi(a_t | o_t)} [\log p(a_t^\ast | o_t)]  (Imitation)
+        #   -r(s_t, a_t)}                                       (Extrinsic Reward)
+        #   -H(\pi_\phi(a_t | o_t))                             (Entropy)
+        #   -E_{\pi_\phi(a_t | o_t)} [\log p(a_t^\ast | o_t)]   (Imitation)
         total_reward = (reward + curiosity).detach()
         
         hq_all = hq[0].detach()                 # (B, T+2, H)

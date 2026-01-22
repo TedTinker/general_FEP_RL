@@ -7,6 +7,7 @@ from math import exp
 import copy
 
 import torch
+torch.set_default_device("cpu")
 from torch import nn
 from torch.distributions import Normal
 import torch.nn.functional as F

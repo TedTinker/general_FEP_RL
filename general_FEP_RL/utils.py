@@ -10,6 +10,7 @@ matplotlib.use('Agg')
 import numpy as np
 
 import torch 
+torch.set_default_device("cpu")
 
 
 
