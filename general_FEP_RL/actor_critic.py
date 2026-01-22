@@ -7,7 +7,6 @@ import torch
 from torch import nn 
 from torchinfo import summary
 
-from general_FEP_RL.utils import device
 from general_FEP_RL.utils_torch import init_weights, generate_dummy_inputs
 
         
@@ -26,7 +25,7 @@ class Actor(nn.Module):
             verbose = False):
         super(Actor, self).__init__()
                         
-        self.example_input = torch.zeros((32, 16, hidden_state_size), device = device)
+        self.example_input = torch.zeros(32, 16, hidden_state_size)
         
         if verbose:
             print('START ACTOR')
@@ -48,9 +47,8 @@ class Actor(nn.Module):
             print('END ACTOR')
 
         self.apply(init_weights)
-        self.to(device)
         
-
+        
 
     def forward(self, hidden_state, best_action = None):
         action = {}
@@ -107,7 +105,7 @@ if __name__ == '__main__':
     
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function('model_inference'):
-            print(summary(actor, input_data=torch.zeros((32, 16, hidden_state_size), device = device)))
+            print(summary(actor, input_data=torch.zeros(32, 16, hidden_state_size)))
     #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
     
     
@@ -131,7 +129,7 @@ class Critic(nn.Module):
             verbose = False):
         super(Critic, self).__init__()
         
-        self.example_input = torch.zeros((32, 16, hidden_state_size), device = device)
+        self.example_input = torch.zeros(32, 16, hidden_state_size)
         
         if verbose:
             print('START CRITIC')
@@ -148,7 +146,7 @@ class Critic(nn.Module):
             [self.action_model_dict[key]['encoder'].arg_dict['encode_size']
              for key in self.action_model_dict.keys()])
         
-        example_encoding = torch.zeros((32, 16, full_encoding_size), device = device)
+        example_encoding = torch.zeros(32, 16, full_encoding_size)
 
         if value_decoder is not None:
             self.value_decoder = value_decoder

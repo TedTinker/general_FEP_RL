@@ -1,11 +1,9 @@
-#%%
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchinfo import summary
 from torch.profiler import profile, record_function, ProfilerActivity
 
-from general_FEP_RL.utils import device
 from general_FEP_RL.utils_torch import init_weights, model_start, model_end, mu_std
 
 
@@ -21,8 +19,7 @@ class Decode_Image(nn.Module):
             verbose = False):
         super(Decode_Image, self).__init__()
                 
-        self.example_input = torch.zeros((32, 16, hidden_state_size + encoded_action_size))
-        
+        self.example_input = torch.zeros(32, 16, hidden_state_size + encoded_action_size)
         if(verbose): 
             print("\nDI Start:", self.example_input.shape)
 
