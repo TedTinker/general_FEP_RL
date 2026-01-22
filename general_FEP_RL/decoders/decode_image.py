@@ -19,7 +19,7 @@ class Decode_Image(nn.Module):
             verbose = False):
         super(Decode_Image, self).__init__()
                 
-        self.example_input = torch.zeros(32, 16, hidden_state_size + encoded_action_size)
+        self.example_input = torch.zeros((32, 16, hidden_state_size + encoded_action_size))
         if(verbose): 
             print("\nDI Start:", self.example_input.shape)
 

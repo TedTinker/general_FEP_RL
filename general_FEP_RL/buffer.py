@@ -21,9 +21,7 @@ class VariableBuffer:
             observation=False):
         self.shape = shape
         self.observation = observation
-        self.data = torch.zeros(
-            (capacity, max_steps + (1 if observation else 0)) + shape,
-            dtype=torch.float32)
+        self.data = torch.zeros((capacity, max_steps + (1 if observation else 0)) + shape, dtype=torch.float32)
 
     def reset_episode(self, episode_ptr):
         self.data[episode_ptr] = 0.0

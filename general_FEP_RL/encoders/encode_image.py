@@ -20,7 +20,7 @@ class Encode_Image(nn.Module):
         
         self.arg_dict = arg_dict
                 
-        self.example_input = torch.zeros(1, 1, 28, 28, 1)
+        self.example_input = torch.zeros((1, 1, 28, 28, 1))
         if(verbose):
             print("\nEI Start:", self.example_input.shape)
 

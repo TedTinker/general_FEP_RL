@@ -491,7 +491,7 @@ class World_Model(nn.Module):
                                     
         if prev_hidden_states is None:
             prev_hidden_states = [
-                torch.zeros(episodes, 1, hidden_state_size) 
+                torch.zeros((episodes, 1, hidden_state_size))
                 for hidden_state_size in self.hidden_state_sizes]
                         
         encoded_obs = self.obs_in(obs)
