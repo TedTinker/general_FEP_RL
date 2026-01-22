@@ -1,3 +1,4 @@
+#%% 
 #------------------
 # agent.py provides a class combining the world model, actor, and critics.
 #------------------
@@ -94,7 +95,7 @@ class Agent:
         # Alpha values (entropy hyperparameter).
         self.alphas = {key : 1 for key in action_dict.keys()} 
         self.log_alphas = nn.ParameterDict({
-            key: nn.Parameter(torch.zeros(1))
+            key: nn.Parameter(torch.zeros(1, device = device))
             for key in action_dict})        
         self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = lr, weight_decay = weight_decay) 
                           for key in action_dict.keys()} 
@@ -124,10 +125,10 @@ class Agent:
     def begin(self, batch_size = 1):
         self.action = {} 
         for key, model in self.actor.action_model_dict.items(): 
-            action = torch.zeros_like(model['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0))
+            action = torch.zeros_like(model['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0), device = device)
             self.action[key] = tile_batch_dim(action, batch_size)
-        self.hp = [torch.zeros((batch_size, 1, hidden_state_size)) for hidden_state_size in self.hidden_state_sizes] 
-        self.hq = [torch.zeros((batch_size, 1, hidden_state_size)) for hidden_state_size in self.hidden_state_sizes] 
+        self.hp = [torch.zeros((batch_size, 1, hidden_state_size), device = device) for hidden_state_size in self.hidden_state_sizes] 
+        self.hq = [torch.zeros((batch_size, 1, hidden_state_size), device = device) for hidden_state_size in self.hidden_state_sizes] 
         
         
     
@@ -184,12 +185,12 @@ class Agent:
         # Add initial action t = -1.
         complete_action = {}
         for key, value in action.items(): 
-            empty_action = torch.zeros_like(self.actor.action_model_dict[key]['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0))
+            empty_action = torch.zeros_like(self.actor.action_model_dict[key]['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0), device = device)
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
             
         # This mask also masks t = -1 
-        complete_mask = torch.cat([torch.ones(mask.shape[0], 1, 1), mask], dim = 1)
+        complete_mask = torch.cat([torch.ones((mask.shape[0], 1, 1), device = device), mask], dim = 1)
 
 
                                     
@@ -244,7 +245,7 @@ class Agent:
         
         # Get curiosity values based on complexity.
         curiosities = {}
-        curiosity = torch.zeros_like(reward)
+        curiosity = torch.zeros_like(reward, device = device)
                 
         for key, value in self.observation_dict.items():
             obs_curiosity = self.observation_dict[key]['eta'] * \
@@ -291,7 +292,7 @@ class Agent:
             # Q_tp1 shape: (B, T, 1)
         
             # Entropy bonus (rewarded entropy)
-            entropy_bonus_tp1 = torch.zeros_like(Q_tp1)
+            entropy_bonus_tp1 = torch.zeros_like(Q_tp1, device = device)
             for k, lp in logp_tp1.items():
                 # lp = log π(a|h) <= 0
                 # -lp = entropy bonus >= 0
@@ -338,7 +339,7 @@ class Agent:
         alpha_entropies = {}
         alpha_normal_entropies = {}
         total_entropies = {}
-        entropy = torch.zeros_like(Q)
+        entropy = torch.zeros_like(Q, device = device)
         
         for k in new_action_dict.keys():
             lp = new_log_pis_dict[k]
@@ -358,7 +359,7 @@ class Agent:
             entropy += total_entropy
         
         imitations = {}
-        total_imitation_loss = torch.zeros_like(Q)
+        total_imitation_loss = torch.zeros_like(Q, device = device)
         
         for k in new_action_dict.keys():
             scalar = self.action_dict[k]['delta']

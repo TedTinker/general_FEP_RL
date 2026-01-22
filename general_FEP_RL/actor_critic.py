@@ -1,3 +1,4 @@
+#%% 
 #------------------
 # actor_critic.py provides a model for an actor (policy) and critic (Q-network).
 #------------------
@@ -6,6 +7,7 @@ import torch
 from torch import nn 
 from torchinfo import summary
 
+from general_FEP_RL.utils import device
 from general_FEP_RL.utils_torch import init_weights, generate_dummy_inputs
 
         
@@ -24,7 +26,7 @@ class Actor(nn.Module):
             verbose = False):
         super(Actor, self).__init__()
                         
-        self.example_input = torch.zeros(32, 16, hidden_state_size)
+        self.example_input = torch.zeros((32, 16, hidden_state_size), device = device)
         
         if verbose:
             print('START ACTOR')
@@ -104,7 +106,7 @@ if __name__ == '__main__':
     
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function('model_inference'):
-            print(summary(actor, input_data=torch.zeros(32, 16, hidden_state_size)))
+            print(summary(actor, input_data=torch.zeros((32, 16, hidden_state_size), device = device)))
     #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
     
     
@@ -128,7 +130,7 @@ class Critic(nn.Module):
             verbose = False):
         super(Critic, self).__init__()
         
-        self.example_input = torch.zeros(32, 16, hidden_state_size)
+        self.example_input = torch.zeros((32, 16, hidden_state_size), device = device)
         
         if verbose:
             print('START CRITIC')
@@ -145,7 +147,7 @@ class Critic(nn.Module):
             [self.action_model_dict[key]['encoder'].arg_dict['encode_size']
              for key in self.action_model_dict.keys()])
         
-        example_encoding = torch.zeros(32, 16, full_encoding_size)
+        example_encoding = torch.zeros((32, 16, full_encoding_size), device = device)
 
         if value_decoder is not None:
             self.value_decoder = value_decoder

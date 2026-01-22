@@ -1,3 +1,4 @@
+#%%
 #------------------
 # mtrnn.py provides an RNN layer which has a custom timescale and is gated. 
 #------------------

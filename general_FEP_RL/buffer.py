@@ -1,8 +1,11 @@
+#%%
 #------------------
 # buffer.py provides a recurrent replay buffer.
 #------------------
 
 import torch
+
+from general_FEP_RL.utils_torch import device
 
 
 
@@ -22,13 +25,14 @@ class VariableBuffer:
         self.observation = observation
         self.data = torch.zeros(
             (capacity, max_steps + (1 if observation else 0)) + shape,
+            device = device,
             dtype=torch.float32)
 
     def reset_episode(self, episode_ptr):
         self.data[episode_ptr] = 0.0
 
     def push(self, episode_ptr, time_ptr, value):
-        value = torch.as_tensor(value, dtype=torch.float32)
+        value = torch.as_tensor(value, device = device, dtype=torch.float32)
         self.data[episode_ptr, time_ptr] = value
 
     def sample(self, indices):
@@ -117,7 +121,7 @@ class RecurrentReplayBuffer:
             
         if best_action_dict is None:
             for k, v in action_dict.items():
-                self.best_action_buffers[k].push(self.episode_ptr, self.time_ptr, torch.zeros_like(v))
+                self.best_action_buffers[k].push(self.episode_ptr, self.time_ptr, torch.zeros_like(v, device = device))
             self.best_action_mask.push(self.episode_ptr, self.time_ptr, 0)
         else:
             best_action_dict = {k: v.detach().cpu() for k, v in best_action_dict.items()}
@@ -145,9 +149,9 @@ class RecurrentReplayBuffer:
             return None
 
         if random_sample:
-            indices = torch.randint(0, self.num_episodes, (batch_size,))
+            indices = torch.randint(0, self.num_episodes, (batch_size,), device = device)
         else:
-            indices = torch.arange(min(batch_size, self.num_episodes))
+            indices = torch.arange(min(batch_size, self.num_episodes), device = device)
 
         batch = {
             'obs': {k: buf.sample(indices) for k, buf in self.observation_buffers.items()},

@@ -1,3 +1,4 @@
+#%%
 #------------------
 # util_torchs.py provides some utilities for pytorch models. 
 #------------------
@@ -9,6 +10,8 @@ import torch
 from torch import nn
 from torch.distributions import Normal
 import torch.nn.functional as F
+
+from general_FEP_RL.utils import device
 
 
 
@@ -102,7 +105,7 @@ def parametrize_normal(
     return mu, std
 
 def sample(mu, std):
-    epsilon = torch.randn_like(std)
+    epsilon = torch.randn_like(std).to(device)
     return mu + epsilon * std
 
 
@@ -190,9 +193,9 @@ def generate_dummy_inputs(
     dummies = {}
 
     if isinstance(hidden_state_sizes, list):
-        dummies['hidden'] = [torch.zeros((batch, steps, hidden_state_size)) for hidden_state_size in hidden_state_sizes]
+        dummies['hidden'] = [torch.zeros((batch, steps, hidden_state_size), device = device) for hidden_state_size in hidden_state_sizes]
     else:
-        dummies['hidden'] = torch.zeros((batch, steps, hidden_state_sizes))
+        dummies['hidden'] = torch.zeros((batch, steps, hidden_state_sizes), device = device)
 
     if observation_model_dict is not None:
         dummies['obs_enc_in'] = {}
@@ -202,11 +205,11 @@ def generate_dummy_inputs(
 
         for key, model in observation_model_dict.items():
             if 'encoder' in model:
-                dummies['obs_enc_in'][key] = torch.zeros((batch, steps, *model['encoder'].example_input.shape[2:]))
-                dummies['obs_enc_out'][key] = torch.zeros((batch, steps, *model['encoder'].example_output.shape[2:]))
+                dummies['obs_enc_in'][key] = torch.zeros((batch, steps, *model['encoder'].example_input.shape[2:]), device = device)
+                dummies['obs_enc_out'][key] = torch.zeros((batch, steps, *model['encoder'].example_output.shape[2:]), device = device)
             if 'decoder' in model:
-                dummies['obs_dec_in'][key] = torch.zeros((batch, steps, *model['decoder'].example_input.shape[2:]))
-                dummies['obs_dec_out'][key] = torch.zeros((batch, steps, *model['decoder'].example_output.shape[2:]))
+                dummies['obs_dec_in'][key] = torch.zeros((batch, steps, *model['decoder'].example_input.shape[2:]), device = device)
+                dummies['obs_dec_out'][key] = torch.zeros((batch, steps, *model['decoder'].example_output.shape[2:]), device = device)
 
     if action_model_dict is not None:
         dummies['act_enc_in'] = {}
@@ -216,10 +219,10 @@ def generate_dummy_inputs(
 
         for key, model in action_model_dict.items():
             if 'encoder' in model:
-                dummies['act_enc_in'][key] = torch.zeros((batch, steps, *model['encoder'].example_input.shape[2:]))
-                dummies['act_enc_out'][key] = torch.zeros((batch, steps, *model['encoder'].example_output.shape[2:]))
+                dummies['act_enc_in'][key] = torch.zeros((batch, steps, *model['encoder'].example_input.shape[2:]), device = device)
+                dummies['act_enc_out'][key] = torch.zeros((batch, steps, *model['encoder'].example_output.shape[2:]), device = device)
             if 'decoder' in model:
-                dummies['act_dec_in'][key] = torch.zeros((batch, steps, *model['decoder'].example_input.shape[2:]))
-                dummies['act_dec_out'][key] = torch.zeros((batch, steps, *model['decoder'].example_output.shape[2:]))
+                dummies['act_dec_in'][key] = torch.zeros((batch, steps, *model['decoder'].example_input.shape[2:]), device = device)
+                dummies['act_dec_out'][key] = torch.zeros((batch, steps, *model['decoder'].example_output.shape[2:]), device = device)
 
     return dummies

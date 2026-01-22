@@ -1,5 +1,4 @@
-# I should add more LaTeX!
-
+#%% 
 #------------------
 # world_model.py provides an architecture for creating predictions of future observations
 # based on multi-layer mtrnn. Actor and Critic utilize its hidden states.  
@@ -10,6 +9,7 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary
 
+from general_FEP_RL.utils import device
 from general_FEP_RL.utils_torch import init_weights, parametrize_normal, sample, calculate_dkl, generate_dummy_inputs
 from general_FEP_RL.mtrnn import MTRNN
 
@@ -37,8 +37,8 @@ class ZP_ZQ(nn.Module):
         super(ZP_ZQ, self).__init__()
                 
         self.zp_zq_sizes = zp_zq_sizes 
-        self.example_zp_start = torch.zeros((32, 16, zp_in_features))
-        self.example_zq_start = torch.zeros((32, 16, zq_in_features))
+        self.example_zp_start = torch.zeros((32, 16, zp_in_features), device = device)
+        self.example_zq_start = torch.zeros((32, 16, zq_in_features), device = device)
         
         if verbose:
             print(f'\nZP_ZQ start: \n \t{self.example_zp_start.shape}, {self.example_zq_start.shape}')
@@ -362,7 +362,7 @@ class World_Model(nn.Module):
                 
         self.use_sample = True
         self.hidden_state_sizes = hidden_state_sizes 
-        self.example_input = torch.zeros((32, 16, hidden_state_sizes[0]))
+        self.example_input = torch.zeros((32, 16, hidden_state_sizes[0]), device = device)
         
         # World model encodes actions. 
         self.action_model_dict = nn.ModuleDict()
@@ -422,6 +422,9 @@ class World_Model(nn.Module):
     def obs_in(self, obs):
         encoded_obs = {}
         for key, value in sorted(obs.items()):
+            print("\n\n\n\nHERE!\n\n\n\n")
+            print(value.get_device())
+            print(self.observation_model_dict[key]['encoder'].get_device())
             encoded_obs[key] = self.observation_model_dict[key]['encoder'](value)
         return encoded_obs
     
@@ -492,9 +495,10 @@ class World_Model(nn.Module):
                                     
         if prev_hidden_states is None:
             prev_hidden_states = [
-                torch.zeros(episodes, 1, hidden_state_size) 
+                torch.zeros((episodes, 1, hidden_state_size), device = device)
                 for hidden_state_size in self.hidden_state_sizes]
                         
+        
         encoded_obs = self.obs_in(obs)
         encoded_prev_action = self.action_in(prev_action)
         
