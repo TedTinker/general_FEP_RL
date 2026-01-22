@@ -289,8 +289,7 @@ class Agent:
             # Target critics evaluate next-step value
             Q_tp1_list = [
                 critic_tgt(h_tp1.detach(), a_tp1)
-                for critic_tgt in self.critic_targets
-            ]
+                for critic_tgt in self.critic_targets]
             Q_tp1 = torch.min(torch.stack(Q_tp1_list, dim=0), dim=0)[0]
             # Q_tp1 shape: (B, T, 1)
         
@@ -346,7 +345,7 @@ class Agent:
         
         for k in new_action_dict.keys():
             lp = new_log_pis_dict[k]
-            alpha_entropy = self.alphas[k] * lp
+            alpha_entropy = self.alphas[k] * (-lp)
         
             flat_a = new_action_dict[k].flatten(start_dim=2)
             alpha_normal_entropy = (
@@ -384,7 +383,7 @@ class Agent:
         _, logp_t = self.actor(h_t.detach())
         
         for k, lp in logp_t.items():
-            alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy'])) * mask
+            alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy'])).detach() * mask
             alpha_loss = alpha_loss.sum() / mask.sum()
         
             self.alpha_opt[k].zero_grad()
