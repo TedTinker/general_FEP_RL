@@ -106,7 +106,6 @@ def parametrize_normal(
 
 def sample(mu, std):
     epsilon = torch.randn_like(std).to(device)
-    print(mu.get_device(), std.get_device())
     return mu + epsilon * std
 
 

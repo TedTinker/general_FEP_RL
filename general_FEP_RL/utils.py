@@ -17,8 +17,8 @@ import torch
 # Set pytorch device. (Right now, only cpu is supported.)
 #------------------
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-#device = torch.device('cpu')
+#device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cpu')
 print('\n\nDevice: {}.\n\n'.format(device))
 
 

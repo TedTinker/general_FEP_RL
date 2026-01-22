@@ -48,8 +48,9 @@ class Actor(nn.Module):
             print('END ACTOR')
 
         self.apply(init_weights)
+        self.to(device)
         
-        
+
 
     def forward(self, hidden_state, best_action = None):
         action = {}

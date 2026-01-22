@@ -6,6 +6,7 @@
 import torch 
 from torch import nn 
 
+from general_FEP_RL.utils import device
 from general_FEP_RL.utils_torch import init_weights
 
 
@@ -60,6 +61,7 @@ class MTRNNCell(nn.Module):
                 out_features = hidden_size))
         
         self.apply(init_weights)
+        self.to(device)
         
         
 
@@ -121,7 +123,7 @@ class MTRNN(nn.Module):
         self.mtrnn_cell = MTRNNCell(input_size, hidden_size, time_constant)
         
         self.apply(init_weights)
-        
+        self.to(device)
         
 
     def forward(self, x, h = None):
