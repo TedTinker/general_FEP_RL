@@ -64,7 +64,6 @@ class RecurrentReplayBuffer:
         # Actions
         self.action_buffers = {}
         for key, model in action_model_dict.items():
-            print(key, model.keys())
             self.action_buffers[key] = VariableBuffer(
                 capacity, 
                 max_steps, 
