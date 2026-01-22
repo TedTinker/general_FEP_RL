@@ -383,7 +383,7 @@ class Agent:
         _, logp_t = self.actor(h_t.detach())
         
         for k, lp in logp_t.items():
-            alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy'])).detach() * mask
+            alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy']).detach()) * mask
             alpha_loss = alpha_loss.sum() / mask.sum()
         
             self.alpha_opt[k].zero_grad()
