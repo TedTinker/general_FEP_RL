@@ -21,65 +21,6 @@ from general_FEP_RL.utils_torch import init_weights
 
 class MTRNNCell(nn.Module):
     def __init__(
-            self, 
-            input_size,
-            hidden_size, 
-            time_constant):
-        super(MTRNNCell, self).__init__()
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.time_constant = time_constant
-        self.new = 1 / time_constant
-        self.old = 1 - self.new
-
-        self.r_x = nn.Sequential(
-            nn.Linear(
-                in_features = input_size, 
-                out_features = hidden_size))
-        self.r_h = nn.Sequential(
-            nn.Linear(
-                in_features = hidden_size, 
-                out_features = hidden_size))
-        
-        self.z_x = nn.Sequential(
-            nn.Linear(
-                in_features = input_size, 
-                out_features = hidden_size))
-        self.z_h = nn.Sequential(
-            nn.Linear(
-                in_features = hidden_size, 
-                out_features = hidden_size))
-        
-        self.n_x = nn.Sequential(
-            nn.Linear(
-                in_features = input_size, 
-                out_features = hidden_size))
-        self.n_h = nn.Sequential(
-            nn.Linear(
-                in_features = hidden_size, 
-                out_features = hidden_size))
-        
-        self.apply(init_weights)
-        
-        
-
-    def forward(self, x, h):
-        r = torch.sigmoid(self.r_x(x) + self.r_h(h))
-        z = torch.sigmoid(self.z_x(x) + self.z_h(h))
-        new_h = torch.tanh(self.n_x(x) + r * self.n_h(h))
-        new_h = new_h * (1 - z)  + h * z
-        new_h = new_h * self.new + h * self.old
-        if(len(new_h.shape) == 2):      # Must have shape (batch_size, steps, ...).
-            new_h = new_h.unsqueeze(1)
-        return new_h
-    
-    
-    
-    
-    
-"""
-class MTRNNCell(nn.Module):
-    def __init__(
             self,
             input_size,
             hidden_size,
@@ -126,7 +67,6 @@ class MTRNNCell(nn.Module):
 
         # Match original shape contract
         return new_h.unsqueeze(1)
-"""
     
     
     
