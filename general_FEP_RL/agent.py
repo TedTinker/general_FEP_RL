@@ -111,7 +111,7 @@ class Agent:
             self.critic_targets.append(Critic(hidden_state_sizes[0], action_dict))
             self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
             self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr = lr, weight_decay = weight_decay))
-            self.critics[-1] = torch.compile(self.critics[1])
+            self.critics[-1] = torch.compile(self.critics[-1])
             self.critic_targets[-1] = torch.compile(self.critic_targets[-1])
         
         # Recurrent replay buffer.
