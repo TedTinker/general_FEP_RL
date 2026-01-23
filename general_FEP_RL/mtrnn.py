@@ -34,38 +34,21 @@ class MTRNNCell(nn.Module):
         self.new = 1.0 / time_constant
         self.old = 1.0 - self.new
 
-        # One fused linear:
-        # (x || h) -> [r, z, n]
         self.linear = nn.Linear(
             input_size + hidden_size,
-            3 * hidden_size
-        )
+            3 * hidden_size)
 
         self.apply(init_weights)
 
     def forward(self, x, h):
-
-        # Concatenate input and hidden state
         xh = torch.cat([x, h], dim=-1)
-
-        # Single matmul
         gates = self.linear(xh)
-
-        # Split into gates
         r, z, n = gates.chunk(3, dim=-1)
-
-        # Apply nonlinearities
         r = torch.sigmoid(r)
         z = torch.sigmoid(z)
         n = torch.tanh(n)
-
-        # GRU-style update
         new_h = n * (1.0 - z) + h * z
-
-        # Time-scale update
         new_h = self.new * new_h + self.old * h
-
-        # Match original shape contract
         return new_h.unsqueeze(1)
     
     
