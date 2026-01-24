@@ -630,9 +630,7 @@ if __name__ == '__main__':
     agent.world_model.summary()
     
     
-    
-    """
-    # SOMETHING IS WRONG WITH MULTI-LAYER PVRNN!
+
     agent = Agent(
         observation_dict = observation_dict,       
         action_dict = action_dict,       
@@ -659,5 +657,4 @@ if __name__ == '__main__':
     agent.step_in_episode(dummy_inputs)
         
     agent.world_model.summary()
-    """
-## %%
+# %%
