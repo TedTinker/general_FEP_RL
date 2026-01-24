@@ -197,7 +197,7 @@ class Agent:
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
             
         # This mask also masks t = -1 
-        complete_mask = torch.cat([torch.ones((mask.shape[0], 1, 1)), mask], dim = 1)
+        complete_mask = torch.cat([torch.zeros_like(mask[:, :1]), mask], dim=1)
 
 
                                     
@@ -250,7 +250,7 @@ class Agent:
                 
 
         
-        # Get curiosity values based on complexity.
+        # Get curiosity values based on complexity of next step.
         curiosities = {}
         curiosity = torch.zeros_like(reward)
                 

@@ -201,25 +201,25 @@ class World_Model_Layer(nn.Module):
                 
         if self.bottom_layer:
             zp_inputs = torch.cat([prev_hidden_state] + [v for k, v in sorted(encoded_prev_action.items())], dim=-1)
-            zq_inputs_dict = {key : torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in sorted(encoded_obs.items())}              
+            zq_inputs_dict = {key: torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in sorted(encoded_obs.items())}
         else:
             zp_inputs = prev_hidden_state
-            zq_inputs_dict = {self.layer_number : torch.cat([zp_inputs, lower_zp_zq], dim=-1)}
+            zq_inputs_dict = {'zq': torch.cat([zp_inputs, lower_zp_zq], dim=-1)}
                 
         inner_state_dict = {
             key: process_z_func_outputs(zp_inputs, zq_inputs_dict[key], self.zp_zq_dict[key])
             for key in self.zp_zq_dict.keys()}
                 
         if self.top_layer:
-            mtrnn_inputs_p = torch.cat([inner_state['zp'] for key, inner_state in sorted(inner_state_dict.items())], dim = -1)
-            mtrnn_inputs_q = torch.cat([inner_state['zq'] for key, inner_state in sorted(inner_state_dict.items())], dim = -1)
+            mtrnn_inputs_p = torch.cat([inner_state['zp'] for _, inner_state in sorted(inner_state_dict.items())], dim=-1)
+            mtrnn_inputs_q = torch.cat([inner_state['zq'] for _, inner_state in sorted(inner_state_dict.items())], dim=-1)
         else:
             higher_hidden_state = higher_hidden_state.reshape(episodes * steps, higher_hidden_state.shape[2])
-            mtrnn_inputs_p = torch.cat([inner_state['zp'] for key, inner_state in sorted(inner_state_dict.items())] + [higher_hidden_state], dim = -1)
-            mtrnn_inputs_q = torch.cat([inner_state['zq'] for key, inner_state in sorted(inner_state_dict.items())] + [higher_hidden_state], dim = -1)
+            mtrnn_inputs_p = torch.cat([inner_state['zp'] for _, inner_state in sorted(inner_state_dict.items())] + [higher_hidden_state], dim=-1)
+            mtrnn_inputs_q = torch.cat([inner_state['zq'] for _, inner_state in sorted(inner_state_dict.items())] + [higher_hidden_state], dim=-1)
         
         mtrnn_inputs_p = mtrnn_inputs_p.reshape(episodes, steps, mtrnn_inputs_p.shape[1])
-        mtrnn_inputs_q = mtrnn_inputs_q.reshape(episodes, steps, mtrnn_inputs_q.shape[1]) 
+        mtrnn_inputs_q = mtrnn_inputs_q.reshape(episodes, steps, mtrnn_inputs_q.shape[1])
         
         return mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict
     
