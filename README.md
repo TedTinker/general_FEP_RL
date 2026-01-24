@@ -3,7 +3,7 @@ This package provides a configurable, customizable Reinforcement Learning (RL) a
 
 ![architecture](images_for_readme/architecture.png)
 
-This is based on the papers 
+This is based on these papers:
 
 Intrinsic Rewards for Exploration without Harm from Observational Noise: A Simulation Study Based on the Free Energy Principle
 https://arxiv.org/abs/2405.07473
