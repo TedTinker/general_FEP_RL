@@ -1,6 +1,8 @@
 # general_FEP_RL
 This package provides a configurable, customizable Reinforcement Learning (RL) agent implementing the Free Energy Principle (FEP).
 
+![architecture](images_for_readme/architecture.png)
+
 This is based on the papers 
 
 Intrinsic Rewards for Exploration without Harm from Observational Noise: A Simulation Study Based on the Free Energy Principle
@@ -9,7 +11,8 @@ https://arxiv.org/abs/2405.07473
 Curiosity-Driven Development of Action and Language in Robots Through Self-Exploration
 https://arxiv.org/abs/2510.05013
 
-In summary, the agent uses a World Model (also known as a Forward Model) is a Recurrent Neural Network (RNN) which uses probabilistic prior and posterior inner states to predict future observations. This provides accuracy and complexity values, and trains to minimize Free Energy.
+The agent learns a probabilistic world model (forward model) implemented as a recurrent neural network (RNN).
+This model maintains prior and posterior latent states and predicts future observations conditioned on past hidden states and actions.
 
 \begin{align} 
 F_t = \underbrace{D_{KL}[q(z_t)||p(z_t)]}_{\text{Complexity}} - \underbrace{\mathbb{E}_{q(z_t)}[\log p(o_{t+1}|z_t)]}_{\text{Accuracy}}.
@@ -22,11 +25,13 @@ Q_t &= r_t + \eta D_{KL}[q(z_{t}|o_{t},h_{t-1})||p(z_{t}|h_{t-1})] + \alpha \mat
 + &\gamma (1 - done_t) \mathbb{E}_{o_{t+1} \sim D, a_{t+1} \sim \pi_\phi} [Q_{\bar{\theta}}(o_{t+1}, a_{t+1})].
 \end{align}
 
-Combined, the World Model and SAC are somewhat adversarial. The World Model tries to avoid surprise by understanding the relationship between observations, actions, and the environment. The SAC tseeks surprises to which the World Model must adapt.
+Combined, the World Model and SAC are somewhat adversarial. 
+The World Model tries to avoid surprise by understanding the relationship between observations, actions, and the environment. 
+The SAC seeks states and actions that yield high expected reward and information gain, driving the world model to adapt to novel and surprising experiences.
 
 To use this package for any RL setup, provide an encoder and decoder for each module of observation and action. These models require these variables:
 
-Encoder:
+Encoder requirements:
     example_input
     example_output
     arg_dict:
@@ -35,9 +40,9 @@ Encoder:
 
     This returns one value: the encoding of the input.
 
-Decoder:
+Decoder requirements:
     example_input
     example_output
     loss_func
 
-    This returns two values: the generated output and log-probabilities of those actions.
+    This returns two values: the generated output and log-probabilities of those outputs.
