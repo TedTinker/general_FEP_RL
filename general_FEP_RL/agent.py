@@ -221,9 +221,9 @@ class Agent:
             scalar = self.observation_dict[key]['accuracy_scalar']
             obs_accuracy_loss = loss_func(predicted_obs, true_obs)
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim))).unsqueeze(-1)
-            obs_accuracy_loss = obs_accuracy_loss * scalar * mask
-            accuracy_loss = accuracy_loss + obs_accuracy_loss.mean()
-            accuracy_losses[key] = obs_accuracy_loss.mean().item()
+            obs_accuracy_loss = obs_accuracy_loss * scalar
+            accuracy_loss = accuracy_loss + (obs_accuracy_loss * mask).sum() / mask.sum()
+            accuracy_losses[key] = ((obs_accuracy_loss * mask).sum() / mask.sum()).item()
             
         # Complexity of predictions.
         # Given T steps and i = 0, ..., n parts of observations,
@@ -233,13 +233,13 @@ class Agent:
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]['dkl'].mean(-1).unsqueeze(-1) * complete_mask
             complexity = dkl * self.observation_dict[key]['beta_obs']
-            complexity_loss = complexity_loss + complexity.mean() / mask.sum()
+            complexity_loss = complexity_loss + (complexity[:, 1:] * mask).sum() / mask.sum()
             complexity_losses[key] = complexity[:,1:]
 
         for i, beta in enumerate(self.beta_hidden):
             dkl = inner_state_dict[i+1]['dkl'].mean(-1).unsqueeze(-1) * complete_mask 
             complexity = dkl * beta
-            complexity_loss = complexity_loss + complexity.mean() / mask.sum()
+            complexity_loss = complexity_loss + (complexity[:, 1:] * mask).sum() / mask.sum()
             complexity_losses[f'hidden_layer_{i+2}'] = complexity[:,1:]
                         
         
@@ -315,8 +315,8 @@ class Agent:
         
         for i, critic in enumerate(self.critics):
             Q_pred = critic(h_t.detach(), action)
-            Q_pred = Q_pred * mask
-            critic_loss = 0.5 * ((Q_pred - Q_target) ** 2).sum() / mask.sum()
+            td_error = Q_pred - Q_target
+            critic_loss = 0.5 * (td_error**2 * mask).sum() / mask.sum()
             critic_losses.append(critic_loss.item())
         
             self.critic_opts[i].zero_grad()
@@ -336,7 +336,6 @@ class Agent:
         
         Q_list = [critic(h_t.detach(), new_action_dict) for critic in self.critics]
         Q = torch.min(torch.stack(Q_list, dim=0), dim=0)[0]
-        #Q = Q.mean(-1, keepdim=True)
         
         alpha_entropies = {}
         alpha_normal_entropies = {}
@@ -358,15 +357,14 @@ class Agent:
             alpha_entropies[k] = alpha_entropy.mean().item()
             alpha_normal_entropies[k] = alpha_normal_entropy.mean().item()  
             total_entropies[k] = total_entropy.mean().item()
-
         
         imitations = {}
         total_imitation_loss = torch.zeros_like(Q)
         
         for k in new_action_dict.keys():
             scalar = self.action_dict[k]['delta']
-            il = imitation_loss[k].mean(-1, keepdim=True) * scalar * mask * best_action_mask
-            total_imitation_loss += il
+            il = imitation_loss[k].mean(-1, keepdim=True) * scalar * best_action_mask
+            total_imitation_loss = total_imitation_loss + il
             imitations[k] = il.mean().item()
         
         actor_loss = (entropy - Q - total_imitation_loss) * mask

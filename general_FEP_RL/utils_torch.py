@@ -121,7 +121,7 @@ def recurrent_logprob(
         std = torch.clamp(std, min = exp(-20), max = exp(2))
         output = sample(mu, std)
         log_prob = Normal(mu, std).log_prob(output)
-        log_prob = log_prob.mean(-1).unsqueeze(-1)
+        log_prob = log_prob.sum(-1).unsqueeze(-1)
         return output, log_prob
     else:
         outputs = []
@@ -151,7 +151,6 @@ class mu_std(nn.Module):
         mu = self.mu(x)
         std = self.std(x)
         output, log_prob = recurrent_logprob(mu, std)
-        # log_prob SHOULD BE AVERAGE BASED ON MODEL_START OR NOT!
         if not self.entropy or self.eval:    # If deterministic, ignore std.
             output = mu
         return output, log_prob
