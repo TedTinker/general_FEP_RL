@@ -30,7 +30,7 @@ def tile_batch_dim(
 # Randomly initiate parameters of a model.
 #------------------
 
-def init_weights(m):
+"""def init_weights(m):
     if isinstance(m, (nn.Conv2d, nn.Linear)):
         nn.init.kaiming_normal_(m.weight, a=0.25, mode='fan_out', nonlinearity='leaky_relu')
         if m.bias is not None:
@@ -39,7 +39,18 @@ def init_weights(m):
         if m.weight is not None:
             nn.init.ones_(m.weight)
         if m.bias is not None:
-            nn.init.zeros_(m.bias)
+            nn.init.zeros_(m.bias)"""
+            
+def init_weights(m):
+    if isinstance(m, (nn.Conv2d, nn.Linear)):
+        nn.init.uniform_(m.weight, -3e-3, 3e-3)
+        if m.bias is not None:
+            nn.init.uniform_(m.bias, -3e-3, 3e-3)
+    elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm, nn.LayerNorm, nn.InstanceNorm2d)):
+        if m.weight is not None:
+            nn.init.uniform_(m.weight, -3e-3, 3e-3)
+        if m.bias is not None:
+            nn.init.uniform_(m.bias, -3e-3, 3e-3)
 
 
 
