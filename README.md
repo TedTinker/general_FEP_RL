@@ -14,7 +14,9 @@ https://arxiv.org/abs/2510.05013
 The agent learns a probabilistic world model (forward model) implemented as a recurrent neural network (RNN).
 This model maintains prior and posterior latent states and predicts future observations conditioned on past hidden states and actions.
 
-$F_t = \underbrace{D_{KL}[q(z_t)||p(z_t)]}_{\text{Complexity}} - \underbrace{\mathbb{E}_{q(z_t)}[\log p(o_{t+1}|z_t)]}_{\text{Accuracy}}.$
+```math 
+F_t = \underbrace{D_{KL}[q(z_t)||p(z_t)]}_{\text{Complexity}} - \underbrace{\mathbb{E}_{q(z_t)}[\log p(o_{t+1}|z_t)]}_{\text{Accuracy}}.
+```
 
 The hidden states are used as inputs for a Soft Actor Critic (SAC). The critic predicts a Q-value consisting of extrinsic rewards, entropy, curiosity, and imitation. The actor samples an action which maximizes predicted Q-value and entropy. This minimizes Expected Free Energy.
 
