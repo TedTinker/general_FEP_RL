@@ -222,8 +222,8 @@ class Agent:
             obs_accuracy_loss = loss_func(predicted_obs, true_obs)
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim))).unsqueeze(-1)
             obs_accuracy_loss = obs_accuracy_loss * scalar * mask
-            accuracy_losses[key] = obs_accuracy_loss.mean().item()
             accuracy_loss = accuracy_loss + obs_accuracy_loss.mean()
+            accuracy_losses[key] = obs_accuracy_loss.mean().item()
             
         # Complexity of predictions.
         # Given T steps and i = 0, ..., n parts of observations,
@@ -233,13 +233,14 @@ class Agent:
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]['dkl'].mean(-1).unsqueeze(-1) * complete_mask
             complexity = dkl * self.observation_dict[key]['beta_obs']
-            complexity_losses[key] = complexity[:,1:]
             complexity_loss = complexity_loss + complexity.mean() / mask.sum()
+            complexity_losses[key] = complexity[:,1:]
+
         for i, beta in enumerate(self.beta_hidden):
             dkl = inner_state_dict[i+1]['dkl'].mean(-1).unsqueeze(-1) * complete_mask 
             complexity = dkl * beta
-            complexity_losses[f'hidden_layer_{i+2}'] = complexity[:,1:]
             complexity_loss = complexity_loss + complexity.mean() / mask.sum()
+            complexity_losses[f'hidden_layer_{i+2}'] = complexity[:,1:]
                         
         
                                 
@@ -257,16 +258,16 @@ class Agent:
         for key, value in self.observation_dict.items():
             obs_curiosity = self.observation_dict[key]['eta'] * \
                 torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'], min = 0, max = 1)
+            curiosity = curiosity + obs_curiosity
             complexity_losses[key] = complexity_losses[key].mean().item() # Replace tensor with scalar for plotting.
             curiosities[key] = obs_curiosity.mean().item()
-            curiosity = curiosity + obs_curiosity
             
         for i in range(len(self.hidden_state_sizes) - 1):
             obs_curiosity = self.eta[i] * \
                 torch.clamp(complexity_losses[f'hidden_layer_{i+2}'] * self.eta_before_clamp[i], min = 0, max = 1)
-            complexity_losses[f'hidden_layer_{i+2}'] = complexity_losses[f'hidden_layer_{i+2}'].mean().item()
-            curiosities[f'hidden_layer_{i+2}'] = obs_curiosity.mean().item() # Replace tensor with scalar for plotting.
             curiosity = curiosity + obs_curiosity
+            complexity_losses[f'hidden_layer_{i+2}'] = complexity_losses[f'hidden_layer_{i+2}'].mean().item() # Replace tensor with scalar for plotting.
+            curiosities[f'hidden_layer_{i+2}'] = obs_curiosity.mean().item() 
             
             
             
@@ -352,11 +353,10 @@ class Agent:
                 * (flat_a ** 2).sum(-1, keepdim=True))
         
             total_entropy = alpha_entropy - alpha_normal_entropy
-        
-            alpha_entropies[k] = alpha_entropy.mean().item()
-            alpha_normal_entropies[k] = alpha_normal_entropy.mean().item()        
             entropy += total_entropy
             
+            alpha_entropies[k] = alpha_entropy.mean().item()
+            alpha_normal_entropies[k] = alpha_normal_entropy.mean().item()  
             total_entropies[k] = total_entropy.mean().item()
 
         
@@ -366,8 +366,8 @@ class Agent:
         for k in new_action_dict.keys():
             scalar = self.action_dict[k]['delta']
             il = imitation_loss[k].mean(-1, keepdim=True) * scalar * mask * best_action_mask
-            imitations[k] = il.mean().item()
             total_imitation_loss += il
+            imitations[k] = il.mean().item()
         
         actor_loss = (entropy - Q - total_imitation_loss) * mask
         actor_loss = actor_loss.sum() / mask.sum()
