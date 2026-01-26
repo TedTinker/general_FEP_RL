@@ -204,15 +204,20 @@ class Agent:
         # Some dictionaries for logging process.
         accuracy_losses = {}
         complexity_losses = {}
+        
         curiosities = {}
+        
+        critic_losses = []
+        
         alpha_entropies = {}
         alpha_normal_entropies = {}
         total_entropies = {}
         imitations = {}
+        
         alpha_losses = {}
         
         
-                                    
+        
         # Train world model to minimize Free Energy.
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
         
@@ -225,6 +230,7 @@ class Agent:
         # Given T steps and i = 0, ..., n parts of observations,
         # Accuracy = E_{q(z_{0:T,i})}[log p(o_{1:T+1,i}|z_{0:T,i})]) * mask_{0:T}
         accuracy_loss = 0
+        
         for key, value in self.observation_dict.items():
             true_obs = obs[key][:, 1:]
             predicted_obs = pred_obs_q[key]
@@ -320,9 +326,7 @@ class Agent:
             Q_target = Q_target * mask
         
         
-        # Train critics to match Q_target
-        critic_losses = []
-        
+        # Train critics to match Q_target        
         for i, critic in enumerate(self.critics):
             Q_pred = critic(h_t.detach(), action)
             td_error = Q_pred - Q_target
