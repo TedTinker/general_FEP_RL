@@ -200,6 +200,18 @@ class Agent:
         complete_mask = torch.cat([torch.zeros_like(mask[:, :1]), mask], dim=1)
 
 
+
+        # Some dictionaries for logging process.
+        accuracy_losses = {}
+        complexity_losses = {}
+        curiosities = {}
+        alpha_entropies = {}
+        alpha_normal_entropies = {}
+        total_entropies = {}
+        imitations = {}
+        alpha_losses = {}
+        
+        
                                     
         # Train world model to minimize Free Energy.
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
@@ -212,7 +224,6 @@ class Agent:
         # Accuracy of observation prediction.
         # Given T steps and i = 0, ..., n parts of observations,
         # Accuracy = E_{q(z_{0:T,i})}[log p(o_{1:T+1,i}|z_{0:T,i})]) * mask_{0:T}
-        accuracy_losses = {}
         accuracy_loss = 0
         for key, value in self.observation_dict.items():
             true_obs = obs[key][:, 1:]
@@ -221,15 +232,15 @@ class Agent:
             scalar = self.observation_dict[key]['accuracy_scalar']
             obs_accuracy_loss = loss_func(predicted_obs, true_obs)
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim))).unsqueeze(-1)
-            obs_accuracy_loss = obs_accuracy_loss * scalar
-            accuracy_loss = accuracy_loss + (obs_accuracy_loss * mask).sum() / mask.sum()
-            accuracy_losses[key] = ((obs_accuracy_loss * mask).sum() / mask.sum()).item()
+            obs_accuracy_loss = (obs_accuracy_loss * scalar * mask).sum() / mask.sum()
+            accuracy_loss = accuracy_loss + obs_accuracy_loss
+            accuracy_losses[key] = obs_accuracy_loss.item()
             
         # Complexity of predictions.
         # Given T steps and i = 0, ..., n parts of observations,
         # Complexity = beta_i DKL[q(z_{0:T,i}) || p(z_{0:T,i})] * mask_{0:T}
-        complexity_losses = {}
         complexity_loss = 0
+        
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]['dkl'].mean(-1).unsqueeze(-1) * complete_mask
             complexity = dkl * self.observation_dict[key]['beta_obs']
@@ -252,7 +263,6 @@ class Agent:
 
         
         # Get curiosity values based on complexity of next step.
-        curiosities = {}
         curiosity = torch.zeros_like(reward)
                 
         for key, value in self.observation_dict.items():
@@ -260,14 +270,14 @@ class Agent:
                 torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'], min = 0, max = 1)
             curiosity = curiosity + obs_curiosity
             complexity_losses[key] = complexity_losses[key].mean().item() # Replace tensor with scalar for plotting.
-            curiosities[key] = obs_curiosity.mean().item()
+            curiosities[key] = (obs_curiosity * mask).mean().item()
             
         for i in range(len(self.hidden_state_sizes) - 1):
             obs_curiosity = self.eta[i] * \
                 torch.clamp(complexity_losses[f'hidden_layer_{i+2}'] * self.eta_before_clamp[i], min = 0, max = 1)
             curiosity = curiosity + obs_curiosity
             complexity_losses[f'hidden_layer_{i+2}'] = complexity_losses[f'hidden_layer_{i+2}'].mean().item() # Replace tensor with scalar for plotting.
-            curiosities[f'hidden_layer_{i+2}'] = obs_curiosity.mean().item() 
+            curiosities[f'hidden_layer_{i+2}'] = (obs_curiosity * mask).mean().item() 
             
             
             
@@ -337,9 +347,6 @@ class Agent:
         Q_list = [critic(h_t.detach(), new_action_dict) for critic in self.critics]
         Q = torch.min(torch.stack(Q_list, dim=0), dim=0)[0]
         
-        alpha_entropies = {}
-        alpha_normal_entropies = {}
-        total_entropies = {}
         entropy = torch.zeros_like(Q)
         
         for k in new_action_dict.keys():
@@ -358,12 +365,11 @@ class Agent:
             alpha_normal_entropies[k] = alpha_normal_entropy.mean().item()  
             total_entropies[k] = total_entropy.mean().item()
         
-        imitations = {}
         total_imitation_loss = torch.zeros_like(Q)
         
         for k in new_action_dict.keys():
             scalar = self.action_dict[k]['delta']
-            il = imitation_loss[k].mean(-1, keepdim=True) * scalar * best_action_mask
+            il = imitation_loss[k] * scalar * best_action_mask
             total_imitation_loss = total_imitation_loss + il
             imitations[k] = il.mean().item()
         
@@ -377,7 +383,6 @@ class Agent:
         
         
         # Train alpha values.
-        alpha_losses = {}
         _, logp_t = self.actor(h_t.detach())
         
         for k, lp in logp_t.items():
@@ -397,18 +402,25 @@ class Agent:
             'obs' : {k: v.detach().cpu() for k, v in obs.items()},
             'pred_obs_p': {k: v.detach().cpu() for k, v in pred_obs_p.items()},
             'pred_obs_q': {k: v.detach().cpu() for k, v in pred_obs_q.items()},
-            'total_reward' : total_reward.mean().item(),
-            'reward' : reward.mean().item(),
-            'critic_losses' : critic_losses,
-            'actor_loss' : actor_loss.item(),
-            'alpha_losses' : alpha_losses,
+            
             'accuracy_losses' : accuracy_losses,
             'complexity_losses' : complexity_losses,
+            
+            'total_reward' : total_reward.mean().item(),
+            'reward' : reward.mean().item(),
+            'curiosity' : curiosity.mean().item(),
             'curiosities' : curiosities,
+            
+            'critic_losses' : critic_losses,
+            
+            'actor_loss' : actor_loss.item(),
             'imitations' : imitations,
             'alpha_entropies' : alpha_entropies,
             'alpha_normal_entropies' : alpha_normal_entropies,
-            'total_entropies' : total_entropies
+            'alpha_values': {k: self.alphas[k].item()},
+            'total_entropies' : total_entropies,
+            
+            'alpha_losses' : alpha_losses,
             })
                                 
     
