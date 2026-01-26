@@ -354,10 +354,11 @@ class Agent:
             total_entropy = alpha_entropy - alpha_normal_entropy
         
             alpha_entropies[k] = alpha_entropy.mean().item()
-            alpha_normal_entropies[k] = alpha_normal_entropy.mean().item()
-            total_entropies[k] = total_entropy
-        
+            alpha_normal_entropies[k] = alpha_normal_entropy.mean().item()        
             entropy += total_entropy
+            
+            total_entropies[k] = total_entropy.mean().item()
+
         
         imitations = {}
         total_imitation_loss = torch.zeros_like(Q)
