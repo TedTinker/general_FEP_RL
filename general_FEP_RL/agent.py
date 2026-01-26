@@ -276,7 +276,7 @@ class Agent:
         #   -r(s_t, a_t)}                                       (Extrinsic Reward)
         #   -H(\pi_\phi(a_t | o_t))                             (Entropy)
         #   -E_{\pi_\phi(a_t | o_t)} [\log p(a_t^\ast | o_t)]   (Imitation)
-        total_reward = (reward + curiosity).detach()
+        total_reward = (reward + curiosity).detach() * mask
         
         hq_all = hq[0].detach()                 # (B, T+2, H)
         h_t    = hq_all[:, 1:-1]                # (B, T,   H)  -> h_t
@@ -287,30 +287,25 @@ class Agent:
         # Target critics make target Q-values.
         with torch.no_grad():
 
-            # Next-step action and log-prob
+            # Next-step action and log-prob.
             a_tp1, logp_tp1 = self.actor(h_tp1.detach())
         
-            # Target critics evaluate next-step value
-            Q_tp1_list = [
-                critic_tgt(h_tp1.detach(), a_tp1)
-                for critic_tgt in self.critic_targets]
+            # Target critics evaluate next-step value.
+            Q_tp1_list = [critic_tgt(h_tp1.detach(), a_tp1) for critic_tgt in self.critic_targets]
             Q_tp1 = torch.min(torch.stack(Q_tp1_list, dim=0), dim=0)[0]
             # Q_tp1 shape: (B, T, 1)
         
-            # Entropy bonus (rewarded entropy)
+            # Entropy bonus (rewarded entropy).
             entropy_bonus_tp1 = torch.zeros_like(Q_tp1)
             for k, lp in logp_tp1.items():
                 # lp = log π(a|h) <= 0
                 # -lp = entropy bonus >= 0
                 entropy_bonus_tp1 += self.alphas[k] * (-lp)
         
-            # Bellman target (EFE-style)
-            Q_target = (
-                total_reward
-                + self.gamma * (1.0 - done) * (Q_tp1 + entropy_bonus_tp1)
-            )
+            # Bellman target (EFE-style).
+            Q_target = total_reward + self.gamma * (1.0 - done) * (Q_tp1 + entropy_bonus_tp1)
         
-            # Mask invalid timesteps
+            # Mask invalid timesteps.
             Q_target = Q_target * mask
         
         
@@ -327,7 +322,7 @@ class Agent:
             critic_loss.backward()
             self.critic_opts[i].step()
         
-            # Soft-update target critic
+            # Soft-update target critic with polyak averaging.
             for tgt_p, p in zip(
                 self.critic_targets[i].parameters(),
                 critic.parameters()):
@@ -340,7 +335,7 @@ class Agent:
         
         Q_list = [critic(h_t.detach(), new_action_dict) for critic in self.critics]
         Q = torch.min(torch.stack(Q_list, dim=0), dim=0)[0]
-        Q = Q.mean(-1, keepdim=True)
+        #Q = Q.mean(-1, keepdim=True)
         
         alpha_entropies = {}
         alpha_normal_entropies = {}
@@ -356,11 +351,11 @@ class Agent:
                 0.5 * self.action_dict[k]['alpha_normal']
                 * (flat_a ** 2).sum(-1, keepdim=True))
         
-            total_entropy = alpha_entropy + alpha_normal_entropy
+            total_entropy = alpha_entropy - alpha_normal_entropy
         
             alpha_entropies[k] = alpha_entropy.mean().item()
             alpha_normal_entropies[k] = alpha_normal_entropy.mean().item()
-            total_entropies[k] = total_entropy.mean().item()
+            total_entropies[k] = total_entropy
         
             entropy += total_entropy
         
@@ -371,7 +366,7 @@ class Agent:
             scalar = self.action_dict[k]['delta']
             il = imitation_loss[k].mean(-1, keepdim=True) * scalar * mask * best_action_mask
             imitations[k] = il.mean().item()
-            total_imitation_loss += il.mean()
+            total_imitation_loss += il
         
         actor_loss = (entropy - Q - total_imitation_loss) * mask
         actor_loss = actor_loss.sum() / mask.sum()
