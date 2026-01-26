@@ -31,12 +31,15 @@ def tile_batch_dim(
 #------------------
 
 def init_weights(m):
-    """Initialize weights of a neural network layer using Xavier normal and zero bias."""
-    try:
-        torch.nn.init.xavier_normal_(m.weight)
-        m.bias.data.fill_(0.0)
-    except:
-        pass
+    if isinstance(m, (nn.Conv2d, nn.Linear)):
+        nn.init.kaiming_normal_(m.weight, a=0.25, mode='fan_out', nonlinearity='leaky_relu')
+        if m.bias is not None:
+            nn.init.constant_(m.bias, 0)
+    elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm, nn.LayerNorm, nn.InstanceNorm2d)):
+        if m.weight is not None:
+            nn.init.ones_(m.weight)
+        if m.bias is not None:
+            nn.init.zeros_(m.bias)
 
 
 
