@@ -380,7 +380,7 @@ class Agent:
             scalar = self.action_dict[k]['delta']
             il = imitation_loss[k] * scalar * best_action_mask
             total_imitation_loss = total_imitation_loss + il
-            imitations[k] = il.sum().item() / best_action_mask.sum().item()
+            imitations[k] = il.sum().item() / (best_action_mask.sum().item() + .0000001)
         
         actor_loss = (- Q - entropy - total_imitation_loss) * mask
         actor_loss = actor_loss.sum() / mask.sum()
