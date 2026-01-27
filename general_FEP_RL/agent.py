@@ -420,9 +420,9 @@ class Agent:
             'total_reward' : total_reward.mean().item(),
             
             'critic_losses' : critic_losses,
-            'target_critic_output' : Q_tp1,
+            'target_critic_output' : Q_tp1.item(),
             'entropies_target_critic' : entropies_target_critic,
-            'entropy_target_critic' : entropy_bonus_tp1,
+            'entropy_target_critic' : entropy_bonus_tp1.item(),
             'future_Q_value' : future_Q_value.mean().item(),
             'Q_target' : Q_target.mean().item(),
             'critic_predictions' : critic_predictions,
