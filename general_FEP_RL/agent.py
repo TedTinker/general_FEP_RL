@@ -209,6 +209,7 @@ class Agent:
         
         critic_losses = []
         entropy_target_critic = {}
+        critic_predictions = []
         
         alpha_entropies = {}
         alpha_normal_entropies = {}
@@ -346,6 +347,8 @@ class Agent:
                 self.critic_targets[i].parameters(),
                 critic.parameters()):
                 tgt_p.data.copy_(self.tau * p.data + (1.0 - self.tau) * tgt_p.data)
+                
+            critic_predictions.append(Q_pred.mean().item())
         
         
         
@@ -423,7 +426,7 @@ class Agent:
             'entropy_target_critic' : entropy_target_critic,
             'future_Q_value' : future_Q_value.mean().item(),
             'Q_target' : Q_target.mean().item(),
-            'Q_pred' : Q_pred.mean().item(),
+            'critic_predictions' : critic_predictions,
             
             'actor_loss' : actor_loss.item(),
             'imitations' : imitations,
