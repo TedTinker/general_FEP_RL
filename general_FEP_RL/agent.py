@@ -208,13 +208,13 @@ class Agent:
         curiosities = {}
         
         critic_losses = []
-        entropy_target_critic = {}
+        entropies_target_critic = {}
         critic_predictions = []
         
         alpha_entropies = {}
         alpha_normal_entropies = {}
         total_entropies = {}
-        imitations = {}
+        imitation_losses = {}
         
         alpha_losses = {}
         
@@ -318,7 +318,7 @@ class Agent:
                 # lp = log π(a|h) <= 0
                 # -lp = entropy bonus >= 0
                 entropy_bonus_tp1 += self.alphas[key] * (-lp)
-                entropy_target_critic[key] = (entropy_bonus_tp1 * mask).sum().item() / mask.sum().item()
+                entropies_target_critic[key] = (entropy_bonus_tp1 * mask).sum().item() / mask.sum().item()
         
             # Bellman target (EFE-style).
             future_Q_value = self.gamma * (1.0 - done) * (Q_tp1 + entropy_bonus_tp1)
@@ -341,9 +341,7 @@ class Agent:
             self.critic_opts[i].step()
         
             # Soft-update target critic with polyak averaging.
-            for tgt_p, p in zip(
-                self.critic_targets[i].parameters(),
-                critic.parameters()):
+            for tgt_p, p in zip(self.critic_targets[i].parameters(), critic.parameters()):
                 tgt_p.data.copy_(self.tau * p.data + (1.0 - self.tau) * tgt_p.data)
                 
             critic_predictions.append(Q_pred.mean().item())
@@ -380,7 +378,7 @@ class Agent:
             scalar = self.action_dict[k]['delta']
             il = imitation_loss[k] * scalar * best_action_mask
             total_imitation_loss = total_imitation_loss + il
-            imitations[k] = il.sum().item() / (best_action_mask.sum().item() + .0000001)
+            imitation_losses[k] = il.sum().item() / (best_action_mask.sum().item() + .0000001)
         
         actor_loss = (- Q - entropy - total_imitation_loss) * mask
         actor_loss = actor_loss.sum() / mask.sum()
@@ -416,19 +414,21 @@ class Agent:
             'accuracy_losses' : accuracy_losses,
             'complexity_losses' : complexity_losses,
             
-            'total_reward' : total_reward.mean().item(),
             'reward' : reward.mean().item(),
             'curiosity' : curiosity.mean().item(),
             'curiosities' : curiosities,
+            'total_reward' : total_reward.mean().item(),
             
             'critic_losses' : critic_losses,
-            'entropy_target_critic' : entropy_target_critic,
+            'target_critic_output' : Q_tp1,
+            'entropies_target_critic' : entropies_target_critic,
+            'entropy_target_critic' : entropy_bonus_tp1,
             'future_Q_value' : future_Q_value.mean().item(),
             'Q_target' : Q_target.mean().item(),
             'critic_predictions' : critic_predictions,
             
             'actor_loss' : actor_loss.item(),
-            'imitations' : imitations,
+            'imitation_losses' : imitation_losses,
             'alpha_entropies' : alpha_entropies,
             'alpha_normal_entropies' : alpha_normal_entropies,
             'alpha_values': {k: self.alphas[k].item()},
