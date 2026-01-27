@@ -208,6 +208,7 @@ class Agent:
         curiosities = {}
         
         critic_losses = []
+        entropy_target_critic = {}
         
         alpha_entropies = {}
         alpha_normal_entropies = {}
@@ -314,16 +315,19 @@ class Agent:
         
             # Entropy bonus (rewarded entropy).
             entropy_bonus_tp1 = torch.zeros_like(Q_tp1)
-            for k, lp in logp_tp1.items():
+            for key, lp in logp_tp1.items():
                 # lp = log π(a|h) <= 0
                 # -lp = entropy bonus >= 0
-                entropy_bonus_tp1 += self.alphas[k] * (-lp)
+                entropy_bonus_tp1 += self.alphas[key] * (-lp)
+                entropy_target_critic[key] = (entropy_bonus_tp1 * mask).mean().item()  
         
             # Bellman target (EFE-style).
-            Q_target = total_reward + self.gamma * (1.0 - done) * (Q_tp1 + entropy_bonus_tp1)
+            future_Q_value = self.gamma * (1.0 - done) * (Q_tp1 + entropy_bonus_tp1)
+            Q_target = total_reward + future_Q_value
         
             # Mask invalid timesteps.
             Q_target = Q_target * mask
+            
         
         
         # Train critics to match Q_target        
@@ -416,6 +420,10 @@ class Agent:
             'curiosities' : curiosities,
             
             'critic_losses' : critic_losses,
+            'entropy_target_critic' : entropy_target_critic,
+            'future_Q_value' : future_Q_value.mean().item(),
+            'Q_target' : Q_target.mean().item(),
+            'Q_pred' : Q_pred.mean().item(),
             
             'actor_loss' : actor_loss.item(),
             'imitations' : imitations,
