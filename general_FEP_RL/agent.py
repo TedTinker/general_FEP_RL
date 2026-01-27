@@ -274,18 +274,16 @@ class Agent:
         curiosity = torch.zeros_like(reward)
                 
         for key, value in self.observation_dict.items():
-            obs_curiosity = self.observation_dict[key]['eta'] * \
-                torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'], min = 0, max = 1)
+            obs_curiosity = self.observation_dict[key]['eta'] * torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'], min = 0, max = 1)
             curiosity = curiosity + obs_curiosity
             complexity_losses[key] = complexity_losses[key].mean().item() # Replace tensor with scalar for plotting.
-            curiosities[key] = (obs_curiosity * mask).mean().item()
+            curiosities[key] = (obs_curiosity * mask).sum().item() / mask.sum().item()
             
         for i in range(len(self.hidden_state_sizes) - 1):
-            obs_curiosity = self.eta[i] * \
-                torch.clamp(complexity_losses[f'hidden_layer_{i+2}'] * self.eta_before_clamp[i], min = 0, max = 1)
+            obs_curiosity = self.eta[i] * torch.clamp(complexity_losses[f'hidden_layer_{i+2}'] * self.eta_before_clamp[i], min = 0, max = 1)
             curiosity = curiosity + obs_curiosity
             complexity_losses[f'hidden_layer_{i+2}'] = complexity_losses[f'hidden_layer_{i+2}'].mean().item() # Replace tensor with scalar for plotting.
-            curiosities[f'hidden_layer_{i+2}'] = (obs_curiosity * mask).mean().item() 
+            curiosities[f'hidden_layer_{i+2}'] = (obs_curiosity * mask).sum().item() / mask.sum().item()
             
             
             
@@ -320,7 +318,7 @@ class Agent:
                 # lp = log π(a|h) <= 0
                 # -lp = entropy bonus >= 0
                 entropy_bonus_tp1 += self.alphas[key] * (-lp)
-                entropy_target_critic[key] = (entropy_bonus_tp1 * mask).mean().item()  
+                entropy_target_critic[key] = (entropy_bonus_tp1 * mask).sum().item() / mask.sum().item()
         
             # Bellman target (EFE-style).
             future_Q_value = self.gamma * (1.0 - done) * (Q_tp1 + entropy_bonus_tp1)
@@ -632,7 +630,7 @@ if __name__ == '__main__':
         eta_before_clamp = [],
         eta = [],
         number_of_critics = 2, 
-        tau = .99,
+        tau = .1,
         lr = .0001,
         weight_decay = .00001,
         gamma = .99,
