@@ -239,9 +239,7 @@ class Agent:
             loss_func = self.observation_dict[key]['decoder'].loss_func
             scalar = self.observation_dict[key]['accuracy_scalar']
             obs_accuracy_loss = loss_func(predicted_obs, true_obs)
-            print(obs_accuracy_loss.shape)
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim))).unsqueeze(-1)
-            print(obs_accuracy_loss.shape)
             obs_accuracy_loss = (obs_accuracy_loss * scalar * mask).sum() / mask.sum()
             accuracy_loss = accuracy_loss + obs_accuracy_loss
             accuracy_losses[key] = obs_accuracy_loss.item()
@@ -415,6 +413,7 @@ class Agent:
             'obs' : {k: v.detach().cpu() for k, v in obs.items()},
             'pred_obs_p': {k: v.detach().cpu() for k, v in pred_obs_p.items()},
             'pred_obs_q': {k: v.detach().cpu() for k, v in pred_obs_q.items()},
+            'mask' : mask.detach().cpu(),
             
             'accuracy_losses' : accuracy_losses,
             'complexity_losses' : complexity_losses,
