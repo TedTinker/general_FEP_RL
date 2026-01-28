@@ -428,6 +428,8 @@ class Agent:
             'accuracy_losses' : accuracy_losses,
             'complexity_losses' : complexity_losses,
             
+            
+            'average_reward' : reward.mean().item(),
             'curiosity' : curiosity.mean().item(),
             'curiosities' : curiosities,
             'total_reward' : total_reward.mean().item(),
