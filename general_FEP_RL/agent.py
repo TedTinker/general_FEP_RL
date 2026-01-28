@@ -418,7 +418,7 @@ class Agent:
             'reward' : reward.detach().cpu(),
             'done' : done.detach().cpu(),
             'mask' : mask.detach().cpu(),
-            'best_action_mask' = best_action_mask.detach().cpu(),
+            'best_action_mask' : best_action_mask.detach().cpu(),
             
             # Save predictions and inner states.
             'pred_obs_p': {k: self.apply_mask(v, mask).detach().cpu() for k, v in pred_obs_p.items()},
