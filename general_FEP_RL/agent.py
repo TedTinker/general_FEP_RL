@@ -431,9 +431,9 @@ class Agent:
             'critic_predictions' : critic_predictions,
             
             'actor_loss' : actor_loss.item(),
-            'Q_for_actor' : Q.item(),
-            'entropy_for_actor' : entropy.item(),
-            'imitation_losses' : imitation_losses,
+            'Q_for_actor' : -Q.item(),
+            'entropy_for_actor' : -entropy.item(),
+            'imitation_losses' : -imitation_losses,
             'total_imitation_loss' : total_imitation_loss.item(),
             'alpha_entropies' : alpha_entropies,
             'alpha_normal_entropies' : alpha_normal_entropies,
