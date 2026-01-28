@@ -410,8 +410,8 @@ class Agent:
         
         return({
             'obs' : {k: v.detach().cpu() for k, v in obs.items()},
-            'pred_obs_p': {k: v.detach().cpu() for k, v in pred_obs_p.items()},
-            'pred_obs_q': {k: v.detach().cpu() for k, v in pred_obs_q.items()},
+            'pred_obs_p': {k: (v * mask).detach().cpu() for k, v in pred_obs_p.items()},
+            'pred_obs_q': {k: (v * mask).detach().cpu() for k, v in pred_obs_q.items()},
             'mask' : mask.detach().cpu(),
             
             'accuracy_losses' : accuracy_losses,
