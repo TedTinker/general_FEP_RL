@@ -459,7 +459,7 @@ class Agent:
             'alphas' : {key : a.item() for key, a in self.alphas.items()}
             }
         
-        #self.add_to_training_log(epoch_dict) 
+        self.add_to_training_log(epoch_dict) 
         return(epoch_dict)
         
         
@@ -476,6 +476,7 @@ class Agent:
             self.training_log = epoch_dict 
         else:
             for key, value in epoch_dict.items():
+                print(key)
                         
                 if type(value) == float:
                     self.training_log[key].append(value)
