@@ -88,6 +88,18 @@ class Agent:
         self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales)
         self.world_model_opt = optim.Adam(self.world_model.parameters(), lr = lr, weight_decay = weight_decay)
         self.world_model = torch.compile(self.world_model)
+        
+        # Critics and target critics.
+        self.critics = []
+        self.critic_targets = []
+        self.critic_opts = []
+        for _ in range(number_of_critics):
+            self.critics.append(Critic(hidden_state_sizes[0], action_dict))
+            self.critic_targets.append(Critic(hidden_state_sizes[0], action_dict))
+            self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
+            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr = lr, weight_decay = weight_decay))
+            self.critics[-1] = torch.compile(self.critics[-1])
+            self.critic_targets[-1] = torch.compile(self.critic_targets[-1])
                            
         # Actor.
         self.actor = Actor(hidden_state_sizes[0], action_dict)
@@ -102,24 +114,14 @@ class Agent:
         self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = lr, weight_decay = weight_decay) 
                           for key in action_dict.keys()} 
         
-        # Critics and target critics.
-        self.critics = []
-        self.critic_targets = []
-        self.critic_opts = []
-        for _ in range(number_of_critics):
-            self.critics.append(Critic(hidden_state_sizes[0], action_dict))
-            self.critic_targets.append(Critic(hidden_state_sizes[0], action_dict))
-            self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
-            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr = lr, weight_decay = weight_decay))
-            self.critics[-1] = torch.compile(self.critics[-1])
-            self.critic_targets[-1] = torch.compile(self.critic_targets[-1])
-        
         # Recurrent replay buffer.
         self.buffer = RecurrentReplayBuffer(
             self.world_model.observation_model_dict, 
             self.world_model.action_model_dict, 
             capacity, 
             max_steps)
+        
+        self.training_log = None
         
         self.begin()
         
@@ -408,20 +410,29 @@ class Agent:
             
         
         
-        return({
+        epoch_dict = {
+            # Save batch.
             'obs' : {k: v.detach().cpu() for k, v in obs.items()},
-            'pred_obs_p': {k: self.apply_mask(v, mask).detach().cpu() for k, v in pred_obs_p.items()},
-            'pred_obs_q': {k: self.apply_mask(v, mask).detach().cpu() for k, v in pred_obs_q.items()}, # I want to multiply by mask
+            'action' : {k: v.detach().cpu() for k, v in action.items()},
+            'best_action' : {k: v.detach().cpu() for k, v in best_action.items()},
+            'reward' : reward.detach().cpu(),
+            'done' : done.detach().cpu(),
             'mask' : mask.detach().cpu(),
+            'best_action_mask' = best_action_mask.detach().cpu(),
+            
+            # Save predictions and inner states.
+            'pred_obs_p': {k: self.apply_mask(v, mask).detach().cpu() for k, v in pred_obs_p.items()},
+            'pred_obs_q': {k: self.apply_mask(v, mask).detach().cpu() for k, v in pred_obs_q.items()}, 
+            # inner_state_dict
             
             'accuracy_losses' : accuracy_losses,
             'complexity_losses' : complexity_losses,
             
-            'reward' : reward.mean().item(),
             'curiosity' : curiosity.mean().item(),
             'curiosities' : curiosities,
             'total_reward' : total_reward.mean().item(),
             
+            # Save values related to critics.
             'critic_losses' : critic_losses,
             'target_critic_output' : Q_tp1.mean().item(),
             'entropies_target_critic' : entropies_target_critic,
@@ -430,6 +441,7 @@ class Agent:
             'Q_target' : Q_target.mean().item(),
             'critic_predictions' : critic_predictions,
             
+            # Save values related to actor.
             'actor_loss' : actor_loss.item(),
             'Q_for_actor' : -Q.item(),
             'entropy_for_actor' : -entropy.item(),
@@ -440,14 +452,41 @@ class Agent:
             'total_entropies' : total_entropies,
             'imitation_losses' : imitation_losses,
             
+            # Save values related to alpha-values.
             'alpha_losses' : alpha_losses,
             'alphas' : {key : a.item() for key, a in self.alphas.items()}
-            })
+            }
+        
+        self.add_to_training_log(epoch_dict) 
+        return(epoch_dict)
+        
+        
         
     def apply_mask(self, tensor, mask):
         ndims_to_add = tensor.ndim - mask.ndim
         expanded_mask = mask.view(*mask.shape, *(1,) * ndims_to_add)
         return (tensor * expanded_mask)
+    
+    
+    
+    def add_to_training_log(self, epoch_dict):
+        if self.training_log is None:
+            self.training_log = epoch_dict 
+        else:
+            for key, value in epoch_dict.items():
+                        
+                if type(value) == float:
+                    self.training_log[key].append(value)
+
+                if type(value) == list:
+                    for i, v in enumerate(value):
+                        self.training_log[key][i].append(v) 
+                    
+                if type(value) == dict:
+                    for k, v in value.items():
+                        if not k in self.training_log[key]:
+                            self.training_log[key][k] = []
+                        self.training_log[key][k].append(v)
                                 
     
 
