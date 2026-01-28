@@ -459,7 +459,7 @@ class Agent:
             'alphas' : {key : a.item() for key, a in self.alphas.items()}
             }
         
-        self.add_to_training_log(epoch_dict) 
+        #self.add_to_training_log(epoch_dict) 
         return(epoch_dict)
         
         
