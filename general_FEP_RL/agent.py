@@ -441,7 +441,7 @@ class Agent:
             'imitation_losses' : imitation_losses,
             
             'alpha_losses' : alpha_losses,
-            'alphas' : [a.detach().cpu() for a in self.alphas]
+            'alphas' : {key : a.detach().cpu() for key, a in self.alphas.items()}
             })
         
     def apply_mask(self, tensor, mask):
