@@ -410,8 +410,8 @@ class Agent:
         
         return({
             'obs' : {k: v.detach().cpu() for k, v in obs.items()},
-            'pred_obs_p': {k: (v * mask).detach().cpu() for k, v in pred_obs_p.items()},
-            'pred_obs_q': {k: (v * mask).detach().cpu() for k, v in pred_obs_q.items()},
+            'pred_obs_p': {k: self.apply_mask(v, mask).detach().cpu() for k, v in pred_obs_p.items()},
+            'pred_obs_q': {k: self.apply_mask(v, mask).detach().cpu() for k, v in pred_obs_q.items()}, # I want to multiply by mask
             'mask' : mask.detach().cpu(),
             
             'accuracy_losses' : accuracy_losses,
@@ -442,6 +442,11 @@ class Agent:
             
             'alpha_losses' : alpha_losses,
             })
+        
+    def apply_mask(self, tensor, mask):
+        ndims_to_add = tensor.ndim - mask.ndim
+        expanded_mask = mask.view(*mask.shape, *(1,) * ndims_to_add)
+        return (tensor * expanded_mask)
                                 
     
 
