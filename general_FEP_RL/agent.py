@@ -380,8 +380,11 @@ class Agent:
             total_imitation_loss = total_imitation_loss + il
             imitation_losses[k] = il.sum().item() / (best_action_mask.sum().item() + .0000001)
         
-        actor_loss = (- Q - entropy - total_imitation_loss) * mask
-        actor_loss = actor_loss.sum() / mask.sum()
+        Q = (Q * mask).sum() / mask.sum()
+        entropy = (entropy * mask).sum() / mask.sum()
+        total_imitation_loss = (total_imitation_loss * mask).sum() / mask.sum()
+        
+        actor_loss = - Q - entropy - total_imitation_loss
         
         self.actor_opt.zero_grad()
         actor_loss.backward()
@@ -428,7 +431,10 @@ class Agent:
             'critic_predictions' : critic_predictions,
             
             'actor_loss' : actor_loss.item(),
+            'Q_for_actor' : Q.item(),
+            'entropy_for_actor' : entropy.item(),
             'imitation_losses' : imitation_losses,
+            'total_imitation_loss' : total_imitation_loss.item(),
             'alpha_entropies' : alpha_entropies,
             'alpha_normal_entropies' : alpha_normal_entropies,
             'alpha_values': {k: self.alphas[k].item()},
