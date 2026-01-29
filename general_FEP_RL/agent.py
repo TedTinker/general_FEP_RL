@@ -473,19 +473,23 @@ class Agent:
     
     def add_to_training_log(self, epoch_dict):
         if self.training_log is None:
+            print("STARTING TRAINING LOG")
             self.training_log = epoch_dict 
         else:
             for key, value in epoch_dict.items():
                 print(key)
                         
                 if type(value) == float:
+                    print("FLOAT")
                     self.training_log[key].append(value)
 
                 if type(value) == list:
+                    print("LIST")
                     for i, v in enumerate(value):
                         self.training_log[key][i].append(v) 
                     
                 if type(value) == dict:
+                    print("DICT")
                     for k, v in value.items():
                         if not k in self.training_log[key]:
                             self.training_log[key][k] = []
