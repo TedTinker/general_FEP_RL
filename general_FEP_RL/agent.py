@@ -111,7 +111,7 @@ class Agent:
         # Alpha values (entropy hyperparameter).
         self.alphas = {key : 1 for key in action_dict.keys()} 
         self.log_alphas = nn.ParameterDict({key: nn.Parameter(torch.zeros((1,))) for key in action_dict})        
-        self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = lr, weight_decay = weight_decay) for key in action_dict.keys()} 
+        self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = 1, weight_decay = weight_decay) for key in action_dict.keys()} 
         
         # Recurrent replay buffer.
         self.buffer = RecurrentReplayBuffer(
@@ -397,16 +397,14 @@ class Agent:
         _, logp_t = self.actor(h_t.detach())
         
         for k, lp in logp_t.items():
-            target_entropy = self.action_dict[k]["target_entropy"]
-            alpha = self.log_alphas[k].exp()
-            alpha_loss = (alpha * (-(lp + target_entropy).detach()))
+            alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy']).detach()) 
             alpha_loss = (alpha_loss * mask).sum() / mask.sum()
         
             self.alpha_opt[k].zero_grad()
             alpha_loss.backward()
             self.alpha_opt[k].step()
         
-            self.alphas[k] = alpha.detach()
+            self.alphas[k] = torch.exp(self.log_alphas[k])
             alpha_losses[k] = alpha_loss.detach()
             
         
