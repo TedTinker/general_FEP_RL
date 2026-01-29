@@ -68,6 +68,7 @@ class Agent:
             
             number_of_critics = 2, 
             tau = .1,
+            gamma = .99,
             
             lr = .0001,
             lr_world_model = None,
@@ -75,9 +76,10 @@ class Agent:
             lr_actor = None,
             lr_alpha = None,
             weight_decay = .00001,
-            gamma = .99,
+            
             capacity = 128, 
-            max_steps = 32):
+            max_steps = 32,
+            max_epochs_in_log = 128):
 
         # Miscellaneous. 
         self.observation_dict = observation_dict
@@ -97,6 +99,7 @@ class Agent:
         if lr_alpha is None:
             lr_alpha = lr 
         self.gamma = gamma
+        self.max_epochs_in_log = max_epochs_in_log
 
         # World model.
         self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales)
@@ -484,20 +487,27 @@ class Agent:
     
     
     def recursive_log_append(self, log, new_data):
+
         for key, value in new_data.items():
             if isinstance(value, dict):
                 if key not in log:
                     log[key] = {}
                 self.recursive_log_append(log[key], value)
+
             elif isinstance(value, (list, tuple)):
                 if key not in log:
                     log[key] = [[] for _ in range(len(value))]
                 for i, item in enumerate(value):
                     log[key][i].append(deepcopy(item))
+                    if len(log[key][i]) > self.max_epochs_in_log:
+                        log[key][i].pop(0)
+
             else:
                 if key not in log:
                     log[key] = []
                 log[key].append(deepcopy(value))
+                if len(log[key]) > self.max_epochs_in_log:
+                    log[key].pop(0)
                 
                 
             
