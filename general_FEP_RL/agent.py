@@ -477,6 +477,7 @@ class Agent:
             for key, value in self.training_log.items():
                 print("HERE:", key)
                 self.training_log[key] = [value]
+                print("DONE")
         else:
             for key, value in epoch_dict.items():
                 print("THERE:", key)
