@@ -360,7 +360,7 @@ class Agent:
             for tgt_p, p in zip(self.critic_targets[i].parameters(), critic.parameters()):
                 tgt_p.data.copy_(self.tau * p.data + (1.0 - self.tau) * tgt_p.data)
                 
-            critic_predictions.append(Q_pred.mean().item())
+            critic_predictions.append((Q_pred * mask).sum.item() / mask.sum().item())
         
         
         
