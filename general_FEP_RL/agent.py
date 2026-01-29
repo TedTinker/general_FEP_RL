@@ -473,16 +473,21 @@ class Agent:
     
     
     
-    def recursive_log_append(self, log, new_data):
-        for key, value in new_data.items():
-            if isinstance(value, dict):
-                if key not in log:
-                    log[key] = {}
-                self.recursive_log_append(log[key], value)
-            else:
-                if key not in log:
-                    log[key] = []
-                log[key].append(deepcopy(value))
+def recursive_log_append(log, new_data):
+    for key, value in new_data.items():
+        if isinstance(value, dict):
+            if key not in log:
+                log[key] = {}
+            recursive_log_append(log[key], value)
+        elif isinstance(value, (list, tuple)):
+            if key not in log:
+                log[key] = [[] for _ in range(len(value))]
+            for i, item in enumerate(value):
+                log[key][i].append(deepcopy(item))
+        else:
+            if key not in log:
+                log[key] = []
+            log[key].append(deepcopy(value))
                 
                 
             
