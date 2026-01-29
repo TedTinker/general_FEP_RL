@@ -123,7 +123,7 @@ class Agent:
         # Alpha values (entropy hyperparameter).
         self.alphas = {key : 1 for key in action_dict.keys()} 
         self.log_alphas = nn.ParameterDict({key: nn.Parameter(torch.zeros((1,))) for key in action_dict})        
-        self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = lr_alpha, weight_decay = weight_decay) for key in action_dict.keys()} 
+        self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = lr_alpha, weight_decay = 0) for key in action_dict.keys()} 
         
         # Recurrent replay buffer.
         self.buffer = RecurrentReplayBuffer(
