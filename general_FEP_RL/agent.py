@@ -3,6 +3,8 @@
 # agent.py provides a class combining the world model, actor, and critics.
 #------------------
 
+from copy import deepcopy 
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -474,7 +476,7 @@ class Agent:
     
     def add_to_training_log(self, epoch_dict):
         if self.training_log is None:
-            self.training_log = epoch_dict 
+            self.training_log = deepcopy(epoch_dict) 
             for key, value in self.training_log.items():
                 print("HERE:", key)
                 self.training_log[key] = [value]
