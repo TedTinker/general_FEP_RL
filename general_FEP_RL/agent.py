@@ -458,8 +458,8 @@ class Agent:
             
             # Save values related to alpha-values.
             'alpha_losses' : alpha_losses,
-            'alphas' : {key : a.item() for key, a in self.alphas.items()}
-            'log_alphas' : {key : a.item() for key, a in self.log_alphas.items()}
+            'alphas' : {key : a.item() for key, a in self.alphas.items()},
+            'log_alphas' : {key : a.item() for key, a in self.log_alphas.items()},
             }
         
         self.add_to_training_log(epoch_dict) 
