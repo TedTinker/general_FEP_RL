@@ -474,7 +474,7 @@ class Agent:
     def add_to_training_log(self, epoch_dict):
         if self.training_log is None:
             self.training_log = epoch_dict 
-            for key, value in self.training_log.item():
+            for key, value in self.training_log.items():
                 self.training_log[key] = [value]
         else:
             for key, value in epoch_dict.items():
