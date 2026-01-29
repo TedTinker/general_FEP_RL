@@ -372,9 +372,9 @@ class Agent:
             total_entropy = alpha_entropy - alpha_normal_entropy
             entropy += total_entropy
             
-            alpha_entropies[k] = alpha_entropy.sum().item() / mask.sum().item()
-            alpha_normal_entropies[k] = alpha_normal_entropy.sum().item() / mask.sum().item()
-            total_entropies[k] = total_entropy.sum().item() / mask.sum().item()
+            alpha_entropies[k] = (alpha_entropy * mask).sum().item() / mask.sum().item()
+            alpha_normal_entropies[k] = (alpha_normal_entropy * mask).sum().item() / mask.sum().item()
+            total_entropies[k] = (total_entropy * mask).sum().item() / mask.sum().item()
         
         total_imitation_loss = torch.zeros_like(Q)
         
