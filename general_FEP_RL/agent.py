@@ -70,6 +70,10 @@ class Agent:
             tau = .1,
             
             lr = .0001,
+            lr_world_model = None,
+            lr_critic = None,
+            lr_actor = None,
+            lr_alpha = None,
             weight_decay = .00001,
             gamma = .99,
             capacity = 128, 
@@ -84,11 +88,19 @@ class Agent:
         self.eta_before_clamp = eta_before_clamp
         self.eta = eta
         self.tau = tau
+        if lr_world_model is None:
+            lr_world_model = lr 
+        if lr_critic is None:
+            lr_critic = lr 
+        if lr_actor is None:
+            lr_actor = lr 
+        if lr_alpha is None:
+            lr_alpha = lr 
         self.gamma = gamma
 
         # World model.
         self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales)
-        self.world_model_opt = optim.Adam(self.world_model.parameters(), lr = lr, weight_decay = weight_decay)
+        self.world_model_opt = optim.Adam(self.world_model.parameters(), lr = lr_world_model, weight_decay = weight_decay)
         self.world_model = torch.compile(self.world_model)
         
         # Critics and target critics.
@@ -99,19 +111,19 @@ class Agent:
             self.critics.append(Critic(hidden_state_sizes[0], action_dict))
             self.critic_targets.append(Critic(hidden_state_sizes[0], action_dict))
             self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
-            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr = lr, weight_decay = weight_decay))
+            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr = lr_critic, weight_decay = weight_decay))
             self.critics[-1] = torch.compile(self.critics[-1])
             self.critic_targets[-1] = torch.compile(self.critic_targets[-1])
                            
         # Actor.
         self.actor = Actor(hidden_state_sizes[0], action_dict)
-        self.actor_opt = optim.Adam(self.actor.parameters(), lr = lr, weight_decay = weight_decay) 
+        self.actor_opt = optim.Adam(self.actor.parameters(), lr = lr_actor, weight_decay = weight_decay) 
         self.actor = torch.compile(self.actor)
         
         # Alpha values (entropy hyperparameter).
         self.alphas = {key : 1 for key in action_dict.keys()} 
         self.log_alphas = nn.ParameterDict({key: nn.Parameter(torch.zeros((1,))) for key in action_dict})        
-        self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = 1, weight_decay = weight_decay) for key in action_dict.keys()} 
+        self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = lr_alpha, weight_decay = weight_decay) for key in action_dict.keys()} 
         
         # Recurrent replay buffer.
         self.buffer = RecurrentReplayBuffer(
