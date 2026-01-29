@@ -479,7 +479,7 @@ class Agent:
             if isinstance(value, dict):
                 if key not in log:
                     log[key] = {}
-                recursive_log_append(log[key], value)
+                self.recursive_log_append(log[key], value)
             else:
                 if key not in log:
                     log[key] = []
