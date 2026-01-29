@@ -462,7 +462,6 @@ class Agent:
             }
         
         self.add_to_training_log(epoch_dict) 
-        print(f"\n\n{type(epoch_dict)}\n\n")
         return(epoch_dict)
         
         
