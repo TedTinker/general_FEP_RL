@@ -459,7 +459,7 @@ class Agent:
             'alphas' : {key : a.item() for key, a in self.alphas.items()}
             }
         
-        #self.add_to_training_log(epoch_dict) 
+        self.add_to_training_log(epoch_dict) 
         return(epoch_dict)
         
         
@@ -473,31 +473,15 @@ class Agent:
     
     def add_to_training_log(self, epoch_dict):
         if self.training_log is None:
-            print("STARTING TRAINING LOG")
             self.training_log = epoch_dict 
+            for key, value in self.training_log.item():
+                self.training_log[key] = [value]
         else:
             for key, value in epoch_dict.items():
-                print(key)
-                        
-                if type(value) == float:
-                    print("FLOAT")
-                    self.training_log[key].append(value)
-
-                if type(value) == list:
-                    print("LIST")
-                    for i, v in enumerate(value):
-                        self.training_log[key][i].append(v) 
-                    
-                if type(value) == dict:
-                    print("DICT")
-                    for k, v in value.items():
-                        if not k in self.training_log[key]:
-                            self.training_log[key][k] = []
-                        self.training_log[key][k].append(v)
+                self.training_log[key].append(value)
                                 
     
 
-    # These should also make actor use the mu without std.
     def set_eval(self):
         self.world_model.eval()
         self.world_model.use_sample = False
