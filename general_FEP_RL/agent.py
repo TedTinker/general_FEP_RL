@@ -400,8 +400,8 @@ class Agent:
         _, logp_t = self.actor(h_t.detach())
         
         for k, lp in logp_t.items():
-            alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy']).detach()) * mask
-            alpha_loss = alpha_loss.sum() / mask.sum()
+            alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy']).detach()) 
+            alpha_loss = (alpha_loss * mask).sum() / mask.sum()
         
             self.alpha_opt[k].zero_grad()
             alpha_loss.backward()
@@ -459,6 +459,7 @@ class Agent:
             # Save values related to alpha-values.
             'alpha_losses' : alpha_losses,
             'alphas' : {key : a.item() for key, a in self.alphas.items()}
+            'log_alphas' : {key : a.item() for key, a in self.log_alphas.items()}
             }
         
         self.add_to_training_log(epoch_dict) 
