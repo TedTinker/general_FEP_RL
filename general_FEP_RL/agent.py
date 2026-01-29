@@ -475,9 +475,11 @@ class Agent:
         if self.training_log is None:
             self.training_log = epoch_dict 
             for key, value in self.training_log.items():
+                print("HERE:", key)
                 self.training_log[key] = [value]
         else:
             for key, value in epoch_dict.items():
+                print("THERE:", key)
                 self.training_log[key].append(value)
                                 
     
