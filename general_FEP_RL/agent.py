@@ -110,11 +110,8 @@ class Agent:
         
         # Alpha values (entropy hyperparameter).
         self.alphas = {key : 1 for key in action_dict.keys()} 
-        self.log_alphas = nn.ParameterDict({
-            key: nn.Parameter(torch.zeros((1,)))
-            for key in action_dict})        
-        self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = lr, weight_decay = weight_decay) 
-                          for key in action_dict.keys()} 
+        self.log_alphas = nn.ParameterDict({key: nn.Parameter(torch.zeros((1,))) for key in action_dict})        
+        self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = lr, weight_decay = weight_decay) for key in action_dict.keys()} 
         
         # Recurrent replay buffer.
         self.buffer = RecurrentReplayBuffer(
@@ -400,14 +397,16 @@ class Agent:
         _, logp_t = self.actor(h_t.detach())
         
         for k, lp in logp_t.items():
-            alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy']).detach()) 
+            target_entropy = self.action_dict[k]["target_entropy"]
+            alpha = self.log_alphas[k].exp()
+            alpha_loss = (alpha * (-(lp + target_entropy).detach()))
             alpha_loss = (alpha_loss * mask).sum() / mask.sum()
         
             self.alpha_opt[k].zero_grad()
             alpha_loss.backward()
             self.alpha_opt[k].step()
         
-            self.alphas[k] = torch.exp(self.log_alphas[k])
+            self.alphas[k] = alpha.detach()
             alpha_losses[k] = alpha_loss.detach()
             
         
@@ -452,7 +451,7 @@ class Agent:
             'total_imitation_loss' : -total_imitation_loss.item(),
             'alpha_entropies' : alpha_entropies,
             'alpha_normal_entropies' : alpha_normal_entropies,
-            'alpha_values': {k: self.alphas[k].item()},
+            'alpha_values': {k: a.item() for k, a in self.alphas.items()},
             'total_entropies' : total_entropies,
             'imitation_losses' : imitation_losses,
             
