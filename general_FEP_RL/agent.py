@@ -474,14 +474,21 @@ class Agent:
     
     
     
+    def recursive_log_append(log, new_data):
+        for key, value in new_data.items():
+            if isinstance(value, dict):
+                if key not in log:
+                    log[key] = {}
+                recursive_log_append(log[key], value)
+            else:
+                if key not in log:
+                    log[key] = []
+                log[key].append(deepcopy(value))
+            
     def add_to_training_log(self, epoch_dict):
         if self.training_log is None:
-            self.training_log = deepcopy(epoch_dict) 
-            for key, value in self.training_log.items():
-                self.training_log[key] = [value]
-        else:
-            for key, value in epoch_dict.items():
-                self.training_log[key].append(value)
+            self.training_log = {}
+        recursive_log_append(self.training_log, epoch_dict)
                                 
     
 
