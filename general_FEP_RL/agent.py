@@ -503,14 +503,14 @@ class Agent:
                 for i, item in enumerate(value):
                     log[key][i].append(deepcopy(item))
                     if len(log[key][i]) > self.max_epochs_in_log:
-                        log[key][i].pop(0)
+                        log[key][i] = log[key][i][::2]
 
             else:
                 if key not in log:
                     log[key] = []
                 log[key].append(deepcopy(value))
                 if len(log[key]) > self.max_epochs_in_log:
-                    log[key].pop(0)
+                    log[key] = log[key][::2]
                 
                 
             
