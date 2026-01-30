@@ -352,7 +352,7 @@ class Agent:
                 entropies_target_critic[key] = (entropy_bonus_tp1 * mask).sum().item() / mask.sum().item()
         
             # Bellman target (EFE-style).
-            future_Q_value = self.gamma * (1.0 - done) * (Q_tp1 + entropy_bonus_tp1)
+            future_Q_value = self.gamma * (1.0 - done) * (Q_tp1 - entropy_bonus_tp1)
             Q_target = total_reward + future_Q_value
         
             # Mask invalid timesteps.
