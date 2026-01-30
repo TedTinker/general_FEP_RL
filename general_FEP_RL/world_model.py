@@ -143,7 +143,7 @@ class World_Model_Layer(nn.Module):
             layer_number = 0,
             lower_zp_zq_size = 0,               # Higher layers see lower priors or estimaters posteriors. 
             higher_hidden_state_size = 0,       # Layers below the top see higher hidden states.
-            time_scale = 1,                     # Higher time-scalers mean slower memory. 
+            time_scale = 1,                     # Higher time-scalars mean slower memory. 
             verbose = False):
         super(World_Model_Layer, self).__init__()
         
@@ -283,8 +283,8 @@ if __name__ == '__main__':
                 hidden_state_size, 
                 verbose = True),
             'target_entropy' : 1,
-            'accuracy_scaler' : 1,                               
-            'complexity_scaler' : 1,                                 
+            'accuracy_scalar' : 1,                               
+            'complexity_scalar' : 1,                                 
             'eta' : 1                                   
             },
         'see_image_2' : { 
@@ -297,8 +297,8 @@ if __name__ == '__main__':
                 hidden_state_size, 
                 verbose = True),
             'target_entropy' : 1,
-            'accuracy_scaler' : 1,                               
-            'complexity_scaler' : 1,                                 
+            'accuracy_scalar' : 1,                               
+            'complexity_scalar' : 1,                                 
             'eta' : 1                                   
             }
         }
@@ -308,8 +308,8 @@ if __name__ == '__main__':
             'encoder' : Encode_Image(verbose = True),
             'decoder' : Decode_Image(hidden_state_size, entropy = True, verbose = True),
             'target_entropy' : 1,
-            'accuracy_scaler' : 1,                               
-            'complexity_scaler' : 1,                                 
+            'accuracy_scalar' : 1,                               
+            'complexity_scalar' : 1,                                 
             'eta' : 1                                   
             }
         }

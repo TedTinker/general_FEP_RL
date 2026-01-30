@@ -88,8 +88,8 @@ if __name__ == '__main__':
             'decoder' : Decode_Image,
             'encoder_dict' : {},
             'decoder_arg_dict' : {},
-            'accuracy_scaler' : 1,                               
-            'complexity_scaler' : 1,                                 
+            'accuracy_scalar' : 1,                               
+            'complexity_scalar' : 1,                                 
             'eta' : 1  
             }
         }
@@ -189,8 +189,8 @@ if __name__ == '__main__':
                 'encode_size' : 128,
                 'zp_zq_sizes' : [128]},
             'decoder_arg_dict' : {},
-            'accuracy_scaler' : 1,                               
-            'complexity_scaler' : 1,                                 
+            'accuracy_scalar' : 1,                               
+            'complexity_scalar' : 1,                                 
             'eta' : 1  
             }
         }

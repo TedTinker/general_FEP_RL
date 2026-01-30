@@ -443,8 +443,6 @@ class Agent:
             
             'accuracy_losses' : accuracy_losses,
             'complexity_losses' : complexity_losses,
-            
-            
             'average_reward' : reward.mean().item(),
             'curiosity' : curiosity.mean().item(),
             'curiosities' : curiosities,
@@ -465,8 +463,7 @@ class Agent:
             'entropy_for_actor' : -entropy.item(),
             'total_imitation_loss' : -total_imitation_loss.item(),
             'alpha_entropies' : alpha_entropies,
-            'alpha_normal_entropies' : alpha_normal_entropies,
-            'alpha_values': {k: a.item() for k, a in self.alphas.items()},
+            'alpha_normal_entropies' : -alpha_normal_entropies,
             'total_entropies' : total_entropies,
             'imitation_losses' : imitation_losses,
             
