@@ -302,7 +302,7 @@ class Agent:
                 
         for key, value in self.observation_dict.items():
             obs_curiosity = self.observation_dict[key]['eta'] * \
-                torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'] / self.observation_dict[key]['beta_obs'], min = 0, max = 1) / \
+                torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'] / self.observation_dict[key]['beta_obs'], min = 0, max = 1)
             curiosity = curiosity + obs_curiosity
             complexity_losses[key] = complexity_losses[key].mean().item() # Replace tensor with scalar for plotting.
             curiosities[key] = (obs_curiosity * mask).sum().item() / mask.sum().item()
