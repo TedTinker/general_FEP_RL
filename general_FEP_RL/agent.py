@@ -283,7 +283,7 @@ class Agent:
             complexity = dkl * self.observation_dict[key]['beta_obs']
             complexity_for_key = (complexity[:, 1:] * mask).sum() / mask.sum()
             complexity_loss = complexity_loss + complexity_for_key
-            complexity_losses[key] = complexity_for_key
+            complexity_losses[key] = complexity_for_key.detach()
 
         for i, beta in enumerate(self.beta_hidden):
             dkl = inner_state_dict[i+1]['dkl'].mean(-1).unsqueeze(-1) * complete_mask 
@@ -291,7 +291,7 @@ class Agent:
             complexity = dkl * beta
             complexity_for_key = (complexity[:, 1:] * mask).sum() / mask.sum()
             complexity_loss = complexity_loss + complexity_for_key
-            complexity_losses[f'hidden_layer_{i+2}'] = complexity_for_key
+            complexity_losses[f'hidden_layer_{i+2}'] = complexity_for_key.detach()
                         
         
                                 
