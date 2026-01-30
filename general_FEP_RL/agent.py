@@ -103,7 +103,10 @@ class Agent:
 
         # World model.
         self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales)
-        self.world_model_opt = optim.Adam(self.world_model.parameters(), lr = lr_world_model, weight_decay = weight_decay)
+        self.world_model_opt = optim.Adam(
+            self.world_model.parameters(), 
+            lr = lr_world_model, 
+            weight_decay = weight_decay)
         self.world_model = torch.compile(self.world_model)
         
         # Critics and target critics.
@@ -114,7 +117,10 @@ class Agent:
             self.critics.append(Critic(hidden_state_sizes[0], action_dict))
             self.critic_targets.append(Critic(hidden_state_sizes[0], action_dict))
             self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
-            self.critic_opts.append(optim.Adam(self.critics[-1].parameters(), lr = lr_critic, weight_decay = weight_decay))
+            self.critic_opts.append(optim.Adam(
+                self.critics[-1].parameters(), 
+                lr = lr_critic, 
+                weight_decay = weight_decay))
             self.critics[-1] = torch.compile(self.critics[-1])
             self.critic_targets[-1] = torch.compile(self.critic_targets[-1])
                            
@@ -126,7 +132,10 @@ class Agent:
         # Alpha values (entropy hyperparameter).
         self.alphas = {key : 1 for key in action_dict.keys()} 
         self.log_alphas = nn.ParameterDict({key: nn.Parameter(torch.zeros((1,))) for key in action_dict})        
-        self.alpha_opt = {key : optim.Adam(params=[self.log_alphas[key]], lr = lr_alpha, weight_decay = 0) for key in action_dict.keys()} 
+        self.alpha_opt = {key : optim.Adam(
+            params=[self.log_alphas[key]], 
+            lr = lr_alpha, 
+            weight_decay = 0) for key in action_dict.keys()} 
         
         # Recurrent replay buffer.
         self.buffer = RecurrentReplayBuffer(
@@ -209,7 +218,8 @@ class Agent:
         # Add initial action t = -1.
         complete_action = {}
         for key, value in action.items(): 
-            empty_action = torch.zeros_like(self.actor.action_model_dict[key]['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0))
+            empty_action = torch.zeros_like(
+                self.actor.action_model_dict[key]['decoder'].example_output[0, 0].unsqueeze(0).unsqueeze(0))
             empty_action = tile_batch_dim(empty_action, batch_size)
             complete_action[key] = torch.cat([empty_action, value], dim = 1)
             
@@ -291,13 +301,17 @@ class Agent:
         curiosity = torch.zeros_like(reward)
                 
         for key, value in self.observation_dict.items():
-            obs_curiosity = self.observation_dict[key]['eta'] * torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'], min = 0, max = 1) / self.observation_dict[key]['beta_obs']
+            obs_curiosity = self.observation_dict[key]['eta'] * \
+                torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'], min = 0, max = 1) / \
+                    self.observation_dict[key]['beta_obs'] # Ignore complexity scalar.
             curiosity = curiosity + obs_curiosity
             complexity_losses[key] = complexity_losses[key].mean().item() # Replace tensor with scalar for plotting.
             curiosities[key] = (obs_curiosity * mask).sum().item() / mask.sum().item()
             
         for i in range(len(self.hidden_state_sizes) - 1):
-            obs_curiosity = self.eta[i] * torch.clamp(complexity_losses[f'hidden_layer_{i+2}'] * self.eta_before_clamp[i], min = 0, max = 1) / self.beta_hidden[i]
+            obs_curiosity = self.eta[i] * \
+                torch.clamp(complexity_losses[f'hidden_layer_{i+2}'] * self.eta_before_clamp[i], min = 0, max = 1) / \
+                    self.beta_hidden[i] # Ignore complexity scalar.
             curiosity = curiosity + obs_curiosity
             complexity_losses[f'hidden_layer_{i+2}'] = complexity_losses[f'hidden_layer_{i+2}'].mean().item() # Replace tensor with scalar for plotting.
             curiosities[f'hidden_layer_{i+2}'] = (obs_curiosity * mask).sum().item() / mask.sum().item()
@@ -365,7 +379,7 @@ class Agent:
         
         
         
-        # Train agent to minimize expected free energy.
+        # Train actor to minimize expected free energy.
         new_action_dict, new_log_pis_dict, imitation_loss = self.actor(h_t.detach(), best_action)
         
         Q_list = [critic(h_t.detach(), new_action_dict) for critic in self.critics]
