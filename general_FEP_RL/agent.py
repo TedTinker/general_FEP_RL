@@ -302,16 +302,14 @@ class Agent:
                 
         for key, value in self.observation_dict.items():
             obs_curiosity = self.observation_dict[key]['eta'] * \
-                torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'], min = 0, max = 1) / \
-                    self.observation_dict[key]['beta_obs'] # Ignore complexity scalar.
+                torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'] / self.observation_dict[key]['beta_obs'], min = 0, max = 1) / \
             curiosity = curiosity + obs_curiosity
             complexity_losses[key] = complexity_losses[key].mean().item() # Replace tensor with scalar for plotting.
             curiosities[key] = (obs_curiosity * mask).sum().item() / mask.sum().item()
             
         for i in range(len(self.hidden_state_sizes) - 1):
             obs_curiosity = self.eta[i] * \
-                torch.clamp(complexity_losses[f'hidden_layer_{i+2}'] * self.eta_before_clamp[i], min = 0, max = 1) / \
-                    self.beta_hidden[i] # Ignore complexity scalar.
+                torch.clamp(complexity_losses[f'hidden_layer_{i+2}'] * self.eta_before_clamp[i] / self.beta_hidden, min = 0, max = 1)            
             curiosity = curiosity + obs_curiosity
             complexity_losses[f'hidden_layer_{i+2}'] = complexity_losses[f'hidden_layer_{i+2}'].mean().item() # Replace tensor with scalar for plotting.
             curiosities[f'hidden_layer_{i+2}'] = (obs_curiosity * mask).sum().item() / mask.sum().item()
@@ -352,7 +350,7 @@ class Agent:
                 entropies_target_critic[key] = (entropy_bonus_tp1 * mask).sum().item() / mask.sum().item()
         
             # Bellman target (EFE-style).
-            future_Q_value = self.gamma * (1.0 - done) * (Q_tp1 - entropy_bonus_tp1)
+            future_Q_value = self.gamma * (1.0 - done) * (Q_tp1 + entropy_bonus_tp1)
             Q_target = total_reward + future_Q_value
         
             # Mask invalid timesteps.
