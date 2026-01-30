@@ -135,7 +135,7 @@ class Agent:
             capacity, 
             max_steps)
         
-        self.training_log = None
+        self.training_log["max_epochs_in_log"] = self.max_epochs_in_log
         self.epoch_num = 0
         
         self.begin()
