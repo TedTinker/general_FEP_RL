@@ -79,7 +79,7 @@ class Agent:
             
             capacity = 128, 
             max_steps = 32,
-            max_epochs_in_log = 128):
+            max_epochs_in_log = 64):
 
         # Miscellaneous. 
         self.observation_dict = observation_dict
@@ -136,6 +136,7 @@ class Agent:
             max_steps)
         
         self.training_log = None
+        self.epoch = 0
         
         self.begin()
         
@@ -514,6 +515,7 @@ class Agent:
     def add_to_training_log(self, epoch_dict):
         if self.training_log is None:
             self.training_log = {}
+        self.training_log["epoch"] = self.epoch
         self.recursive_log_append(self.training_log, epoch_dict)
                                 
     
