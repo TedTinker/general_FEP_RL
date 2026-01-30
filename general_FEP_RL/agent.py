@@ -231,6 +231,7 @@ class Agent:
         # Some dictionaries for logging process.
         accuracy_losses = {}
         complexity_losses = {}
+        dkls = {}
         
         curiosities = {}
         
@@ -278,15 +279,19 @@ class Agent:
         
         for key, value in self.observation_dict.items():
             dkl = inner_state_dict[key]['dkl'].mean(-1).unsqueeze(-1) * complete_mask
+            dkls[key] = dkl.detach()
             complexity = dkl * self.observation_dict[key]['beta_obs']
-            complexity_loss = complexity_loss + (complexity[:, 1:] * mask).sum() / mask.sum()
-            complexity_losses[key] = complexity[:,1:]
+            complexity_for_key = (complexity[:, 1:] * mask).sum() / mask.sum()
+            complexity_loss = complexity_loss + complexity_for_key
+            complexity_losses[key] = complexity_for_key
 
         for i, beta in enumerate(self.beta_hidden):
             dkl = inner_state_dict[i+1]['dkl'].mean(-1).unsqueeze(-1) * complete_mask 
+            dkls[f'hidden_layer_{i+2}'] = dkl.detach()
             complexity = dkl * beta
-            complexity_loss = complexity_loss + (complexity[:, 1:] * mask).sum() / mask.sum()
-            complexity_losses[f'hidden_layer_{i+2}'] = complexity[:,1:]
+            complexity_for_key = (complexity[:, 1:] * mask).sum() / mask.sum()
+            complexity_loss = complexity_loss + complexity_for_key
+            complexity_losses[f'hidden_layer_{i+2}'] = complexity_for_key
                         
         
                                 
@@ -302,16 +307,14 @@ class Agent:
                 
         for key, value in self.observation_dict.items():
             obs_curiosity = self.observation_dict[key]['eta'] * \
-                torch.clamp(complexity_losses[key] * self.observation_dict[key]['eta_before_clamp'] / self.observation_dict[key]['beta_obs'], min = 0, max = 1)
+                torch.clamp(dkls[key][:, 1:] * self.observation_dict[key]['eta_before_clamp'], min = 0, max = 1)
             curiosity = curiosity + obs_curiosity
-            complexity_losses[key] = complexity_losses[key].mean().item() # Replace tensor with scalar for plotting.
             curiosities[key] = (obs_curiosity * mask).sum().item() / mask.sum().item()
             
         for i in range(len(self.hidden_state_sizes) - 1):
             obs_curiosity = self.eta[i] * \
-                torch.clamp(complexity_losses[f'hidden_layer_{i+2}'] * self.eta_before_clamp[i] / self.beta_hidden, min = 0, max = 1)            
+                torch.clamp(dkls[f'hidden_layer_{i+2}'][:, 1:] * self.eta_before_clamp[i], min = 0, max = 1)            
             curiosity = curiosity + obs_curiosity
-            complexity_losses[f'hidden_layer_{i+2}'] = complexity_losses[f'hidden_layer_{i+2}'].mean().item() # Replace tensor with scalar for plotting.
             curiosities[f'hidden_layer_{i+2}'] = (obs_curiosity * mask).sum().item() / mask.sum().item()
             
             
