@@ -475,6 +475,7 @@ class Agent:
             'log_alphas' : {key : a.item() for key, a in self.log_alphas.items()},
             }
         
+        self.epoch_num += 1
         self.add_to_training_log(epoch_dict) 
         return(epoch_dict)
         
