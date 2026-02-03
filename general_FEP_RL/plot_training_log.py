@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 def plot_training_log(training_log, folder="", epoch = 0):
         
     plt.figure(figsize=(6, 6))
