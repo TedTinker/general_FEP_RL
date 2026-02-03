@@ -78,8 +78,8 @@ def plot_training_log(agent, folder="", epoch = 0):
     plt.close()
     
     plt.figure(figsize=(6, 6))
-    for key, alpha in training_log["alphas"].items():
-        plt.plot(epoch_nums, alpha, label=f"Alpha {key}")
+    for key, alpha in training_log_actor["alphas"].items():
+        plt.plot(epoch_nums_actor, alpha, label=f"Alpha {key}")
     plt.title(f"Alphas over epochs")
     plt.xlabel("Epoch")
     plt.ylabel("Value")
