@@ -308,13 +308,13 @@ class Agent:
         for key, value in self.observation_dict.items():
             obs_curiosity = self.observation_dict[key]['eta'] * \
                 torch.clamp(dkls[key][:, 1:] * self.observation_dict[key]['eta_before_clamp'], min = 0, max = 1)
-            curiosity = curiosity + obs_curiosity
+            curiosity = curiosity + obs_curiosity * mask
             curiosities[key] = (obs_curiosity * mask).sum().item() / mask.sum().item()
             
         for i in range(len(self.hidden_state_sizes) - 1):
             obs_curiosity = self.eta[i] * \
                 torch.clamp(dkls[f'hidden_layer_{i+2}'][:, 1:] * self.eta_before_clamp[i], min = 0, max = 1)            
-            curiosity = curiosity + obs_curiosity
+            curiosity = curiosity + obs_curiosity * mask
             curiosities[f'hidden_layer_{i+2}'] = (obs_curiosity * mask).sum().item() / mask.sum().item()
             
             
@@ -353,7 +353,8 @@ class Agent:
                 entropies_target_critic[key] = (entropy_bonus_tp1 * mask).sum().item() / mask.sum().item()
         
             # Bellman target (EFE-style).
-            future_Q_value = self.gamma * (1.0 - done) * (Q_tp1 + entropy_bonus_tp1)
+            not_done = (1.0 - done) * mask
+            future_Q_value = self.gamma * not_done * (Q_tp1 + entropy_bonus_tp1)
             Q_target = total_reward + future_Q_value
         
             # Mask invalid timesteps.
@@ -408,7 +409,7 @@ class Agent:
         
         for k in new_action_dict.keys():
             scalar = self.action_dict[k]['delta']
-            il = imitation_loss[k] * scalar * best_action_mask
+            il = imitation_loss[k] * scalar * best_action_mask * mask
             total_imitation_loss = total_imitation_loss + il
             imitation_losses[k] = il.sum().item() / (best_action_mask.sum().item() + .0000001)
         
