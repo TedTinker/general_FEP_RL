@@ -465,6 +465,8 @@ class Agent:
             
                 
             epoch_dict_actor = {
+                'epoch_num' : self.epoch_num,
+                
                 # Save values related to actor.
                 'actor_loss' : actor_loss.item(),
                 'Q_for_actor' : -Q.item(),
