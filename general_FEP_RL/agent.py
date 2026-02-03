@@ -499,14 +499,14 @@ class Agent:
             'critic_predictions' : critic_predictions,
             
             # Save values related to actor.
-            'actor_loss' : actor_loss.item()                        if trained_actor else self.training_log['actor_loss'][-1],
-            'Q_for_actor' : -Q.item()                               if trained_actor else self.training_log['Q_for_actor'][-1],
-            'entropy_for_actor' : -entropy.item()                   if trained_actor else self.training_log['entropy_for_actor'][-1],
-            'total_imitation_loss' : -total_imitation_loss.item()   if trained_actor else self.training_log['total_imitation_loss'][-1],
-            'alpha_entropies' : alpha_entropies                     if trained_actor else self.training_log['alpha_entropies'][-1],
-            'alpha_normal_entropies' : alpha_normal_entropies       if trained_actor else self.training_log['alpha_normal_entropies'][-1],
-            'total_entropies' : total_entropies                     if trained_actor else self.training_log['total_entropies'][-1],
-            'imitation_losses' : imitation_losses                   if trained_actor else self.training_log['imitation_losses'][-1],
+            'actor_loss' : actor_loss.item()                        if trained_actor else None,
+            'Q_for_actor' : -Q.item()                               if trained_actor else None,
+            'entropy_for_actor' : -entropy.item()                   if trained_actor else None,
+            'total_imitation_loss' : -total_imitation_loss.item()   if trained_actor else None,
+            'alpha_entropies' : alpha_entropies                     if trained_actor else None,
+            'alpha_normal_entropies' : alpha_normal_entropies       if trained_actor else None,
+            'total_entropies' : total_entropies                     if trained_actor else None,
+            'imitation_losses' : imitation_losses                   if trained_actor else None,
             
             # Save values related to alpha-values.
             'alpha_losses' : alpha_losses,
