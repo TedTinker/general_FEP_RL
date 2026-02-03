@@ -59,8 +59,8 @@ def plot_training_log(training_log, folder="", epoch = 0):
     plt.plot(epoch_nums, training_log["Q_target"], label="Q Target")
     for i, critic_loss in enumerate(training_log["critic_predictions"]):
         plt.plot(epoch_nums, critic_loss, label=f"Critic {i} Predictions")
-    for i, loss in enumerate(training_log["critic_losses"]):
-        plt.plot(epoch_nums, loss, label=f"Critic {i} Loss")
+    #for i, loss in enumerate(training_log["critic_losses"]):
+    #    plt.plot(epoch_nums, loss, label=f"Critic {i} Loss")
     plt.title(f"Critic predictions over epochs")
     plt.xlabel("Epoch")
     plt.ylabel("Value")
