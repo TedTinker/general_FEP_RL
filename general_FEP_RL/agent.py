@@ -398,7 +398,7 @@ class Agent:
         
         # Train actor to minimize expected free energy.
         
-        if self.epoch_num % self.d != 0 and self.epoch_num != 0:
+        if self.epoch_num % self.d != 0:
             trained_actor = False
         else:
             trained_actor = True 
