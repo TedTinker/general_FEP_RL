@@ -158,6 +158,7 @@ class Agent:
             max_steps)
         
         self.training_log = {"max_epochs_in_log" : self.max_epochs_in_log}
+        self.training_log_actor = {"max_epochs_in_log" : self.max_epochs_in_log}
         self.epoch_num = 0
         
         self.begin()
@@ -400,12 +401,13 @@ class Agent:
         
         if self.epoch_num % self.d != 0:
             trained_actor = False
+            epoch_dict_actor = None
         else:
             trained_actor = True 
                 
             new_action_dict, new_log_pis_dict, imitation_loss = self.actor(h_t.detach(), best_action)
             
-            Q_list = [critic(h_t.detach(), new_action_dict) for critic in self.critics]
+            Q_list = [critic(h_t.detach(), new_action_dict) * mask for critic in self.critics]
             Q = torch.min(torch.stack(Q_list, dim=0), dim=0)[0]
             
             entropy = torch.zeros_like(Q)
@@ -459,13 +461,30 @@ class Agent:
             
                 self.alphas[k] = torch.exp(self.log_alphas[k])
                 alpha_losses[k] = alpha_loss.detach()
-        
-
-        
-
+                
             
-        
-        
+                
+            epoch_dict_actor = {
+                # Save values related to actor.
+                'actor_loss' : actor_loss.item(),
+                'Q_for_actor' : -Q.item(),
+                'entropy_for_actor' : -entropy.item(),
+                'total_imitation_loss' : -total_imitation_loss.item(),
+                'alpha_entropies' : alpha_entropies,
+                'alpha_normal_entropies' : alpha_normal_entropies,
+                'total_entropies' : total_entropies,
+                'imitation_losses' : imitation_losses,
+                
+                # Save values related to alpha-values.
+                'alpha_losses' : alpha_losses,
+                'alphas' : {key : a.item() for key, a in self.alphas.items()},
+                'log_alphas' : {key : a.item() for key, a in self.log_alphas.items()},
+                }
+            
+            self.add_to_training_log(epoch_dict_actor, actor = True) 
+            
+
+
         epoch_dict = {
             # Save batch.
             'epoch_num' : self.epoch_num,
@@ -497,26 +516,11 @@ class Agent:
             'future_Q_value' : future_Q_value.mean().item(),
             'Q_target' : Q_target.mean().item(),
             'critic_predictions' : critic_predictions,
-            
-            # Save values related to actor.
-            'actor_loss' : actor_loss.item()                        if trained_actor else None,
-            'Q_for_actor' : -Q.item()                               if trained_actor else None,
-            'entropy_for_actor' : -entropy.item()                   if trained_actor else None,
-            'total_imitation_loss' : -total_imitation_loss.item()   if trained_actor else None,
-            'alpha_entropies' : alpha_entropies                     if trained_actor else None,
-            'alpha_normal_entropies' : alpha_normal_entropies       if trained_actor else None,
-            'total_entropies' : total_entropies                     if trained_actor else None,
-            'imitation_losses' : imitation_losses                   if trained_actor else None,
-            
-            # Save values related to alpha-values.
-            'alpha_losses' : alpha_losses,
-            'alphas' : {key : a.item() for key, a in self.alphas.items()},
-            'log_alphas' : {key : a.item() for key, a in self.log_alphas.items()},
             }
         
         self.epoch_num += 1
         self.add_to_training_log(epoch_dict) 
-        return(epoch_dict)
+        return(epoch_dict, epoch_dict_actor)
         
         
         
@@ -552,10 +556,11 @@ class Agent:
                 
                 
             
-    def add_to_training_log(self, epoch_dict):
-        if self.training_log is None:
-            self.training_log = {}
-        self.recursive_log_append(self.training_log, epoch_dict)
+    def add_to_training_log(self, epoch_dict, actor = False):
+        if actor:
+            self.recursive_log_append(self.training_log_actor, epoch_dict)
+        else:
+            self.recursive_log_append(self.training_log, epoch_dict)
                                 
     
 
