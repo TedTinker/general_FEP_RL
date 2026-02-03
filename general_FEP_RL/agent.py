@@ -308,14 +308,16 @@ class Agent:
         for key, value in self.observation_dict.items():
             obs_curiosity = self.observation_dict[key]['eta'] * \
                 torch.clamp(dkls[key][:, 1:] * self.observation_dict[key]['eta_before_clamp'], min = 0, max = 1)
-            curiosity = curiosity + obs_curiosity * mask
-            curiosities[key] = (obs_curiosity * mask).sum().item() / mask.sum().item()
+            obs_curiosity = obs_curiosity * mask
+            curiosity = curiosity + obs_curiosity
+            curiosities[key] = obs_curiosity.sum().item() / mask.sum().item()
             
         for i in range(len(self.hidden_state_sizes) - 1):
             obs_curiosity = self.eta[i] * \
                 torch.clamp(dkls[f'hidden_layer_{i+2}'][:, 1:] * self.eta_before_clamp[i], min = 0, max = 1)            
-            curiosity = curiosity + obs_curiosity * mask
-            curiosities[f'hidden_layer_{i+2}'] = (obs_curiosity * mask).sum().item() / mask.sum().item()
+            obs_curiosity = obs_curiosity * mask
+            curiosity = curiosity + obs_curiosity
+            curiosities[f'hidden_layer_{i+2}'] = obs_curiosity.sum().item() / mask.sum().item()
             
             
             
@@ -340,7 +342,7 @@ class Agent:
             a_tp1, logp_tp1 = self.actor(h_tp1.detach())
         
             # Target critics evaluate next-step value.
-            Q_tp1_list = [critic_tgt(h_tp1.detach(), a_tp1) for critic_tgt in self.critic_targets]
+            Q_tp1_list = [critic_tgt(h_tp1.detach(), a_tp1) * mask for critic_tgt in self.critic_targets]
             Q_tp1 = torch.min(torch.stack(Q_tp1_list, dim=0), dim=0)[0]
             # Q_tp1 shape: (B, T, 1)
         
@@ -429,7 +431,7 @@ class Agent:
         _, logp_t = self.actor(h_t.detach())
         
         for k, lp in logp_t.items():
-            alpha_loss = -(self.log_alphas[k] * (lp + self.action_dict[k]['target_entropy']).detach()) 
+            alpha_loss = self.log_alphas[k] * (-lp - self.action_dict[k]['target_entropy']).detach()
             alpha_loss = (alpha_loss * mask).sum() / mask.sum()
         
             self.alpha_opt[k].zero_grad()
