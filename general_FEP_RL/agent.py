@@ -524,46 +524,74 @@ class Agent:
         return (tensor * expanded_mask)
     
     
-    
-    def compress_log_list(self, values, epochs):
-        if len(values) <= self.max_epochs_in_log:
-            return values, epochs
-        idx = torch.linspace(0, len(values) - 1, steps=self.max_epochs_in_log).long()
-        new_values = [values[i] for i in idx]
-        new_epochs = [epochs[i] for i in idx]
-        return new_values, new_epochs
+        
+    def compress_log(self, log):
+
+        if "epoch_num" not in log:
+            return
+
+        length = len(log["epoch_num"])
+
+        if length <= self.max_epochs_in_log:
+            return
+
+        idx = torch.linspace(
+            0, length - 1,
+            steps=self.max_epochs_in_log
+        ).long()
+
+        def compress_item(item):
+
+            if isinstance(item, dict):
+                for v in item.values():
+                    compress_item(v)
+
+            elif isinstance(item, list):
+                if len(item) == length:
+                    item[:] = [item[j] for j in idx]
+
+                # Handle list-of-lists case (critic_losses etc.)
+                elif len(item) > 0 and isinstance(item[0], list):
+                    for sublist in item:
+                        if len(sublist) == length:
+                            sublist[:] = [sublist[j] for j in idx]
+
+        compress_item(log)
     
     
     
     def recursive_log_append(self, log, new_data):
+
         for key, value in new_data.items():
+
             if isinstance(value, dict):
                 if key not in log:
                     log[key] = {}
                 self.recursive_log_append(log[key], value)
+
             elif isinstance(value, (list, tuple)):
                 if key not in log:
                     log[key] = [[] for _ in range(len(value))]
-                    log[key + "_epochs"] = [[] for _ in range(len(value))]
+
                 for i, item in enumerate(value):
                     log[key][i].append(deepcopy(item))
-                    log[key + "_epochs"][i].append(self.epoch_num)
-                    log[key][i], log[key + "_epochs"][i] = self.compress_log_list(log[key][i], log[key + "_epochs"][i])
+
             else:
                 if key not in log:
                     log[key] = []
-                    log[key + "_epochs"] = []
                 log[key].append(deepcopy(value))
-                log[key + "_epochs"].append(self.epoch_num)
-                log[key], log[key + "_epochs"] = self.compress_log_list(log[key], log[key + "_epochs"])
                 
                 
             
-    def add_to_training_log(self, epoch_dict, actor = False):
-        if actor:
-            self.recursive_log_append(self.training_log_actor, epoch_dict)
-        else:
-            self.recursive_log_append(self.training_log, epoch_dict)
+    def add_to_training_log(self, epoch_dict, actor=False):
+
+        log = self.training_log_actor if actor else self.training_log
+
+        # Append everything first
+        self.recursive_log_append(log, epoch_dict)
+
+        # Compress globally afterward
+        self.compress_log(log)
                                 
     
 
