@@ -2,14 +2,6 @@
 
 
 
-
-
-# IMPLEMENT ACTOR-TRAINING DELAY
-
-
-
-
-
 #------------------
 # agent.py provides a class combining the world model, actor, and critics.
 #------------------
@@ -407,7 +399,7 @@ class Agent:
                 
             new_action_dict, new_log_pis_dict, imitation_loss = self.actor(h_t.detach(), best_action)
             
-            Q_list = [critic(h_t.detach(), new_action_dict) * mask for critic in self.critics]
+            Q_list = [critic(h_t.detach(), new_action_dict) for critic in self.critics]
             Q = torch.min(torch.stack(Q_list, dim=0), dim=0)[0]
             
             entropy = torch.zeros_like(Q)
@@ -434,7 +426,7 @@ class Agent:
                 scalar = self.action_dict[k]['delta']
                 il = imitation_loss[k] * scalar * best_action_mask * mask
                 total_imitation_loss = total_imitation_loss + il
-                imitation_losses[k] = il.sum().item() / (best_action_mask.sum().item() + .0000001)
+                imitation_losses[k] = il.sum().item() / (best_action_mask * mask).sum()
             
             Q = (Q * mask).sum() / mask.sum()
             entropy = (entropy * mask).sum() / mask.sum()
@@ -533,28 +525,37 @@ class Agent:
     
     
     
+    def compress_log_list(self, values, epochs):
+        if len(values) <= self.max_epochs_in_log:
+            return values, epochs
+        idx = torch.linspace(0, len(values) - 1, steps=self.max_epochs_in_log).long()
+        new_values = [values[i] for i in idx]
+        new_epochs = [epochs[i] for i in idx]
+        return new_values, new_epochs
+    
+    
+    
     def recursive_log_append(self, log, new_data):
-
         for key, value in new_data.items():
             if isinstance(value, dict):
                 if key not in log:
                     log[key] = {}
                 self.recursive_log_append(log[key], value)
-
             elif isinstance(value, (list, tuple)):
                 if key not in log:
                     log[key] = [[] for _ in range(len(value))]
+                    log[key + "_epochs"] = [[] for _ in range(len(value))]
                 for i, item in enumerate(value):
                     log[key][i].append(deepcopy(item))
-                    if len(log[key][i]) > self.max_epochs_in_log:
-                        log[key][i] = log[key][i][::2]
-
+                    log[key + "_epochs"][i].append(self.epoch_num)
+                    log[key][i], log[key + "_epochs"][i] = self.compress_log_list(log[key][i], log[key + "_epochs"][i])
             else:
                 if key not in log:
                     log[key] = []
+                    log[key + "_epochs"] = []
                 log[key].append(deepcopy(value))
-                if len(log[key]) > self.max_epochs_in_log:
-                    log[key] = log[key][::2]
+                log[key + "_epochs"].append(self.epoch_num)
+                log[key], log[key + "_epochs"] = self.compress_log_list(log[key], log[key + "_epochs"])
                 
                 
             
