@@ -255,7 +255,7 @@ class Agent:
         
         # Train world model to minimize Free Energy.
         hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(
-            prev_hidden_state = None, obs = obs, prev_action = complete_action)
+            prev_hidden_states = None, obs = obs, prev_action = complete_action)
         
         # hp and hq steps: 
         #   t = -1, 0, 1, ..., n+1
