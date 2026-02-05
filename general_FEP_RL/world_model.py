@@ -82,8 +82,7 @@ class ZP_ZQ(nn.Module):
     def forward(
             self, 
             zp_inputs, 
-            zq_inputs,
-            use_sample = True):                                    
+            zq_inputs):                                    
         zp_mu, zp_std = parametrize_normal(zp_inputs, self.zp_mu, self.zp_std)
         zq_mu, zq_std = parametrize_normal(zq_inputs, self.zq_mu, self.zq_std)
 
@@ -198,6 +197,9 @@ class World_Model_Layer(nn.Module):
             zq_inputs = zq_inputs.reshape(episodes * steps, zq_inputs.shape[2])
             inner_states = z_func(zp_inputs, zq_inputs, use_sample = use_sample)
             return inner_states
+                
+                
+        # WHEN I USE ITEMS, AM I STOPPING BACKPROP?
                 
         if self.bottom_layer:
             zp_inputs = torch.cat([prev_hidden_state] + [v for k, v in sorted(encoded_prev_action.items())], dim=-1)
@@ -450,7 +452,7 @@ class World_Model(nn.Module):
                 encoded_obs = encoded_obs if i==0 else None, 
                 encoded_prev_action = encoded_prev_action if i==0 else None,
                 lower_zp_zq = None if i==0 else first_layer_zp_zq if i==1 else inner_state_dict_list[-1][i-1]['zq'].unsqueeze(1),
-                higher_hidden_state = None if i+1 == len(self.world_layers) else prev_hidden_states[i+1],
+                higher_hidden_state = None if i+1 == len(self.world_layers) else prev_hidden_states[i+1],   
                 use_sample = self.use_sample)
             if i==0:
                 first_layer_zp_zq = torch.cat([value['zq'] for key, value in sorted(inner_state_dict.items())], dim = -1).unsqueeze(1)

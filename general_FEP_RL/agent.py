@@ -114,6 +114,19 @@ class Agent:
             weight_decay = weight_decay)
         self.world_model = torch.compile(self.world_model)
         
+        # Actor.
+        self.actor = Actor(hidden_state_sizes[0], action_dict)
+        self.actor_opt = optim.Adam(self.actor.parameters(), lr = lr_actor, weight_decay = weight_decay) 
+        self.actor = torch.compile(self.actor)
+        
+        # Alpha values (entropy hyperparameter).
+        self.alphas = {key : 1 for key in action_dict.keys()} 
+        self.log_alphas = nn.ParameterDict({key: nn.Parameter(torch.zeros((1,))) for key in action_dict})        
+        self.alpha_opt = {key : optim.Adam(
+            params=[self.log_alphas[key]], 
+            lr = lr_alpha, 
+            weight_decay = 0) for key in action_dict.keys()} 
+        
         # Critics and target critics.
         self.critics = []
         self.critic_targets = []
@@ -128,19 +141,6 @@ class Agent:
                 weight_decay = weight_decay))
             self.critics[-1] = torch.compile(self.critics[-1])
             self.critic_targets[-1] = torch.compile(self.critic_targets[-1])
-                           
-        # Actor.
-        self.actor = Actor(hidden_state_sizes[0], action_dict)
-        self.actor_opt = optim.Adam(self.actor.parameters(), lr = lr_actor, weight_decay = weight_decay) 
-        self.actor = torch.compile(self.actor)
-        
-        # Alpha values (entropy hyperparameter).
-        self.alphas = {key : 1 for key in action_dict.keys()} 
-        self.log_alphas = nn.ParameterDict({key: nn.Parameter(torch.zeros((1,))) for key in action_dict})        
-        self.alpha_opt = {key : optim.Adam(
-            params=[self.log_alphas[key]], 
-            lr = lr_alpha, 
-            weight_decay = 0) for key in action_dict.keys()} 
         
         # Recurrent replay buffer.
         self.buffer = RecurrentReplayBuffer(
@@ -179,9 +179,8 @@ class Agent:
             else:
                 self.set_train()
             self.hp, self.hq, inner_state_dict = self.world_model(
-                self.hq if posterior else self.hp, obs, self.action, one_step = True)
-            self.hp = [h.detach() for h in self.hp]
-            self.hq = [h.detach() for h in self.hq]
+                prev_hidden_states = self.hq if posterior else self.hp, 
+                obs = obs, prev_action = self.action, one_step = True)
             self.action, log_prob = self.actor(self.hq[0] if posterior else self.hp[0]) 
             encoded_action = self.world_model.action_in(self.action)
             pred_obs_p = self.world_model.predict(self.hp[0], encoded_action)
@@ -255,7 +254,8 @@ class Agent:
         
         
         # Train world model to minimize Free Energy.
-        hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(None, obs, complete_action)
+        hp, hq, inner_state_dict, pred_obs_p, pred_obs_q = self.world_model(
+            prev_hidden_state = None, obs = obs, prev_action = complete_action)
         
         # hp and hq steps: 
         #   t = -1, 0, 1, ..., n+1
@@ -432,7 +432,7 @@ class Agent:
             entropy = (entropy * mask).sum() / mask.sum()
             total_imitation_loss = (total_imitation_loss * mask).sum() / mask.sum()
             
-            actor_loss = - Q - entropy - total_imitation_loss
+            actor_loss = - Q - entropy #- total_imitation_loss
             
             self.actor_opt.zero_grad()
             actor_loss.backward()
