@@ -525,7 +525,7 @@ class Agent:
     
     
     
-    def downsample_training_log(seq, max_len):
+    def downsample_training_log(self, seq, max_len):
         n = len(seq)
         if n <= max_len:
             return seq
@@ -566,7 +566,7 @@ class Agent:
                     log[key][i].append(deepcopy(item))
 
                     if len(log[key][i]) > self.max_epochs_in_log:
-                        log[key][i] = downsample_training_log(
+                        log[key][i] = self.downsample_training_log(
                             log[key][i],
                             self.max_epochs_in_log
                         )
@@ -578,7 +578,7 @@ class Agent:
                 log[key].append(deepcopy(value))
 
                 if len(log[key]) > self.max_epochs_in_log:
-                    log[key] = downsample_training_log(
+                    log[key] = self.downsample_training_log(
                         log[key],
                         self.max_epochs_in_log
                     )
