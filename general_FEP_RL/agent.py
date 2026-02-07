@@ -83,7 +83,7 @@ class Agent:
             
             capacity = 128, 
             max_steps = 32,
-            target_epochs_in_log = 64):
+            max_epochs_in_log = 64):
 
         # Miscellaneous. 
         self.observation_dict = observation_dict
@@ -104,7 +104,7 @@ class Agent:
             lr_alpha = lr 
         self.gamma = gamma
         self.d = d
-        self.target_epochs_in_log = target_epochs_in_log
+        self.max_epochs_in_log = max_epochs_in_log
 
         # World model.
         self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales)
@@ -149,8 +149,8 @@ class Agent:
             capacity, 
             max_steps)
         
-        self.training_log = {"target_epochs_in_log" : self.target_epochs_in_log}
-        self.training_log_actor = {"target_epochs_in_log" : self.target_epochs_in_log}
+        self.training_log = {"max_epochs_in_log" : self.max_epochs_in_log}
+        self.training_log_actor = {"max_epochs_in_log" : self.max_epochs_in_log}
         self.epoch_num = 0
         
         self.begin()
@@ -565,10 +565,10 @@ class Agent:
                 for i, item in enumerate(value):
                     log[key][i].append(deepcopy(item))
 
-                    if len(log[key][i]) > self.target_epochs_in_log:
+                    if len(log[key][i]) > self.max_epochs_in_log:
                         log[key][i] = downsample_training_log(
                             log[key][i],
-                            self.target_epochs_in_log
+                            self.max_epochs_in_log
                         )
 
             else:
@@ -577,10 +577,10 @@ class Agent:
 
                 log[key].append(deepcopy(value))
 
-                if len(log[key]) > self.target_epochs_in_log:
+                if len(log[key]) > self.max_epochs_in_log:
                     log[key] = downsample_training_log(
                         log[key],
-                        self.target_epochs_in_log
+                        self.max_epochs_in_log
                     )
                 
             
