@@ -525,9 +525,34 @@ class Agent:
     
     
     
-    def recursive_log_append(self, log, new_data):
+    def downsample_training_log(seq, max_len):
+        n = len(seq)
+        if n <= max_len:
+            return seq
 
+        keep = list(range(n))
+
+        while len(keep) > max_len:
+            best_j = None
+            best_span = None
+
+            for j in range(1, len(keep) - 1):
+                left = keep[j - 1]
+                right = keep[j + 1]
+                span = right - left
+
+                if best_span is None or span < best_span:
+                    best_span = span
+                    best_j = j
+
+            del keep[best_j]
+
+        return [seq[i] for i in keep]
+
+
+    def recursive_log_append(self, log, new_data):
         for key, value in new_data.items():
+
             if isinstance(value, dict):
                 if key not in log:
                     log[key] = {}
@@ -536,18 +561,27 @@ class Agent:
             elif isinstance(value, (list, tuple)):
                 if key not in log:
                     log[key] = [[] for _ in range(len(value))]
+
                 for i, item in enumerate(value):
                     log[key][i].append(deepcopy(item))
-                    if len(log[key][i]) > 2 * self.target_epochs_in_log:
-                        log[key][i] = log[key][i][::2]
+
+                    if len(log[key][i]) > self.target_epochs_in_log:
+                        log[key][i] = downsample_training_log(
+                            log[key][i],
+                            self.target_epochs_in_log
+                        )
 
             else:
                 if key not in log:
                     log[key] = []
+
                 log[key].append(deepcopy(value))
-                if len(log[key]) > 2 * self.target_epochs_in_log:
-                    log[key] = log[key][::2]
-                
+
+                if len(log[key]) > self.target_epochs_in_log:
+                    log[key] = downsample_training_log(
+                        log[key],
+                        self.target_epochs_in_log
+                    )
                 
             
     def add_to_training_log(self, epoch_dict, actor = False):
