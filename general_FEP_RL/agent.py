@@ -83,7 +83,7 @@ class Agent:
             
             capacity = 128, 
             max_steps = 32,
-            max_epochs_in_log = 64):
+            target_epochs_in_log = 64):
 
         # Miscellaneous. 
         self.observation_dict = observation_dict
@@ -104,7 +104,7 @@ class Agent:
             lr_alpha = lr 
         self.gamma = gamma
         self.d = d
-        self.max_epochs_in_log = max_epochs_in_log
+        self.target_epochs_in_log = target_epochs_in_log
 
         # World model.
         self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales)
@@ -149,8 +149,8 @@ class Agent:
             capacity, 
             max_steps)
         
-        self.training_log = {"max_epochs_in_log" : self.max_epochs_in_log}
-        self.training_log_actor = {"max_epochs_in_log" : self.max_epochs_in_log}
+        self.training_log = {"target_epochs_in_log" : self.target_epochs_in_log}
+        self.training_log_actor = {"target_epochs_in_log" : self.target_epochs_in_log}
         self.epoch_num = 0
         
         self.begin()
@@ -525,34 +525,9 @@ class Agent:
     
     
     
-    def downsample_training_log(self, seq, max_len):
-        n = len(seq)
-        if n <= max_len:
-            return seq
-
-        keep = list(range(n))
-
-        while len(keep) > max_len:
-            best_j = None
-            best_span = None
-
-            for j in range(1, len(keep) - 1):
-                left = keep[j - 1]
-                right = keep[j + 1]
-                span = right - left
-
-                if best_span is None or span < best_span:
-                    best_span = span
-                    best_j = j
-
-            del keep[best_j]
-
-        return [seq[i] for i in keep]
-
-
     def recursive_log_append(self, log, new_data):
-        for key, value in new_data.items():
 
+        for key, value in new_data.items():
             if isinstance(value, dict):
                 if key not in log:
                     log[key] = {}
@@ -561,27 +536,18 @@ class Agent:
             elif isinstance(value, (list, tuple)):
                 if key not in log:
                     log[key] = [[] for _ in range(len(value))]
-
                 for i, item in enumerate(value):
                     log[key][i].append(deepcopy(item))
-
-                    if len(log[key][i]) > self.max_epochs_in_log:
-                        log[key][i] = self.downsample_training_log(
-                            log[key][i],
-                            self.max_epochs_in_log
-                        )
+                    if len(log[key][i]) > 2 * self.target_epochs_in_log:
+                        log[key][i] = log[key][i][::2]
 
             else:
                 if key not in log:
                     log[key] = []
-
                 log[key].append(deepcopy(value))
-
-                if len(log[key]) > self.max_epochs_in_log:
-                    log[key] = self.downsample_training_log(
-                        log[key],
-                        self.max_epochs_in_log
-                    )
+                if len(log[key]) > 2 * self.target_epochs_in_log:
+                    log[key] = log[key][::2]
+                
                 
             
     def add_to_training_log(self, epoch_dict, actor = False):
