@@ -83,7 +83,7 @@ class Agent:
             
             capacity = 128, 
             max_steps = 32,
-            max_epochs_in_log = 64):
+            target_epochs_in_log = 64):
 
         # Miscellaneous. 
         self.observation_dict = observation_dict
@@ -104,7 +104,7 @@ class Agent:
             lr_alpha = lr 
         self.gamma = gamma
         self.d = d
-        self.max_epochs_in_log = max_epochs_in_log
+        self.target_epochs_in_log = target_epochs_in_log
 
         # World model.
         self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales)
@@ -112,12 +112,12 @@ class Agent:
             self.world_model.parameters(), 
             lr = lr_world_model, 
             weight_decay = weight_decay)
-        self.world_model = torch.compile(self.world_model)
+        #self.world_model = torch.compile(self.world_model)
         
         # Actor.
         self.actor = Actor(hidden_state_sizes[0], action_dict)
         self.actor_opt = optim.Adam(self.actor.parameters(), lr = lr_actor, weight_decay = weight_decay) 
-        self.actor = torch.compile(self.actor)
+        #self.actor = torch.compile(self.actor)
         
         # Alpha values (entropy hyperparameter).
         self.alphas = {key : 1 for key in action_dict.keys()} 
@@ -139,8 +139,8 @@ class Agent:
                 self.critics[-1].parameters(), 
                 lr = lr_critic, 
                 weight_decay = weight_decay))
-            self.critics[-1] = torch.compile(self.critics[-1])
-            self.critic_targets[-1] = torch.compile(self.critic_targets[-1])
+            #self.critics[-1] = torch.compile(self.critics[-1])
+            #self.critic_targets[-1] = torch.compile(self.critic_targets[-1])
         
         # Recurrent replay buffer.
         self.buffer = RecurrentReplayBuffer(
@@ -149,8 +149,8 @@ class Agent:
             capacity, 
             max_steps)
         
-        self.training_log = {"max_epochs_in_log" : self.max_epochs_in_log}
-        self.training_log_actor = {"max_epochs_in_log" : self.max_epochs_in_log}
+        self.training_log = {"target_epochs_in_log" : self.target_epochs_in_log}
+        self.training_log_actor = {"target_epochs_in_log" : self.target_epochs_in_log}
         self.epoch_num = 0
         
         self.begin()
@@ -201,7 +201,7 @@ class Agent:
         
         
 
-    # Train the world model, actor, and critics.
+    # Train the world model, actor, critics, and alpha parameters.
     def epoch(self, batch_size):
         self.set_train()
                                 
@@ -538,14 +538,14 @@ class Agent:
                     log[key] = [[] for _ in range(len(value))]
                 for i, item in enumerate(value):
                     log[key][i].append(deepcopy(item))
-                    if len(log[key][i]) > self.max_epochs_in_log:
+                    if len(log[key][i]) > 2 * self.target_epochs_in_log:
                         log[key][i] = log[key][i][::2]
 
             else:
                 if key not in log:
                     log[key] = []
                 log[key].append(deepcopy(value))
-                if len(log[key]) > self.max_epochs_in_log:
+                if len(log[key]) > 2 * self.target_epochs_in_log:
                     log[key] = log[key][::2]
                 
                 
