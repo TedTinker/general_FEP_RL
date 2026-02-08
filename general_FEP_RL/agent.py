@@ -560,14 +560,14 @@ class Agent:
                 for i, item in enumerate(value):
                     log[key][i].append(deepcopy(item))
                     if len(log[key][i]) > self.max_epochs_in_log:
-                        log[key][i] = resample_even(log[key][i], self.max_epochs_in_log)
+                        log[key][i] = self.resample_even(log[key][i])
 
             else:
                 if key not in log:
                     log[key] = []
                 log[key].append(deepcopy(value))
                 if len(log[key]) > self.max_epochs_in_log:
-                    log[key] = resample_even(log[key], self.max_epochs_in_log)
+                    log[key] = self.resample_even(log[key])
                 
                 
             
