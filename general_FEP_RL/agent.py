@@ -530,7 +530,7 @@ class Agent:
         if n <= self.max_epochs_in_log:
             return l
 
-        idx = [round(i * (n - 1) / (self.max_epochs_in_log - 1)) for i in range(maxself.max_epochs_in_loglen)]
+        idx = [round(i * (n - 1) / (self.max_epochs_in_log - 1)) for i in range(self.max_epochs_in_loglen)]
 
         # enforce strictly increasing indices
         for i in range(1, self.max_epochs_in_log):
