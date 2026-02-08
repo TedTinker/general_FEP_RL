@@ -83,7 +83,7 @@ class Agent:
             
             capacity = 128, 
             max_steps = 32,
-            target_epochs_in_log = 64):
+            max_epochs_in_log = 64):
 
         # Miscellaneous. 
         self.observation_dict = observation_dict
@@ -104,7 +104,7 @@ class Agent:
             lr_alpha = lr 
         self.gamma = gamma
         self.d = d
-        self.target_epochs_in_log = target_epochs_in_log
+        self.max_epochs_in_log = max_epochs_in_log
 
         # World model.
         self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales)
@@ -149,8 +149,8 @@ class Agent:
             capacity, 
             max_steps)
         
-        self.training_log = {"target_epochs_in_log" : self.target_epochs_in_log}
-        self.training_log_actor = {"target_epochs_in_log" : self.target_epochs_in_log}
+        self.training_log = {"max_epochs_in_log" : self.max_epochs_in_log}
+        self.training_log_actor = {"max_epochs_in_log" : self.max_epochs_in_log}
         self.epoch_num = 0
         
         self.begin()
@@ -525,6 +525,27 @@ class Agent:
     
     
     
+    def resample_even(self, l):
+        n = len(l)
+        if n <= self.max_epochs_in_log:
+            return l
+
+        idx = [round(i * (n - 1) / (self.max_epochs_in_log - 1)) for i in range(maxself.max_epochs_in_loglen)]
+
+        # enforce strictly increasing indices
+        for i in range(1, self.max_epochs_in_log):
+            if idx[i] <= idx[i - 1]:
+                idx[i] = idx[i - 1] + 1
+
+        # pull back if needed
+        for i in range(self.max_epochs_in_log - 2, -1, -1):
+            if idx[i] >= idx[i + 1]:
+                idx[i] = idx[i + 1] - 1
+
+        return [l[i] for i in idx]
+    
+    
+    
     def recursive_log_append(self, log, new_data):
 
         for key, value in new_data.items():
@@ -538,15 +559,15 @@ class Agent:
                     log[key] = [[] for _ in range(len(value))]
                 for i, item in enumerate(value):
                     log[key][i].append(deepcopy(item))
-                    if len(log[key][i]) > 2 * self.target_epochs_in_log:
-                        log[key][i] = log[key][i][::2]
+                    if len(log[key][i]) > self.max_epochs_in_log:
+                        log[key][i] = resample_even(log[key][i], self.max_epochs_in_log)
 
             else:
                 if key not in log:
                     log[key] = []
                 log[key].append(deepcopy(value))
-                if len(log[key]) > 2 * self.target_epochs_in_log:
-                    log[key] = log[key][::2]
+                if len(log[key]) > self.max_epochs_in_log:
+                    log[key] = resample_even(log[key], self.max_epochs_in_log)
                 
                 
             
