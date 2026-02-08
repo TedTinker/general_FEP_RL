@@ -526,21 +526,23 @@ class Agent:
     
     
     def resample_even(self, l):
-        n = len(l)
-        if n <= self.max_epochs_in_log:
+        if len(l) <= self.max_epochs_in_log:
             return l
 
-        idx = [round(i * (n - 1) / (self.max_epochs_in_log - 1)) for i in range(self.max_epochs_in_log)]
+        epochs = [e for e, _ in l]
+        n = len(l)
 
-        # enforce strictly increasing indices
-        for i in range(1, self.max_epochs_in_log):
-            if idx[i] <= idx[i - 1]:
-                idx[i] = idx[i - 1] + 1
+        idx = [round(i * (n - 1) / (self.max_epochs_in_log - 1))
+            for i in range(self.max_epochs_in_log)]
 
-        # pull back if needed
-        for i in range(self.max_epochs_in_log - 2, -1, -1):
-            if idx[i] >= idx[i + 1]:
-                idx[i] = idx[i + 1] - 1
+        # enforce strictly increasing
+        for i in range(1, len(idx)):
+            if idx[i] <= idx[i-1]:
+                idx[i] = idx[i-1] + 1
+
+        for i in range(len(idx)-2, -1, -1):
+            if idx[i] >= idx[i+1]:
+                idx[i] = idx[i+1] - 1
 
         return [l[i] for i in idx]
     
