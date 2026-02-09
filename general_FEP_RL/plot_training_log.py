@@ -1,93 +1,76 @@
 import matplotlib.pyplot as plt
 
-def plot_training_log(agent, folder="", epoch = 0):
-    
-    training_log = agent.training_log 
+def plot_training_log(agent, figsize=(16, 10)):
+    training_log = agent.training_log
     training_log_actor = agent.training_log_actor
-    
+
     epoch_nums = training_log["epoch_num"]
     epoch_nums_actor = training_log_actor["epoch_num"]
-        
-    plt.figure(figsize=(6, 6))
+
+    fig, axs = plt.subplots(2, 3, figsize=figsize)
+    axs = axs.flatten()
+
+    # --- Plot 1: Accuracy + Complexity losses ---
+    ax = axs[0]
     for key, value in training_log["accuracy_losses"].items():
-        plt.plot(epoch_nums, value, label=f"accuracy loss {key}")
+        ax.plot(epoch_nums, value, label=f"accuracy loss {key}")
     for key, value in training_log["complexity_losses"].items():
-        plt.plot(epoch_nums, value, label=f"complexity loss {key}")
-    plt.title(f"Losses for Accuracy and Complexity over epochs")
-    plt.xlabel("Epoch")
-    plt.ylabel("Value")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    #if folder != "":
-    #    os.makedirs(f"{folder}/accuracy", exist_ok=True)
-    #    plt.savefig(f"{folder}/accuracy/{epoch}.png")
-    plt.show()
-    plt.close()
-    
-    plt.figure(figsize=(6, 6))
-    plt.plot(epoch_nums, training_log["average_reward"], label="reward")
+        ax.plot(epoch_nums, value, label=f"complexity loss {key}")
+    ax.set_title("Losses (Accuracy & Complexity)")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Value")
+    ax.grid(True)
+    ax.legend()
+
+    # --- Plot 2: Rewards ---
+    ax = axs[1]
+    ax.plot(epoch_nums, training_log["average_reward"], label="reward")
     for key, value in training_log["curiosities"].items():
-        plt.plot(epoch_nums, value, label=f"curiosity {key}")
-    plt.plot(epoch_nums, training_log["total_reward"], label="total")
-    plt.title(f"Rewards over epochs")
-    plt.xlabel("Epoch")
-    plt.ylabel("Value")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    #if folder != "":
-    #    os.makedirs(f"{folder}/reward", exist_ok=True)
-    #    plt.savefig(f"{folder}/reward/{epoch}.png")
-    plt.show()
-    plt.close()
-    
-    plt.figure(figsize=(6, 6))
-    plt.plot(epoch_nums_actor, training_log_actor["Q_for_actor"], label="-Q_for_actor")
-    plt.plot(epoch_nums_actor, training_log_actor["entropy_for_actor"], label="-entropy_for_actor")
-    plt.plot(epoch_nums_actor, training_log_actor["total_imitation_loss"], label="-total_imitation_loss")
-    plt.plot(epoch_nums_actor, training_log_actor["actor_loss"], label="actor_loss")
-    plt.title(f"Actor loss over epochs")
-    plt.xlabel("Epoch")
-    plt.ylabel("Value")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    #if folder != "":
-    #    os.makedirs(f"{folder}/actor", exist_ok=True)
-    #    plt.savefig(f"{folder}/actor/{epoch}.png")
-    plt.show()
-    plt.close()
-    
-    plt.figure(figsize=(6, 6))
-    plt.plot(epoch_nums, training_log["Q_target"], label="Q Target")
-    for i, critic_loss in enumerate(training_log["critic_predictions"]):
-        plt.plot(epoch_nums, critic_loss, label=f"Critic {i} Predictions")
-    #for i, loss in enumerate(training_log["critic_losses"]):
-    #    plt.plot(epoch_nums, loss, label=f"Critic {i} Loss")
-    plt.title(f"Critic predictions over epochs")
-    plt.xlabel("Epoch")
-    plt.ylabel("Value")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    #if folder != "":
-    #    os.makedirs(f"{folder}/critic", exist_ok=True)
-    #    plt.savefig(f"{folder}/critic/{epoch}.png")
-    plt.show()
-    plt.close()
-    
-    plt.figure(figsize=(6, 6))
+        ax.plot(epoch_nums, value, label=f"curiosity {key}")
+    ax.plot(epoch_nums, training_log["total_reward"], label="total")
+    ax.set_title("Rewards")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Value")
+    ax.grid(True)
+    ax.legend()
+
+    # --- Plot 3: Actor losses ---
+    ax = axs[2]
+    ax.plot(epoch_nums_actor, training_log_actor["Q_for_actor"], label="Q_for_actor")
+    ax.plot(epoch_nums_actor, training_log_actor["entropy_for_actor"], label="entropy_for_actor")
+    ax.plot(epoch_nums_actor, training_log_actor["total_imitation_loss"], label="total_imitation_loss")
+    ax.plot(epoch_nums_actor, training_log_actor["actor_loss"], label="actor_loss")
+    ax.set_title("Actor Losses")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Value")
+    ax.grid(True)
+    ax.legend()
+
+    # --- Plot 4: Critic predictions ---
+    ax = axs[3]
+    ax.plot(epoch_nums, training_log["Q_target"], label="Q Target")
+    for i, critic_pred in enumerate(training_log["critic_predictions"]):
+        ax.plot(epoch_nums, critic_pred, label=f"Critic {i} Predictions")
+    ax.set_title("Critic Predictions")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Value")
+    ax.grid(True)
+    ax.legend()
+
+    # --- Plot 5: Alphas ---
+    ax = axs[4]
     for key, alpha in training_log_actor["alphas"].items():
-        plt.plot(epoch_nums_actor, alpha, label=f"Alpha {key}")
-    plt.title(f"Alphas over epochs")
-    plt.xlabel("Epoch")
-    plt.ylabel("Value")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    #if folder != "":
-    #    os.makedirs(f"{folder}/critic", exist_ok=True)
-    #    plt.savefig(f"{folder}/critic/{epoch}.png")
-    plt.show()
-    plt.close()
+        ax.plot(epoch_nums_actor, alpha, label=f"Alpha {key}")
+    ax.set_title("Alphas")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Value")
+    ax.grid(True)
+    ax.legend()
+
+    # --- Plot 6: Empty / extra space ---
+    axs[5].axis("off")
+
+    fig.tight_layout()
+
+    return fig
+
