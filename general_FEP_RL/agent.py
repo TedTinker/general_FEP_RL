@@ -526,17 +526,35 @@ class Agent:
     
     
     def resample_even(self, l):
-        n = len(l)
-        if n <= self.max_epochs_in_log:
+        """
+        Maintains a maximum list size by removing the most 'congested' point.
+        This ensures that points drift apart evenly over time.
+        """
+        if len(l) <= self.max_epochs_in_log:
             return l
 
-        # Goal: Pick 'max_epochs_in_log' indices from 0 to n-1
-        # We use a float step to ensure even distribution
-        indices = [int(round(i * (n - 1) / (self.max_epochs_in_log - 1))) 
-                for i in range(self.max_epochs_in_log)]
+        # We use the index as a proxy for 'time' to find the best spread.
+        # We want to keep the first (0) and the last (len-1) point always.
+        # We look for the index 'i' such that removing l[i] creates 
+        # the most uniform spacing possible among the remainder.
         
-        # Using a list comprehension to build the new list
-        return [l[i] for i in indices]
+        best_idx_to_remove = -1
+        smallest_gap = float('inf')
+
+        # Iterate through indices, skipping the first and last
+        for i in range(1, len(l) - 1):
+            # Calculate the gap created if we kept this point 
+            # (distance between neighbors)
+            gap = (l[i+1]['epoch_num'] - l[i-1]['epoch_num'])
+            
+            # We want to remove the point that exists in the most 
+            # crowded neighborhood.
+            if gap < smallest_gap:
+                smallest_gap = gap
+                best_idx_to_remove = i
+
+        l.pop(best_idx_to_remove)
+        return l
     
     
     
