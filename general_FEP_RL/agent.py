@@ -526,32 +526,37 @@ class Agent:
     
     
     def resample_even(self, l):
-        """
-        Maintains a maximum list size by removing the most 'congested' point.
-        This ensures that points drift apart evenly over time.
-        """
         if len(l) <= self.max_epochs_in_log:
             return l
 
-        # We use the index as a proxy for 'time' to find the best spread.
-        # We want to keep the first (0) and the last (len-1) point always.
-        # We look for the index 'i' such that removing l[i] creates 
-        # the most uniform spacing possible among the remainder.
-        
+        # We want to keep the first and last elements.
+        # We find the index 'i' where the neighbors are closest together.
         best_idx_to_remove = -1
         smallest_gap = float('inf')
 
-        # Iterate through indices, skipping the first and last
+        # Note: we use the indices to calculate spacing
         for i in range(1, len(l) - 1):
-            # Calculate the gap created if we kept this point 
-            # (distance between neighbors)
-            gap = (l[i+1]['epoch_num'] - l[i-1]['epoch_num'])
+            # In a perfectly even list, the gap between i+1 and i-1 is constant.
+            # Here, we look for the smallest jump.
+            # Since we don't have the epoch_num for raw number lists, 
+            # we can pass the epoch_num as a separate list or just use 
+            # the inherent logic that index = time.
             
-            # We want to remove the point that exists in the most 
-            # crowded neighborhood.
+            # If the list contains dicts with 'epoch_num', use them.
+            # Otherwise, we use the relative spacing.
+            try:
+                gap = l[i+1]['epoch_num'] - l[i-1]['epoch_num']
+            except (TypeError, KeyError):
+                # Fallback for raw numbers: 
+                # This is tricky because indices [1, 2, 3] always have gap 2.
+                # To get that 'drift', we just pick the first available candidate.
+                gap = 1 
+
             if gap < smallest_gap:
                 smallest_gap = gap
                 best_idx_to_remove = i
+                # Break early if we find a minimal gap to keep it moving
+                if gap == 1: break 
 
         l.pop(best_idx_to_remove)
         return l
