@@ -525,66 +525,58 @@ class Agent:
     
     
     
-    def resample_even(self, log):
-        """
-        Finds the most 'congested' epoch in the log and removes it from 
-        EVERY list/tensor in the dictionary tree.
-        """
-        # 1. Use 'epoch_num' as the master guide for spacing
-        # This list is guaranteed to be simple integers.
-        epochs = log.get('epoch_num', [])
-        if len(epochs) <= self.max_epochs_in_log:
-            return
+    def resample_even(self, l):
+        """n = len(l)
+        if n <= self.max_epochs_in_log:
+            return l
 
-        # 2. Find the index 'i' where the neighbors are closest together
-        best_idx_to_remove = 1
-        smallest_gap = float('inf')
+        idx = [round(i * (n - 1) / (self.max_epochs_in_log - 1)) for i in range(self.max_epochs_in_log)]
 
-        for i in range(1, len(epochs) - 1):
-            gap = epochs[i+1] - epochs[i-1]
-            if gap < smallest_gap:
-                smallest_gap = gap
-                best_idx_to_remove = i
-                if gap == 2: break # We can't get closer than a gap of 2 once stride increases
+        # enforce strictly increasing indices
+        for i in range(1, self.max_epochs_in_log):
+            if idx[i] <= idx[i - 1]:
+                idx[i] = idx[i - 1] + 1
 
-        # 3. Recursively remove this index from every list/tensor in the log
-        self.recursive_remove_at_index(log, best_idx_to_remove)
+        # pull back if needed
+        for i in range(self.max_epochs_in_log - 2, -1, -1):
+            if idx[i] >= idx[i + 1]:
+                idx[i] = idx[i + 1] - 1
 
-    def recursive_remove_at_index(self, d, idx):
-        for key, value in d.items():
-            if isinstance(value, dict):
-                self.recursive_remove_at_index(value, idx)
-            elif isinstance(value, list):
-                # Only pop if the list is actually tracking epoch-wise data
-                if len(value) > idx:
-                    value.pop(idx)
-            # Note: We don't need to handle Tensors here because 
-            # your code stores them inside lists after deepcopying.
+        return [l[i] for i in idx]"""
+        return(l[-self.max_epochs_in_log:])
     
     
     
-    def add_to_training_log(self, epoch_dict, actor = False):
-        target_log = self.training_log_actor if actor else self.training_log
-        
-        # 1. Just append the data (no resampling inside here anymore)
-        self.recursive_log_append(target_log, epoch_dict)
-        
-        # 2. Prune the entire log tree at once if it's too full
-        # This keeps all metrics (rewards, losses, images) perfectly synced
-        if len(target_log.get('epoch_num', [])) > self.max_epochs_in_log:
-            self.resample_even(target_log)
-
     def recursive_log_append(self, log, new_data):
+
         for key, value in new_data.items():
             if isinstance(value, dict):
                 if key not in log:
                     log[key] = {}
                 self.recursive_log_append(log[key], value)
+
+            elif isinstance(value, (list, tuple)):
+                if key not in log:
+                    log[key] = [[] for _ in range(len(value))]
+                for i, item in enumerate(value):
+                    log[key][i].append(deepcopy(item))
+                    if len(log[key][i]) > self.max_epochs_in_log:
+                        log[key][i] = self.resample_even(log[key][i])
+
             else:
                 if key not in log:
                     log[key] = []
                 log[key].append(deepcopy(value))
-                # WE REMOVED THE RESAMPLE CALL FROM HERE
+                if len(log[key]) > self.max_epochs_in_log:
+                    log[key] = self.resample_even(log[key])
+                
+                
+            
+    def add_to_training_log(self, epoch_dict, actor = False):
+        if actor:
+            self.recursive_log_append(self.training_log_actor, epoch_dict)
+        else:
+            self.recursive_log_append(self.training_log, epoch_dict)
                                 
     
 
