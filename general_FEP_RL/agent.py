@@ -525,41 +525,41 @@ class Agent:
     
     
     
-    def resample_even(self, l):
-        if len(l) <= self.max_epochs_in_log:
-            return l
+    def resample_even(self, log):
+        """
+        Finds the most 'congested' epoch in the log and removes it from 
+        EVERY list/tensor in the dictionary tree.
+        """
+        # 1. Use 'epoch_num' as the master guide for spacing
+        # This list is guaranteed to be simple integers.
+        epochs = log.get('epoch_num', [])
+        if len(epochs) <= self.max_epochs_in_log:
+            return
 
-        # We want to keep the first and last elements.
-        # We find the index 'i' where the neighbors are closest together.
-        best_idx_to_remove = -1
+        # 2. Find the index 'i' where the neighbors are closest together
+        best_idx_to_remove = 1
         smallest_gap = float('inf')
 
-        # Note: we use the indices to calculate spacing
-        for i in range(1, len(l) - 1):
-            # In a perfectly even list, the gap between i+1 and i-1 is constant.
-            # Here, we look for the smallest jump.
-            # Since we don't have the epoch_num for raw number lists, 
-            # we can pass the epoch_num as a separate list or just use 
-            # the inherent logic that index = time.
-            
-            # If the list contains dicts with 'epoch_num', use them.
-            # Otherwise, we use the relative spacing.
-            try:
-                gap = l[i+1]['epoch_num'] - l[i-1]['epoch_num']
-            except (TypeError, KeyError):
-                # Fallback for raw numbers: 
-                # This is tricky because indices [1, 2, 3] always have gap 2.
-                # To get that 'drift', we just pick the first available candidate.
-                gap = 1 
-
+        for i in range(1, len(epochs) - 1):
+            gap = epochs[i+1] - epochs[i-1]
             if gap < smallest_gap:
                 smallest_gap = gap
                 best_idx_to_remove = i
-                # Break early if we find a minimal gap to keep it moving
-                if gap == 1: break 
+                if gap == 2: break # We can't get closer than a gap of 2 once stride increases
 
-        l.pop(best_idx_to_remove)
-        return l
+        # 3. Recursively remove this index from every list/tensor in the log
+        self.recursive_remove_at_index(log, best_idx_to_remove)
+
+    def recursive_remove_at_index(self, d, idx):
+        for key, value in d.items():
+            if isinstance(value, dict):
+                self.recursive_remove_at_index(value, idx)
+            elif isinstance(value, list):
+                # Only pop if the list is actually tracking epoch-wise data
+                if len(value) > idx:
+                    value.pop(idx)
+            # Note: We don't need to handle Tensors here because 
+            # your code stores them inside lists after deepcopying.
     
     
     
