@@ -563,36 +563,28 @@ class Agent:
     
     
     
-    def recursive_log_append(self, log, new_data):
+    def add_to_training_log(self, epoch_dict, actor = False):
+        target_log = self.training_log_actor if actor else self.training_log
+        
+        # 1. Just append the data (no resampling inside here anymore)
+        self.recursive_log_append(target_log, epoch_dict)
+        
+        # 2. Prune the entire log tree at once if it's too full
+        # This keeps all metrics (rewards, losses, images) perfectly synced
+        if len(target_log.get('epoch_num', [])) > self.max_epochs_in_log:
+            self.resample_even(target_log)
 
+    def recursive_log_append(self, log, new_data):
         for key, value in new_data.items():
             if isinstance(value, dict):
                 if key not in log:
                     log[key] = {}
                 self.recursive_log_append(log[key], value)
-
-            elif isinstance(value, (list, tuple)):
-                if key not in log:
-                    log[key] = [[] for _ in range(len(value))]
-                for i, item in enumerate(value):
-                    log[key][i].append(deepcopy(item))
-                    if len(log[key][i]) > self.max_epochs_in_log:
-                        log[key][i] = self.resample_even(log[key][i])
-
             else:
                 if key not in log:
                     log[key] = []
                 log[key].append(deepcopy(value))
-                if len(log[key]) > self.max_epochs_in_log:
-                    log[key] = self.resample_even(log[key])
-                
-                
-            
-    def add_to_training_log(self, epoch_dict, actor = False):
-        if actor:
-            self.recursive_log_append(self.training_log_actor, epoch_dict)
-        else:
-            self.recursive_log_append(self.training_log, epoch_dict)
+                # WE REMOVED THE RESAMPLE CALL FROM HERE
                                 
     
 
