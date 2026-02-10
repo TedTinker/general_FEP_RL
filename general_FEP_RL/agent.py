@@ -72,6 +72,7 @@ class Agent:
             number_of_critics = 2, 
             tau = .1,
             gamma = .99,
+            value_decoder = None,
             d = 1,
             
             lr = .0001,
@@ -132,8 +133,8 @@ class Agent:
         self.critic_targets = []
         self.critic_opts = []
         for _ in range(number_of_critics):
-            self.critics.append(Critic(hidden_state_sizes[0], action_dict))
-            self.critic_targets.append(Critic(hidden_state_sizes[0], action_dict))
+            self.critics.append(Critic(hidden_state_sizes[0], action_dict, value_decoder))
+            self.critic_targets.append(Critic(hidden_state_sizes[0], action_dict, value_decoder))
             self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
             self.critic_opts.append(optim.Adam(
                 self.critics[-1].parameters(), 
