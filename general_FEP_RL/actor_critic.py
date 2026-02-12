@@ -154,7 +154,11 @@ class Critic(nn.Module):
             self.value_decoder = nn.Sequential(
                 nn.Linear(
                     full_encoding_size, 
-                    1))
+                    hidden_state_size),
+                nn.PReLU(),
+                nn.Linear(
+                    hidden_state_size, 
+                    1),)
                         
         self.example_output = self.value_decoder(example_encoding)
         
