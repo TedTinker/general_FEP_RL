@@ -535,9 +535,8 @@ class Agent:
     
     
     def excess_epoch_numbers(self, log):
-        if log == {}:
+        if not 'epoch_num' in log:
             return None
-        print(log.keys())
         epoch_numbers = log['epoch_num']
         if len(epoch_numbers) < self.max_epochs_in_log:
             return None
