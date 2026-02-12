@@ -526,29 +526,25 @@ class Agent:
     
     
     
-    def resample_even(self, l):
-        """n = len(l)
-        if n <= self.max_epochs_in_log:
-            return l
-
-        idx = [round(i * (n - 1) / (self.max_epochs_in_log - 1)) for i in range(self.max_epochs_in_log)]
-
-        # enforce strictly increasing indices
-        for i in range(1, self.max_epochs_in_log):
-            if idx[i] <= idx[i - 1]:
-                idx[i] = idx[i - 1] + 1
-
-        # pull back if needed
-        for i in range(self.max_epochs_in_log - 2, -1, -1):
-            if idx[i] >= idx[i + 1]:
-                idx[i] = idx[i + 1] - 1
-
-        return [l[i] for i in idx]"""
-        return(l[-self.max_epochs_in_log:])
+    # I really want to be drop excess epochs based on number, to leave a roughly uniform sequences.
+    # However, this has turns out to be more difficult than I thought.
+    def resample_even(self, l, excess_epoch_numbers):
+        return(l[::2]) # For now, just curring the training log in half, which takes a LOT of information from the beginning. 
+        #return([epoch_number for epoch_number in l if not epoch_number in excell_epoch_numbers])
     
+    
+    
+    def excess_epoch_numbers(self):
+        epoch_numbers = self.training_log['epoch_num']
+        if len(epoch_numbers) < self.max_epochs_in_log:
+            return None
+        return [-1] 
+
     
     
     def recursive_log_append(self, log, new_data):
+        
+        excess_epoch_numbers = self.excess_epoch_numbers()
 
         for key, value in new_data.items():
             if isinstance(value, dict):
@@ -561,15 +557,15 @@ class Agent:
                     log[key] = [[] for _ in range(len(value))]
                 for i, item in enumerate(value):
                     log[key][i].append(deepcopy(item))
-                    if len(log[key][i]) > self.max_epochs_in_log:
-                        log[key][i] = self.resample_even(log[key][i])
+                    if excess_epoch_numbers is not None:
+                        log[key][i] = self.resample_even(log[key][i], excess_epoch_numbers)
 
             else:
                 if key not in log:
                     log[key] = []
                 log[key].append(deepcopy(value))
-                if len(log[key]) > self.max_epochs_in_log:
-                    log[key] = self.resample_even(log[key])
+                if excess_epoch_numbers is not None:
+                    log[key] = self.resample_even(log[key], excess_epoch_numbers)
                 
                 
             
