@@ -534,8 +534,8 @@ class Agent:
     
     
     
-    def excess_epoch_numbers(self):
-        epoch_numbers = self.training_log['epoch_num']
+    def excess_epoch_numbers(self, log):
+        epoch_numbers = log['epoch_num']
         if len(epoch_numbers) < self.max_epochs_in_log:
             return None
         return [-1] 
@@ -544,7 +544,7 @@ class Agent:
     
     def recursive_log_append(self, log, new_data):
         
-        excess_epoch_numbers = self.excess_epoch_numbers()
+        excess_epoch_numbers = self.excess_epoch_numbers(log)
 
         for key, value in new_data.items():
             if isinstance(value, dict):
