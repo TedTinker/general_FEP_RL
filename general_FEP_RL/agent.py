@@ -336,10 +336,13 @@ class Agent:
         #   -E_{\pi_\phi(a_t | o_t)} [\log p(a_t^\ast | o_t)]   (Imitation)
         total_reward = (reward + curiosity).detach() * mask
         
-        hq_all = hq[0].detach()                 # (B, T+2, H)
+        hq_all = hq[0].detach()                 # (B, T+2, H), including initializing hq and final, unused hq.
         h_t    = hq_all[:, 1:-1]                # (B, T,   H)  -> h_t
         h_tp1  = hq_all[:, 2:]                  # (B, T,   H)  -> h_{t+1}
         
+        
+        print("\n\n\n\n")
+        print(h_t.shape, h_tp1.shape)
         
         
         # Target critics make target Q-values.
@@ -369,11 +372,14 @@ class Agent:
             # Mask invalid timesteps.
             Q_target = Q_target * mask
             
+            print(Q_target.shape)
+            
         
         
         # Train critics to match Q_target        
         for i, critic in enumerate(self.critics):
             Q_pred = critic(h_t.detach(), action)
+            print(Q_pred.shape)
             td_error = Q_pred - Q_target
             critic_loss = 0.5 * (td_error**2 * mask).sum() / mask.sum()
             critic_losses.append(critic_loss.item())
