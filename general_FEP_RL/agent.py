@@ -340,10 +340,7 @@ class Agent:
         h_t    = hq_all[:, 1:-1]                # (B, T,   H)  -> h_t
         h_tp1  = hq_all[:, 2:]                  # (B, T,   H)  -> h_{t+1}
         
-        
-        print("\n\n\n\n")
-        print("h_t, h_tp1", h_t.shape, h_tp1.shape)
-        
+                
         
         # Target critics make target Q-values.
         with torch.no_grad():
@@ -371,15 +368,12 @@ class Agent:
         
             # Mask invalid timesteps.
             Q_target = Q_target * mask
-            
-            print("target_Q", Q_target.shape)
-            
+                        
         
         
         # Train critics to match Q_target        
         for i, critic in enumerate(self.critics):
             Q_pred = critic(h_t.detach(), action)
-            print("Q_pred", Q_pred.shape)
             td_error = Q_pred - Q_target
             critic_loss = 0.5 * (td_error**2 * mask).sum() / mask.sum()
             critic_losses.append(critic_loss.item())
