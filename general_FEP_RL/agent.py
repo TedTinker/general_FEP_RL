@@ -544,7 +544,7 @@ class Agent:
                 idx[i] = idx[i + 1] - 1
 
         return [l[i] for i in idx]"""
-        return(l[-self.max_epochs_in_log:])
+        return(l[::2])
     
     
     
