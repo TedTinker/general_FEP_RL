@@ -121,7 +121,7 @@ class Agent:
         #self.actor = torch.compile(self.actor)
         
         # Alpha values (entropy hyperparameter).
-        self.alphas = {key : 1 for key in action_dict.keys()} 
+        self.alphas = {key : 1 for key in action_dict.keys()} # Maybe we should have an "initial_alpha" variable?
         self.log_alphas = nn.ParameterDict({key: nn.Parameter(torch.zeros((1,))) for key in action_dict})        
         self.alpha_opt = {key : optim.Adam(
             params=[self.log_alphas[key]], 
@@ -433,7 +433,7 @@ class Agent:
             entropy = (entropy * mask).sum() / mask.sum()
             total_imitation_loss = (total_imitation_loss * mask).sum() / mask.sum()
             
-            actor_loss = - Q - entropy #- total_imitation_loss
+            actor_loss = - Q - entropy - total_imitation_loss
             
             self.actor_opt.zero_grad()
             actor_loss.backward()

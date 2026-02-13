@@ -144,16 +144,18 @@ class RecurrentReplayBuffer:
             return None
 
         if random_sample:
-            indices = torch.randint(0, self.num_episodes, (batch_size,))
+            indices = torch.randperm(self.num_episodes)[:min(batch_size, self.num_episodes)]
         else:
             indices = torch.arange(min(batch_size, self.num_episodes))
 
         batch = {
             'obs': {k: buf.sample(indices) for k, buf in self.observation_buffers.items()},
             'action': {k: buf.sample(indices) for k, buf in self.action_buffers.items()},
-            'best_action' : {k: buf.sample(indices) for k, buf in self.best_action_buffers.items()},
+            'best_action': {k: buf.sample(indices) for k, buf in self.best_action_buffers.items()},
             'reward': self.reward.sample(indices),
             'done': self.done.sample(indices),
             'mask': self.mask.sample(indices),
-            'best_action_mask': self.best_action_mask.sample(indices)}
+            'best_action_mask': self.best_action_mask.sample(indices),
+        }
+
         return batch
