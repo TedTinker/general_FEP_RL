@@ -216,6 +216,8 @@ class Agent:
         mask = batch['mask']
         best_action_mask = batch['best_action_mask']
         
+        batch_size = reward.shape[0]
+        
         # Shapes: (batch, steps, ...)
         # Steps: 
         #   t = 0, 1, 2, 3, ..., n.
