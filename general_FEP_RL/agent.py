@@ -108,16 +108,17 @@ class Agent:
         self.gamma = gamma
         self.d = d
         self.max_epochs_in_log = max_epochs_in_log
+        self.verbose = verbose
 
         # World model.
-        self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales, verbose = verbose)
+        self.world_model = World_Model(hidden_state_sizes, observation_dict, action_dict, time_scales, verbose = self.verbose)
         self.world_model_opt = optim.Adam(
             self.world_model.parameters(), 
             lr = lr_world_model, 
             weight_decay = weight_decay)
         
         # Actor.
-        self.actor = Actor(hidden_state_sizes[0], action_dict, verbose = verbose)
+        self.actor = Actor(hidden_state_sizes[0], action_dict, verbose = self.verbose)
         self.actor_opt = optim.Adam(self.actor.parameters(), lr = lr_actor, weight_decay = weight_decay) 
         
         # Alpha values (entropy hyperparameter).
@@ -133,7 +134,7 @@ class Agent:
         self.critic_targets = []
         self.critic_opts = []
         for _ in range(number_of_critics):
-            self.critics.append(Critic(hidden_state_sizes[0], action_dict, value_decoder, verbose = verbose))
+            self.critics.append(Critic(hidden_state_sizes[0], action_dict, value_decoder, verbose = self.verbose))
             self.critic_targets.append(Critic(hidden_state_sizes[0], action_dict, value_decoder, verbose = False))
             self.critic_targets[-1].load_state_dict(self.critics[-1].state_dict())
             self.critic_opts.append(optim.Adam(
