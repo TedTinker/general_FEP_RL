@@ -123,6 +123,7 @@ if __name__ == '__main__':
     #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
     
     
+    
 #%%
 
 
@@ -200,7 +201,6 @@ class World_Model_Layer(nn.Module):
             return inner_states
                 
                 
-        # WHEN I USE ITEMS, AM I STOPPING BACKPROP?
                 
         if self.bottom_layer:
             zp_inputs = torch.cat([prev_hidden_state] + [v for k, v in sorted(encoded_prev_action.items())], dim=-1)

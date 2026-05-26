@@ -113,12 +113,10 @@ class Agent:
             self.world_model.parameters(), 
             lr = lr_world_model, 
             weight_decay = weight_decay)
-        #self.world_model = torch.compile(self.world_model)
         
         # Actor.
         self.actor = Actor(hidden_state_sizes[0], action_dict)
         self.actor_opt = optim.Adam(self.actor.parameters(), lr = lr_actor, weight_decay = weight_decay) 
-        #self.actor = torch.compile(self.actor)
         
         # Alpha values (entropy hyperparameter).
         self.alphas = {key : 1 for key in action_dict.keys()} # Maybe we should have an "initial_alpha" variable?
@@ -140,8 +138,6 @@ class Agent:
                 self.critics[-1].parameters(), 
                 lr = lr_critic, 
                 weight_decay = weight_decay))
-            #self.critics[-1] = torch.compile(self.critics[-1])
-            #self.critic_targets[-1] = torch.compile(self.critic_targets[-1])
         
         # Recurrent replay buffer.
         self.buffer = RecurrentReplayBuffer(
@@ -169,8 +165,8 @@ class Agent:
         
         
     
-    # In each step, an agent processes an observation and an action to update hidden states.
-    # Then, make a new action and predict future observations and Q-values.
+    # In each step, an agent encodes current observation and previous action to update hidden states.
+    # Then, decode a new action and predict future observations and Q-values.
     def step_in_episode(self, obs, posterior = True, best_action = None, eval = False):
         with torch.no_grad():
             if best_action is not None:
@@ -528,24 +524,9 @@ class Agent:
     
     
     
+    # I want to find a way to do this which is more human-legible. 
+    # At the moment, the early data is cut in half more often than later data.
     def resample_even(self, l):
-        """n = len(l)
-        if n <= self.max_epochs_in_log:
-            return l
-
-        idx = [round(i * (n - 1) / (self.max_epochs_in_log - 1)) for i in range(self.max_epochs_in_log)]
-
-        # enforce strictly increasing indices
-        for i in range(1, self.max_epochs_in_log):
-            if idx[i] <= idx[i - 1]:
-                idx[i] = idx[i - 1] + 1
-
-        # pull back if needed
-        for i in range(self.max_epochs_in_log - 2, -1, -1):
-            if idx[i] >= idx[i + 1]:
-                idx[i] = idx[i + 1] - 1
-
-        return [l[i] for i in idx]"""
         return(l[::2])
     
     

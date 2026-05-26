@@ -53,8 +53,6 @@ class MTRNNCell(nn.Module):
     
     
     
-    
-    
 #------------------
 # Example. 
 #------------------
@@ -81,6 +79,8 @@ if __name__ == "__main__":
                                 ((episodes, steps, 16), 
                                 (episodes, steps, 32))))
     #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=100))
+        
+        
         
 #%%
     
@@ -117,65 +117,6 @@ class MTRNN(nn.Module):
         return outputs
     
     
-    
-    
-    
-    
-    
-""" 
-class MTRNN(nn.Module):
-    def __init__(
-            self, 
-            input_size, 
-            hidden_size,
-            time_constant):
-        super(MTRNN, self).__init__()
-        self.hidden_size = hidden_size
-        self.mtrnn_cell = MTRNNCell(input_size, hidden_size, time_constant)
-
-        self.apply(init_weights)
-
-    def forward(self, x, h=None):
-        B, T, _ = x.shape
-
-        if h is None:
-            h = torch.zeros(
-                (B, self.hidden_size),
-                device=x.device,
-                dtype=x.dtype,
-            )
-        else:
-            # remove time dimension
-            h = h[:, 0]
-
-        # scan expects:
-        #   fn(carry, x_t) -> (new_carry, output)
-        def step_fn(h_prev, x_t):
-            h_next = self.mtrnn_cell(x_t, h_prev)
-            # mtrnn_cell returns (B, 1, H), squeeze it
-            h_next = h_next[:, 0]
-            return h_next, h_next
-
-        # torch.scan scans over dimension 0, so transpose time to front
-        x_time_major = x.transpose(0, 1)  # (T, B, input_size)
-
-        # Run scan
-        h_T, outputs = torch.scan(
-            step_fn,
-            h,
-            x_time_major,
-        )
-        # outputs: (T, B, hidden_size)
-
-        # Back to (B, T, hidden_size)
-        outputs = outputs.transpose(0, 1)
-
-        return outputs
-    """
-    
-    
-    
-
 
 #------------------
 # Example. 
