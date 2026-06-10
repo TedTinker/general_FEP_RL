@@ -151,7 +151,7 @@ class mu_std(nn.Module):
         super().__init__()
 
         self.entropy = entropy
-        self.eval = False
+        self.deterministic = False
         self.mu = mu 
         self.std = copy.deepcopy(mu)
 
@@ -159,7 +159,7 @@ class mu_std(nn.Module):
         mu = self.mu(x)
         std = self.std(x)
         output, log_prob = recurrent_logprob(mu, std)
-        if not self.entropy or self.eval:    # If deterministic, ignore std.
+        if not self.entropy or self.deterministic:    # If deterministic, ignore std.
             output = mu
         return output, log_prob
     

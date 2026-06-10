@@ -42,10 +42,10 @@ class Agent:
                                             # example_output
                                             # loss_func
                                         # decoder_arg_dict
-                                        # accuracy_scalar
+                                        # upsilon_obs (accuracy scalar)
                                         # beta_obs (complexity scalar)
-                                        # 'eta_before_clamp'
-                                        # eta
+                                        # eta_before_clamp
+                                        # eta (curiosity scalar)
             
             action_dict,            # Keys: action_names
                                     # Values: 
@@ -61,7 +61,7 @@ class Agent:
                                         # decoder_arg_dict
                                         # target_entropy
                                         # alpha_normal
-                                        # delta
+                                        # delta (imitation scalar)
             
             hidden_state_sizes,
             time_scales = [1],
@@ -122,7 +122,7 @@ class Agent:
         self.actor_opt = optim.Adam(self.actor.parameters(), lr = lr_actor, weight_decay = weight_decay) 
         
         # Alpha values (entropy hyperparameter).
-        self.alphas = {key : 1 for key in action_dict.keys()} # Maybe we should have an "initial_alpha" variable?
+        self.alphas = {key : 1.0 for key in action_dict.keys()} # Maybe we should have an "initial_alpha" variable?
         self.log_alphas = nn.ParameterDict({key: nn.Parameter(torch.zeros((1,))) for key in action_dict})        
         self.alpha_opt = {key : optim.Adam(
             params=[self.log_alphas[key]], 
@@ -273,7 +273,7 @@ class Agent:
             true_obs = obs[key][:, 1:]
             predicted_obs = pred_obs_q[key]
             loss_func = self.observation_dict[key]['decoder'].loss_func
-            scalar = self.observation_dict[key]['accuracy_scalar']
+            scalar = self.observation_dict[key]['upsilon_obs']
             obs_accuracy_loss = loss_func(predicted_obs, true_obs)
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim))).unsqueeze(-1)
             obs_accuracy_loss = (obs_accuracy_loss * scalar * mask).sum() / mask.sum()
@@ -527,44 +527,61 @@ class Agent:
     
     
     
-    # I want to find a way to do this which is more human-legible. 
-    # At the moment, the early data is cut in half more often than later data.
-    def resample_even(self, l):
-        return(l[::2])
-    
-    
+    # Pick which logged epoch to evict: never the first or last, and among
+    # interior points choose the one in the densest region (smallest gap left
+    # behind when removed). This keeps coverage even from start to finish
+    # instead of hollowing out the early epochs into one smooth void.
+    def _index_to_drop(self, epochs):
+        best_i, best_merged = 1, float('inf')
+        for i in range(1, len(epochs) - 1):
+            merged = epochs[i + 1] - epochs[i - 1]   # gap that remains if i is dropped
+            if merged < best_merged:
+                best_merged, best_i = merged, i
+        return best_i
+
+    # Remove one position from every series in the (possibly nested) log,
+    # so all series stay aligned with epoch_num.
+    def _drop_index(self, log, k):
+        for value in log.values():
+            if isinstance(value, dict):
+                self._drop_index(value, k)
+            elif isinstance(value, list):
+                if value and isinstance(value[0], list):     # list-of-series, e.g. per-critic
+                    for series in value:
+                        if k < len(series):
+                            del series[k]
+                elif k < len(value):
+                    del value[k]
+
+    def _prune_log(self, log):
+        epochs = log.get('epoch_num', [])
+        while len(epochs) > self.max_epochs_in_log:
+            self._drop_index(log, self._index_to_drop(epochs))
+        
     
     def recursive_log_append(self, log, new_data):
-
         for key, value in new_data.items():
             if isinstance(value, dict):
                 if key not in log:
                     log[key] = {}
                 self.recursive_log_append(log[key], value)
-
             elif isinstance(value, (list, tuple)):
                 if key not in log:
                     log[key] = [[] for _ in range(len(value))]
                 for i, item in enumerate(value):
                     log[key][i].append(deepcopy(item))
-                    if len(log[key][i]) > self.max_epochs_in_log:
-                        log[key][i] = self.resample_even(log[key][i])
-
             else:
                 if key not in log:
                     log[key] = []
                 log[key].append(deepcopy(value))
-                if len(log[key]) > self.max_epochs_in_log:
-                    log[key] = self.resample_even(log[key])
                 
                 
             
-    def add_to_training_log(self, epoch_dict, actor = False):
-        if actor:
-            self.recursive_log_append(self.training_log_actor, epoch_dict)
-        else:
-            self.recursive_log_append(self.training_log, epoch_dict)
-                                
+    def add_to_training_log(self, epoch_dict, actor=False):
+        log = self.training_log_actor if actor else self.training_log
+        self.recursive_log_append(log, epoch_dict)
+        self._prune_log(log)
+                                    
     
 
     def set_eval(self):
@@ -719,8 +736,8 @@ if __name__ == '__main__':
                 'zp_zq_sizes' : [256]},
             'decoder' : Decode_Image,
             'decoder_arg_dict' : {},
-            'accuracy_scalar' : 1,                               
-            'complexity_scalar' : 1,                                 
+            'upsilon_obs' : 1,                               
+            'beta_obs' : 1,                             
             'eta_before_clamp' : 1,
             'eta' : 1},
         'see_image_2' : {
@@ -730,8 +747,8 @@ if __name__ == '__main__':
                 'zp_zq_sizes' : [16]},
             'decoder' : Decode_Image,
             'decoder_arg_dict' : {},
-            'accuracy_scalar' : 1,                               
-            'complexity_scalar' : 1,  
+            'upsilon_obs' : 1,                               
+            'beta_obs' : 1,
             'eta_before_clamp' : 1,                               
             'eta' : 1}}
     
