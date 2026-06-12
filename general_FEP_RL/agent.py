@@ -61,6 +61,7 @@ class Agent:
                                         # decoder_arg_dict
                                         # target_entropy
                                         # alpha_normal
+                                        # alpha_lr
                                         # delta (imitation scalar)
             
             hidden_state_sizes,
@@ -79,7 +80,7 @@ class Agent:
             lr_world_model = None,
             lr_critic = None,
             lr_actor = None,
-            lr_alpha = None,
+            lr_alpha = None,          # This should be separate for each action.
             weight_decay = .00001,
             
             capacity = 128, 
@@ -103,8 +104,7 @@ class Agent:
             lr_critic = lr 
         if lr_actor is None:
             lr_actor = lr 
-        if lr_alpha is None:
-            lr_alpha = lr 
+        lr_alpha = {lr if action_dict[key]['alpha_lr'] == None else action_dict[key]['alpha_lr'] for key in action_dict.keys()}
         self.gamma = gamma
         self.d = d
         self.max_epochs_in_log = max_epochs_in_log
@@ -126,7 +126,7 @@ class Agent:
         self.log_alphas = nn.ParameterDict({key: nn.Parameter(torch.zeros((1,))) for key in action_dict})        
         self.alpha_opt = {key : optim.Adam(
             params=[self.log_alphas[key]], 
-            lr = lr_alpha, 
+            lr = lr_alpha[key], 
             weight_decay = 0) for key in action_dict.keys()} 
         
         # Critics and target critics.
@@ -458,16 +458,16 @@ class Agent:
             # Train alpha values.
             logp_t = new_log_pis_dict
             
-            for k, lp in logp_t.items():
-                alpha_loss = self.log_alphas[k] * (-lp - self.action_dict[k]['target_entropy']).detach()
+            for key, lp in logp_t.items():
+                alpha_loss = self.log_alphas[key] * (-lp - self.action_dict[key]['target_entropy']).detach()
                 alpha_loss = (alpha_loss * mask).sum() / mask.sum()
             
-                self.alpha_opt[k].zero_grad()
+                self.alpha_opt[key].zero_grad()
                 alpha_loss.backward()
-                self.alpha_opt[k].step()
+                self.alpha_opt[key].step()
             
-                self.alphas[k] = torch.exp(self.log_alphas[k])
-                alpha_losses[k] = alpha_loss.detach()
+                self.alphas[key] = torch.exp(self.log_alphas[key])
+                alpha_losses[key] = alpha_loss.detach()
                 
             
                 
@@ -497,17 +497,17 @@ class Agent:
         epoch_dict = {
             # Save batch.
             'epoch_num' : self.epoch_num,
-            'obs' : {k: v.detach().cpu() for k, v in obs.items()},
-            'action' : {k: v.detach().cpu() for k, v in action.items()},
-            'best_action' : {k: v.detach().cpu() for k, v in best_action.items()},
+            'obs' : {key: v.detach().cpu() for key, v in obs.items()},
+            'action' : {key: v.detach().cpu() for key, v in action.items()},
+            'best_action' : {key: v.detach().cpu() for key, v in best_action.items()},
             'reward' : reward.detach().cpu(),
             'done' : done.detach().cpu(),
             'mask' : mask.detach().cpu(),
             'best_action_mask' : best_action_mask.detach().cpu(),
             
             # Save predictions and inner states.
-            'pred_obs_p': {k: self.apply_mask(v, mask).detach().cpu() for k, v in pred_obs_p.items()},
-            'pred_obs_q': {k: self.apply_mask(v, mask).detach().cpu() for k, v in pred_obs_q.items()}, 
+            'pred_obs_p': {key: self.apply_mask(v, mask).detach().cpu() for key, v in pred_obs_p.items()},
+            'pred_obs_q': {key: self.apply_mask(v, mask).detach().cpu() for key, v in pred_obs_q.items()}, 
             # inner_state_dict
             
             'accuracy_losses' : accuracy_losses,
@@ -651,11 +651,11 @@ class Agent:
     
         # -------- Entropy / temperature parameters --------
         state["alphas"] = {
-            k: v.detach().cpu()
-            for k, v in self.alphas.items()}
+            key: v.detach().cpu()
+            for key, v in self.alphas.items()}
         state["log_alphas"] = {
-            k: v.detach().cpu()
-            for k, v in self.log_alphas.items()}
+            key: v.detach().cpu()
+            for key, v in self.log_alphas.items()}
     
         # -------- Metadata --------
         state["meta"] = {
