@@ -90,8 +90,6 @@ def plot_training_log(agent, figsize=(19, 13)):
 
     _line(ax, x, extrinsic, label="extrinsic reward", color="tab:blue")
     _line(ax, x, curiosity, label="curiosity", color="tab:orange")
-    _line(ax, x, ent_bonus, label="entropy bonus (per step)",
-          color="tab:red", lw=2.2)
     _line(ax, x, tl.get("sac_entropy_target_critic"),    label="SAC entropy (critic)",  color="tab:red", lw=2.2)
     _line(ax, x, tl.get("normal_entropy_target_critic"), label="normal prior (critic)", color="tab:orange", ls=":")
     if total_rew is not None and ent_bonus is not None:
