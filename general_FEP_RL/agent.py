@@ -61,7 +61,7 @@ class Agent:
                                         # decoder_arg_dict
                                         # target_entropy
                                         # alpha_normal
-                                        # alpha_lr
+                                        # lr_alpha
                                         # delta (imitation scalar)
             
             hidden_state_sizes,
@@ -104,7 +104,7 @@ class Agent:
             lr_critic = lr 
         if lr_actor is None:
             lr_actor = lr 
-        lr_alpha = {lr if action_dict[key]['alpha_lr'] == None else action_dict[key]['alpha_lr'] for key in action_dict.keys()}
+        lr_alpha = {key : lr if action_dict[key]['lr_alpha'] == None else action_dict[key]['lr_alpha'] for key in action_dict.keys()}
         self.gamma = gamma
         self.d = d
         self.max_epochs_in_log = max_epochs_in_log
