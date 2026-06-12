@@ -274,6 +274,8 @@ class Agent:
             predicted_obs = pred_obs_q[key]
             loss_func = self.observation_dict[key]['decoder'].loss_func
             scalar = self.observation_dict[key]['upsilon_obs']
+            print(predicted_obs)
+            print(true_obs)
             obs_accuracy_loss = loss_func(predicted_obs, true_obs)
             obs_accuracy_loss = obs_accuracy_loss.mean(dim=tuple(range(2, obs_accuracy_loss.ndim))).unsqueeze(-1)
             obs_accuracy_loss = (obs_accuracy_loss * scalar * mask).sum() / mask.sum()
