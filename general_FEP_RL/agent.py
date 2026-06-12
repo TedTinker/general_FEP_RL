@@ -244,6 +244,8 @@ class Agent:
         
         critic_losses = []
         entropies_target_critic = {}
+        sac_entropies_target_critic = {}
+        normal_entropies_target_critic = {}
         critic_predictions = []
         
         alpha_entropies = {}
@@ -356,13 +358,24 @@ class Agent:
         
             # Entropy bonus (rewarded entropy).
             entropy_bonus_tp1 = torch.zeros_like(Q_tp1)
+            entropy_bonus_tp1 = torch.zeros_like(Q_tp1)  
+            sac_entropy_tp1   = torch.zeros_like(Q_tp1)  
+            normal_prior_tp1  = torch.zeros_like(Q_tp1)  
             for key, lp in logp_tp1.items():
-                # lp = log π(a|h) <= 0
-                # -lp = entropy bonus >= 0
-                entropy_bonus_tp1 += self.alphas[key] * (-lp)
-                entropies_target_critic[key] = (entropy_bonus_tp1 * mask).sum().item() / mask.sum().item()
-        
-            # Bellman target (EFE-style).
+                sac_entropy  = self.alphas[key] * (-lp)
+                flat_a       = a_tp1[key].flatten(start_dim=2)
+                normal_prior = (0.5 * self.action_dict[key]['alpha_normal']
+                                * (flat_a ** 2).sum(-1, keepdim=True))
+                key_bonus = sac_entropy - normal_prior
+            
+                entropy_bonus_tp1 += key_bonus            # <-- only this feeds future_Q_value
+                sac_entropy_tp1   += sac_entropy
+                normal_prior_tp1  += normal_prior
+            
+                sac_entropies_target_critic[key]    = (sac_entropy  * mask).sum().item() / mask.sum().item()
+                normal_entropies_target_critic[key] = (normal_prior * mask).sum().item() / mask.sum().item()
+                entropies_target_critic[key]        = (key_bonus    * mask).sum().item() / mask.sum().item()
+            
             not_done = (1.0 - done) * mask
             future_Q_value = self.gamma * not_done * (Q_tp1 + entropy_bonus_tp1)
             Q_target = total_reward + future_Q_value
@@ -406,29 +419,29 @@ class Agent:
             
             entropy = torch.zeros_like(Q)
             
-            for k in new_action_dict.keys():
-                lp = new_log_pis_dict[k]
-                alpha_entropy = self.alphas[k] * (-lp)
+            for key in new_action_dict.keys():
+                lp = new_log_pis_dict[key]
+                alpha_entropy = self.alphas[key] * (-lp)
             
-                flat_a = new_action_dict[k].flatten(start_dim=2)
+                flat_a = new_action_dict[key].flatten(start_dim=2)
                 alpha_normal_entropy = (
-                    0.5 * self.action_dict[k]['alpha_normal']
+                    0.5 * self.action_dict[key]['alpha_normal']
                     * (flat_a ** 2).sum(-1, keepdim=True))
             
                 total_entropy = alpha_entropy - alpha_normal_entropy
                 entropy += total_entropy
                 
-                alpha_entropies[k] = (alpha_entropy * mask).sum().item() / mask.sum().item()
-                alpha_normal_entropies[k] = (alpha_normal_entropy * mask).sum().item() / mask.sum().item()
-                total_entropies[k] = (total_entropy * mask).sum().item() / mask.sum().item()
+                alpha_entropies[key] = (alpha_entropy * mask).sum().item() / mask.sum().item()
+                alpha_normal_entropies[key] = (alpha_normal_entropy * mask).sum().item() / mask.sum().item()
+                total_entropies[key] = (total_entropy * mask).sum().item() / mask.sum().item()
             
             total_imitation_loss = torch.zeros_like(Q)
             
-            for k in new_action_dict.keys():
-                scalar = self.action_dict[k]['delta']
-                il = imitation_loss[k] * scalar * best_action_mask * mask
+            for key in new_action_dict.keys():
+                scalar = self.action_dict[key]['delta']
+                il = imitation_loss[key] * scalar * best_action_mask * mask
                 total_imitation_loss = total_imitation_loss + il
-                imitation_losses[k] = il.sum().item() / (best_action_mask * mask).sum()
+                imitation_losses[key] = il.sum().item() / (best_action_mask * mask).sum()
             
             Q = (Q * mask).sum() / mask.sum()
             entropy = (entropy * mask).sum() / mask.sum()
@@ -509,6 +522,12 @@ class Agent:
             'target_critic_output' : Q_tp1.mean().item(),
             'entropies_target_critic' : entropies_target_critic,
             'entropy_target_critic' : entropy_bonus_tp1.mean().item(),
+            'entropies_target_critic'        : entropies_target_critic,          # net (per key)
+            'sac_entropies_target_critic'    : sac_entropies_target_critic,      # new
+            'normal_entropies_target_critic' : normal_entropies_target_critic,   # new
+            'entropy_target_critic'          : entropy_bonus_tp1.mean().item(),  # net scalar
+            'sac_entropy_target_critic'      : sac_entropy_tp1.mean().item(),    # new
+            'normal_entropy_target_critic'   : normal_prior_tp1.mean().item(),   # new
             'future_Q_value' : future_Q_value.mean().item(),
             'Q_target' : Q_target.mean().item(),
             'critic_predictions' : critic_predictions,
@@ -690,14 +709,14 @@ class Agent:
     
         # -------- Entropy / temperature --------
         if "alphas" in keys and "alphas" in state:
-            for k in self.alphas:
-                if k in state["alphas"]:
-                    self.alphas[k] = state["alphas"][k]
+            for key in self.alphas:
+                if key in state["alphas"]:
+                    self.alphas[key] = state["alphas"][key]
     
         if "log_alphas" in keys and "log_alphas" in state:
-            for k in self.log_alphas:
-                if k in state["log_alphas"]:
-                    self.log_alphas[k].data.copy_(state["log_alphas"][k])
+            for key in self.log_alphas:
+                if key in state["log_alphas"]:
+                    self.log_alphas[key].data.copy_(state["log_alphas"][key])
     
         # -------- Metadata (optional sanity check) --------
         if "meta" in state:
