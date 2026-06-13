@@ -62,6 +62,7 @@ class Agent:
                                         # target_entropy
                                         # alpha_normal
                                         # lr_alpha
+                                        # initial_alpha
                                         # delta (imitation scalar)
             
             hidden_state_sizes,
@@ -122,7 +123,7 @@ class Agent:
         self.actor_opt = optim.Adam(self.actor.parameters(), lr = lr_actor, weight_decay = weight_decay) 
         
         # Alpha values (entropy hyperparameter).
-        self.alphas = {key : 1.0 for key in action_dict.keys()} # Maybe we should have an "initial_alpha" variable?
+        self.alphas = {key : 1.0 if action_dict[key]['initial_alpha'] == None else action_dict[key]['initial_alpha'] for key in action_dict.keys()} 
         self.log_alphas = nn.ParameterDict({key: nn.Parameter(torch.zeros((1,))) for key in action_dict})        
         self.alpha_opt = {key : optim.Adam(
             params=[self.log_alphas[key]], 
