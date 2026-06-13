@@ -421,7 +421,7 @@ class Agent:
             
             for key in new_action_dict.keys():
                 lp = new_log_pis_dict[key]
-                alpha_entropy = self.alphas[key].detatch() * (-lp)
+                alpha_entropy = self.alphas[key].detach() * (-lp)
             
                 flat_a = new_action_dict[key].flatten(start_dim=2)
                 alpha_normal_entropy = (
