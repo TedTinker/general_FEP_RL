@@ -358,7 +358,6 @@ class Agent:
             # Q_tp1 shape: (B, T, 1)
         
             # Entropy bonus (rewarded entropy).
-            entropy_bonus_tp1 = torch.zeros_like(Q_tp1)
             entropy_bonus_tp1 = torch.zeros_like(Q_tp1)  
             sac_entropy_tp1   = torch.zeros_like(Q_tp1)  
             normal_prior_tp1  = torch.zeros_like(Q_tp1)  
@@ -422,7 +421,7 @@ class Agent:
             
             for key in new_action_dict.keys():
                 lp = new_log_pis_dict[key]
-                alpha_entropy = self.alphas[key] * (-lp)
+                alpha_entropy = self.alphas[key].detatch() * (-lp)
             
                 flat_a = new_action_dict[key].flatten(start_dim=2)
                 alpha_normal_entropy = (
@@ -468,7 +467,7 @@ class Agent:
                 self.alpha_opt[key].step()
             
                 self.alphas[key] = torch.exp(self.log_alphas[key])
-                alpha_losses[key] = alpha_loss.detach()
+                alpha_losses[key] = alpha_loss.item()
                 
             
                 
@@ -521,12 +520,10 @@ class Agent:
             # Save values related to critics.
             'critic_losses' : critic_losses,
             'target_critic_output' : Q_tp1.mean().item(),
-            'entropies_target_critic' : entropies_target_critic,
             'entropy_target_critic' : entropy_bonus_tp1.mean().item(),
             'entropies_target_critic'        : entropies_target_critic,          # net (per key)
             'sac_entropies_target_critic'    : sac_entropies_target_critic,      # new
             'normal_entropies_target_critic' : normal_entropies_target_critic,   # new
-            'entropy_target_critic'          : entropy_bonus_tp1.mean().item(),  # net scalar
             'sac_entropy_target_critic'      : sac_entropy_tp1.mean().item(),    # new
             'normal_entropy_target_critic'   : normal_prior_tp1.mean().item(),   # new
             'future_Q_value' : future_Q_value.mean().item(),
@@ -610,7 +607,7 @@ class Agent:
         
         self.actor.eval() 
         for key, module in self.actor.action_model_dict.items():            
-            module["decoder"].mu_std.eval = True
+            module["decoder"].mu_std.deterministic = True
                 
         for i in range(len(self.critics)):
             self.critics[i].eval()
@@ -622,7 +619,7 @@ class Agent:
         
         self.actor.train()
         for key, module in self.actor.action_model_dict.items():            
-            module["decoder"].mu_std.eval = False
+            module["decoder"].mu_std.deterministic = False
         
         for i in range(len(self.critics)):
             self.critics[i].train()
