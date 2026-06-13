@@ -143,8 +143,8 @@ def plot_training_log(agent, figsize=(19, 13)):
     # 7. Alphas ---------------------------------------------------------------
     ax = axs[6]
     _lines_from_dict(ax, xa, tla.get("alphas"), prefix="alpha ")
-    _lines_from_dict(ax, xa, tla.get("alpha_losses"), prefix="alpha loss ",
-                     alpha=0.5, ls=":")
+    #_lines_from_dict(ax, xa, tla.get("alpha_losses"), prefix="alpha loss ",
+    #                 alpha=0.5, ls=":")
     _finish(ax, "Entropy temperature (alpha)")
 
     # 8. Critic TD loss -------------------------------------------------------
