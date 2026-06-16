@@ -406,6 +406,11 @@ class World_Model(nn.Module):
                     higher_hidden_state_size = 0 if i+1 == len(time_scales) else hidden_state_sizes[i+1],
                     time_scale = time_scale, 
                     verbose = verbose))
+            
+        self.predict_extrinsic_reward = nn.Sequential(
+            nn.Linear(self.hidden_state_sizes, 16),
+            nn.PReLU(),
+            nn.Linear(16, 1))
 
         self.apply(init_weights)
                 
@@ -536,7 +541,7 @@ class World_Model(nn.Module):
             catted_inner_state_dicts[key] = {'zp': zp, 'zq': zq, 'dkl': dkl}
 
         if one_step:
-            # If working with only one step, we cannot predict the next
+            # If working with only one step, we can't predict the next
             # observation, because we don't have the next action.
             return [h[:,1:] for h in hidden_states_p], [h[:,1:] for h in hidden_states_q], catted_inner_state_dicts
         else:
