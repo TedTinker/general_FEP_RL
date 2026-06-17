@@ -70,6 +70,7 @@ class Agent:
             beta_hidden = [],
             eta_before_clamp = [],
             eta = [],
+            upsilon_reward = 1,
             
             number_of_critics = 2, 
             tau = .1,
@@ -98,6 +99,7 @@ class Agent:
         self.beta_hidden = beta_hidden
         self.eta_before_clamp = eta_before_clamp
         self.eta = eta
+        self.upsilon_reward = upsilon_reward
         self.tau = tau
         if lr_world_model is None:
             lr_world_model = lr 
@@ -282,6 +284,10 @@ class Agent:
             obs_accuracy_loss = (obs_accuracy_loss * scalar * mask).sum() / mask.sum()
             accuracy_loss = accuracy_loss + obs_accuracy_loss
             accuracy_losses[key] = obs_accuracy_loss.item()
+        reward_accuracy_loss = F.mse_loss(pred_obs_q['extrinsic_reward'], reward, reduction = 'mean')
+        reward_accuracy_loss = (reward_accuracy_loss * self.upsilon_reward * mask).sum() / mask.sum()
+        accuracy_loss = accuracy_loss + reward_accuracy_loss
+        accuracy_losses[key] = reward_accuracy_loss.item()
             
         # Complexity of predictions.
         # Given T steps and i = 0, ..., n parts of observations,
