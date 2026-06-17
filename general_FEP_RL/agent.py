@@ -284,10 +284,10 @@ class Agent:
             obs_accuracy_loss = (obs_accuracy_loss * scalar * mask).sum() / mask.sum()
             accuracy_loss = accuracy_loss + obs_accuracy_loss
             accuracy_losses[key] = obs_accuracy_loss.item()
-        reward_accuracy_loss = F.mse_loss(pred_obs_q['extrinsic_reward'], reward, reduction = 'mean')
+        reward_accuracy_loss = F.mse_loss(pred_obs_q['extrinsic_reward'], reward, reduction = 'none')
         reward_accuracy_loss = (reward_accuracy_loss * self.upsilon_reward * mask).sum() / mask.sum()
         accuracy_loss = accuracy_loss + reward_accuracy_loss
-        accuracy_losses[key] = reward_accuracy_loss.item()
+        accuracy_losses['extrinsic_reward'] = reward_accuracy_loss.item()
             
         # Complexity of predictions.
         # Given T steps and i = 0, ..., n parts of observations,
