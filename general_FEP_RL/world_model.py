@@ -442,7 +442,7 @@ class World_Model(nn.Module):
             prediction, _ = self.observation_model_dict[key]['decoder'](hidden_state_and_action)
             predicted_obs[key] = prediction
         prediction = self.predict_extrinsic_reward(hidden_state_and_action)
-        prediction_obs['extrinsic_reward'] = prediction
+        predicted_obs['extrinsic_reward'] = prediction
         return predicted_obs
     
     
