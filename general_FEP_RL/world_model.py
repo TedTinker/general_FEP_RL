@@ -212,6 +212,9 @@ class World_Model_Layer(nn.Module):
         inner_state_dict = {
             key: process_z_func_outputs(zp_inputs, zq_inputs_dict[key], self.zp_zq_dict[key])
             for key in self.zp_zq_dict.keys()}
+        
+        if not self.bottom_layer:
+            inner_state_dict = {self.layer_number: inner_state_dict['zq']}
                 
         if self.top_layer:
             mtrnn_inputs_p = torch.cat([inner_state['zp'] for _, inner_state in sorted(inner_state_dict.items())], dim=-1)
