@@ -212,10 +212,12 @@ class World_Model_Layer(nn.Module):
         inner_state_dict = {
             key: process_z_func_outputs(zp_inputs, zq_inputs_dict[key], self.zp_zq_dict[key])
             for key in self.zp_zq_dict.keys()}
-        
+
+        # Bottom layer is keyed by observation name; higher layers are keyed by
+        # their layer number, so a stack of hidden layers stays addressable.
         if not self.bottom_layer:
             inner_state_dict = {self.layer_number: inner_state_dict['zq']}
-                
+
         if self.top_layer:
             mtrnn_inputs_p = torch.cat([inner_state['zp'] for _, inner_state in sorted(inner_state_dict.items())], dim=-1)
             mtrnn_inputs_q = torch.cat([inner_state['zq'] for _, inner_state in sorted(inner_state_dict.items())], dim=-1)
@@ -486,11 +488,8 @@ class World_Model(nn.Module):
         new_hidden_states_q.reverse()
             
         inner_state_dict = {}
-        for layer_idx, d in enumerate(inner_state_dict_list):
-            if layer_idx == 0:
-                inner_state_dict.update(d)             # bottom layer: keyed by observation name
-            else:
-                inner_state_dict[layer_idx] = d['zq']  # higher layers: keyed by integer layer index
+        for d in inner_state_dict_list:
+            inner_state_dict.update(d)
             
         return(
             new_hidden_states_p, 
