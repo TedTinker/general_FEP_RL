@@ -331,10 +331,10 @@ class Agent:
             
         for i in range(len(self.hidden_state_sizes) - 1):
             obs_curiosity = self.eta[i] * \
-                torch.clamp(dkls[f'hidden_layer_{i+1}'][:, 1:] * self.eta_before_clamp[i], min = 0, max = 1)            
+                torch.clamp(dkls[f'hidden_layer_{i+2}'][:, 1:] * self.eta_before_clamp[i], min = 0, max = 1)            
             obs_curiosity = obs_curiosity * mask
             curiosity = curiosity + obs_curiosity
-            curiosities[f'hidden_layer_{i+1}'] = obs_curiosity.sum().item() / mask.sum().item()
+            curiosities[f'hidden_layer_{i+2}'] = obs_curiosity.sum().item() / mask.sum().item()
             
             
             
