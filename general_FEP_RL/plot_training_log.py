@@ -152,6 +152,11 @@ def plot_training_log(agent, figsize=(19, 13)):
     _lines_from_list(ax, x, tl.get("critic_losses"), prefix="critic ")
     _finish(ax, "Critic TD loss")
 
+    # 9. Curiosity by source --------------------------------------------------
+    ax = axs[8]
+    _lines_from_dict(ax, x, tl.get("curiosities"))
+    _finish(ax, "Curiosity by source (each observation & hidden layer)")
+
     # Footer: the two headline numbers + the single thing to watch -----------
     def _last(seq):
         return seq[-1] if seq else None
@@ -167,8 +172,9 @@ def plot_training_log(agent, figsize=(19, 13)):
         bits.append(f"entropy ≈ {100*abs(e_last)/denom:.0f}% of per-step value")
     if e_last is not None and horizon_factor is not None and q_last is not None:
         bits.append(f"implied entropy Q ≈ {e_last*horizon_factor:.1f} vs critic Q ≈ {q_last:.1f}")
-    footer = ("Watch panel 9: episode length pinned at max + exit rate ~0 "
-              "= the agent never reaches an exit (exploration problem, not reward scale).")
+    footer = ("Panel 9 splits curiosity into its per-source parts (each observation "
+              "and hidden layer); a higher-layer line stuck near zero means that "
+              "layer's prior and posterior agree and it is contributing no curiosity.")
     if bits:
         footer = "Latest:  " + "   |   ".join(bits) + "\n" + footer
     fig.text(0.5, 0.005, footer, ha="center", va="bottom", fontsize=9,
