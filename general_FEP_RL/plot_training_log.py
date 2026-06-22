@@ -152,49 +152,6 @@ def plot_training_log(agent, figsize=(19, 13)):
     _lines_from_list(ax, x, tl.get("critic_losses"), prefix="critic ")
     _finish(ax, "Critic TD loss")
 
-    # 9. BEHAVIOR: episode length & exit rate (from logged mask) --------------
-    #    Early termination only happens on reaching an exit, so
-    #    episode length < max-length  <=>  the agent exited.
-    ax = axs[8]
-    masks = tl.get("mask")
-    if masks:
-        lengths_per_epoch = []
-        ref_len = 0.0
-        for m in masks:
-            arr = _np(m)
-            arr = arr.reshape(arr.shape[0], arr.shape[1], -1)
-            L = arr.sum(axis=1).reshape(-1)        # steps per sampled episode
-            lengths_per_epoch.append(L)
-            if L.size:
-                ref_len = max(ref_len, float(L.max()))
-        avg_len = [float(L.mean()) if L.size else np.nan
-                   for L in lengths_per_epoch]
-        exit_rate = [float((L < ref_len).mean()) * 100.0 if L.size else np.nan
-                     for L in lengths_per_epoch]
-
-        n = min(len(x), len(avg_len))
-        ax.plot(x[:n], avg_len[:n], color="tab:blue", label="avg episode length")
-        ax.set_ylabel("steps", color="tab:blue")
-        ax.tick_params(axis="y", labelcolor="tab:blue")
-        ax.set_xlabel("Epoch")
-        ax.grid(True, alpha=0.3)
-        ax.set_title("Behavior: episode length & exit rate",
-                     fontsize=11, fontweight="bold")
-
-        ax2 = ax.twinx()
-        ax2.plot(x[:n], exit_rate[:n], color="tab:green", label="exit rate")
-        ax2.set_ylabel("exit %", color="tab:green")
-        ax2.tick_params(axis="y", labelcolor="tab:green")
-        ax2.set_ylim(-2, 102)
-
-        h1, l1 = ax.get_legend_handles_labels()
-        h2, l2 = ax2.get_legend_handles_labels()
-        ax.legend(h1 + h2, l1 + l2, fontsize=8, loc="best")
-    else:
-        ax.axis("off")
-        ax.text(0.5, 0.5, "no 'mask' logged", ha="center", va="center",
-                transform=ax.transAxes)
-
     # Footer: the two headline numbers + the single thing to watch -----------
     def _last(seq):
         return seq[-1] if seq else None
