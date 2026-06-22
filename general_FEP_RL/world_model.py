@@ -483,8 +483,11 @@ class World_Model(nn.Module):
         new_hidden_states_q.reverse()
             
         inner_state_dict = {}
-        for d in inner_state_dict_list:
-            inner_state_dict.update(d)
+        for layer_idx, d in enumerate(inner_state_dict_list):
+            if layer_idx == 0:
+                inner_state_dict.update(d)             # bottom layer: keyed by observation name
+            else:
+                inner_state_dict[layer_idx] = d['zq']  # higher layers: keyed by integer layer index
             
         return(
             new_hidden_states_p, 

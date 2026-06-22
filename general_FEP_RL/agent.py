@@ -302,13 +302,14 @@ class Agent:
             complexity_loss = complexity_loss + complexity_for_key
             complexity_losses[key] = complexity_for_key.detach()
 
-        for i, beta in enumerate(self.beta_hidden):
-            dkl = inner_state_dict[i+1]['dkl'].mean(-1).unsqueeze(-1) * complete_mask 
+        for i in range(len(self.hidden_state_sizes) - 1):
+            dkl = inner_state_dict[i+1]['dkl'].mean(-1).unsqueeze(-1) * complete_mask
             dkls[f'hidden_layer_{i+2}'] = dkl.detach()
-            complexity = dkl * beta
-            complexity_for_key = (complexity[:, 1:] * mask).sum() / mask.sum()
-            complexity_loss = complexity_loss + complexity_for_key
-            complexity_losses[f'hidden_layer_{i+2}'] = complexity_for_key.detach()
+            if i < len(self.beta_hidden):
+                complexity = dkl * self.beta_hidden[i]
+                complexity_for_key = (complexity[:, 1:] * mask).sum() / mask.sum()
+                complexity_loss = complexity_loss + complexity_for_key
+                complexity_losses[f'hidden_layer_{i+2}'] = complexity_for_key.detach()
                         
         
                                 
