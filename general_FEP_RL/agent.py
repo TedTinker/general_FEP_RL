@@ -30,40 +30,29 @@ class Agent:
     def __init__(
             self,             
             observation_dict,       # Keys: observation_names
-                                    # Values: 
-                                        # encoder
-                                            # example_input
-                                            # example_output
-                                        # encoder_arg_dict
-                                            # encode_size
-                                            # zp_zq_sizes
-                                        # decoder
-                                            # example_input
-                                            # example_output
-                                            # loss_func
-                                        # decoder_arg_dict
-                                        # upsilon_obs (accuracy scalar)
-                                        # beta_obs (complexity scalar)
-                                        # eta_before_clamp
-                                        # eta (curiosity scalar)
+                                    # Values: One dictionary per module of observation.
+                                        # Keys:                     Values:
+                                            # encoder               (Torch model. Must contain example_input and example_output.)
+                                            # encoder_arg_dict      (Dictionary. Must contain encoder_size and zp_zq_sizes.)
+                                            # decoder               (Torch model. Must contain example_input, example_output, and loss function.)
+                                            # decoder_arg_dict      (Dictionary.)
+                                            # upsilon_obs           (accuracy scalar.)
+                                            # beta_obs              (complexity scalar.)
+                                            # eta_before_clamp      (curiosity scalar.)
+                                            # eta                   (curiosity scalar.)
             
             action_dict,            # Keys: action_names
-                                    # Values: 
-                                        # encoder
-                                            # example_input
-                                            # example_output
-                                        # encoder_arg_dict
-                                            # encode_size
-                                        # decoder
-                                            # example_input
-                                            # example_output
-                                            # loss_func
-                                        # decoder_arg_dict
-                                        # target_entropy
-                                        # alpha_normal
-                                        # lr_alpha
-                                        # initial_alpha
-                                        # delta (imitation scalar)
+                                    # Values: One dictionary per module of action.
+                                        # Keys:                     Values:
+                                            # encoder               (Torch model. Must contain example_input and example_output.)
+                                            # encoder_arg_dict      (Dictionary. Must contain encoder_size.)
+                                            # decoder               (Torch model. Must contain example_input, example_output, and loss function.)
+                                            # decoder_arg_dict      (Dictionary.)
+                                            # target_entropy        (entropy scalar.)
+                                            # alpha_normal          (entropy normalization scalar.)
+                                            # lr_alpha              (alpha learning rate.)
+                                            # initial_alpha         (initial alpha.)
+                                            # delta                 (imitation scalar.)
             
             hidden_state_sizes,
             time_scales = [1],
