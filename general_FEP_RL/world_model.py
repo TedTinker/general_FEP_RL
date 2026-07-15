@@ -93,7 +93,7 @@ class ZP_ZQ(nn.Module):
         else:
             zp = zp_mu 
             zq = zq_mu
-        dkl = calculate_dkl(zp_mu, zp_std, zq_mu, zq_std)
+        dkl = calculate_dkl(zp_mu, zp_std, zq_mu.detach(), zq_std.detach())
         return {
             'zp' : zp, 
             'zq' : zq, 
