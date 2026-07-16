@@ -84,7 +84,7 @@ class ZP_ZQ(nn.Module):
             zp_inputs, 
             zq_inputs,
             use_sample = True):                                    
-        zp_mu, zp_std = parametrize_normal(zp_inputs.detach(), self.zp_mu, self.zp_std)
+        zp_mu, zp_std = parametrize_normal(zp_inputs, self.zp_mu, self.zp_std)
         zq_mu, zq_std = parametrize_normal(zq_inputs, self.zq_mu, self.zq_std)
 
         if(use_sample):
@@ -93,7 +93,7 @@ class ZP_ZQ(nn.Module):
         else:
             zp = zp_mu 
             zq = zq_mu
-        dkl = calculate_dkl(zp_mu, zp_std, zq_mu.detach(), zq_std.detach())
+        dkl = calculate_dkl(zp_mu, zp_std, zq_mu, zq_std)
         return {
             'zp' : zp, 
             'zq' : zq, 
