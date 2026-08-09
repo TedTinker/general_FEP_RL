@@ -9,9 +9,9 @@ import torch
 from torch import nn
 import torch.optim as optim
 
-from buffer import RecurrentReplayBuffer, shapes_from_world_model
-from world_model import World_Model, make_world_model
-from actor_critic import Actor, Critic
+from general_FEP_RL.buffer import RecurrentReplayBuffer, shapes_from_world_model
+from general_FEP_RL.world_model import World_Model, make_world_model
+from general_FEP_RL.actor_critic import Actor, Critic
 
 
 
