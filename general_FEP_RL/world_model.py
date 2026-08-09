@@ -9,668 +9,569 @@ from torch import nn
 from torch.profiler import profile, record_function, ProfilerActivity
 from torchinfo import summary
 
+from world_model_layer import World_Model_Layer, make_world_model_layer
+
 from general_FEP_RL.utils_torch import init_weights, parametrize_normal, sample, calculate_dkl, generate_dummy_inputs
-from general_FEP_RL.mtrnn import MTRNN
 
 
-
-#------------------
-# A module for every prior p estimated posterior q inner state. 
-# \mu^p_t, \sigma^p_t = MLP_i(h^q_{t-1} || action_{t-1})
-# \mu^q_t, \sigma^q_t = MLP_i(h^q_{t-1} || action_{t-1} || o^{encoded}_t)
-
-# q(z_t) = \mathcal{N}(\mu^q_t,\sigma^q_t))
-# p(z_t) = \mathcal{N}(\mu^p_t,\sigma^p_t))
-
-# DKL[q(z_t) || p(z_t)] is used to measure complexity and curiosity.
-#------------------
-
-class ZP_ZQ(nn.Module):
-    
-    def __init__(
-            self, 
-            zp_in_features,     # Size of MTRNN hidden state plus encoded actions.
-            zq_in_features,     # Size of MTRNN hidden state plus encoded actions and encoded observations.
-            zp_zq_sizes,        # Inner state sizes.
-            verbose = False):
-        super(ZP_ZQ, self).__init__()
-                
-        self.zp_zq_sizes = zp_zq_sizes 
-        self.example_zp_start = torch.zeros((32, 16, zp_in_features))
-        self.example_zq_start = torch.zeros((32, 16, zq_in_features))
-        
-        if verbose:
-            print(f'\nZP_ZQ start: \n \t{self.example_zp_start.shape}, {self.example_zq_start.shape}')
-            
-        # An inner state may have multiple layers. 
-        def build_network(
-                in_features, 
-                layer_sizes, 
-                final_activation):
-            layers = []
-            current_in_features = in_features
-            num_layers = len(layer_sizes)
-            for i, out_size in enumerate(layer_sizes):
-                layers.append(nn.Linear(current_in_features, out_size))
-                if i < num_layers - 1:
-                    layers.append(nn.PReLU())
-                else:
-                    if final_activation == 'tanh':
-                        layers.append(nn.Tanh())
-                    elif final_activation == 'softplus':
-                        layers.append(nn.Softplus())
-                    else:
-                        raise ValueError('Invalid final_activation specified.')
-                current_in_features = out_size
-            return nn.Sequential(*layers)
-            
-        self.zp_mu  = build_network(zp_in_features, zp_zq_sizes, 'tanh')
-        self.zp_std = build_network(zp_in_features, zp_zq_sizes, 'softplus')
-        self.zq_mu  = build_network(zq_in_features, zp_zq_sizes, 'tanh')
-        self.zq_std = build_network(zq_in_features, zp_zq_sizes, 'softplus')
-        
-        example_zp_mu, example_zp_std = parametrize_normal(self.example_zp_start, self.zp_mu, self.zp_std)
-        example_zq_mu, example_zq_std = parametrize_normal(self.example_zq_start, self.zq_mu, self.zq_std)
-        
-        if verbose:
-            print(f'ZP_ZQ end: \n \tZP Mu/Std shape: {example_zp_mu.shape} / {example_zp_std.shape}, \n \tZQ Mu/Std shape: {example_zq_mu.shape} / {example_zq_std.shape}, \n')
-
-        self.apply(init_weights)
-        
-        
-        
-    def forward(
-            self, 
-            zp_inputs, 
-            zq_inputs,
-            use_sample = True):                                    
-        zp_mu, zp_std = parametrize_normal(zp_inputs, self.zp_mu, self.zp_std)      # With "detach" commands here, the posterior is freed from the prior.
-        zq_mu, zq_std = parametrize_normal(zq_inputs, self.zq_mu, self.zq_std)
-
-        if(use_sample):
-            zp = sample(zp_mu, zp_std)
-            zq = sample(zq_mu, zq_std)
-        else:
-            zp = zp_mu 
-            zq = zq_mu
-        dkl = calculate_dkl(zp_mu, zp_std, zq_mu, zq_std)
-        return {
-            'zp' : zp, 
-            'zq' : zq, 
-            'dkl' : dkl}      
-   
-    
-
-#------------------
-# Example. 
-#------------------
-    
-if __name__ == '__main__':
-    zp_zq = ZP_ZQ(
-        zp_in_features = 16, 
-        zq_in_features = 32, 
-        zp_zq_sizes = [128, 128], 
-        verbose = True)
-    print('\n\n')
-    print(zp_zq)
-    print()
-    
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function('model_inference'):
-            print(summary(
-                zp_zq, 
-                input_data=(zp_zq.example_zp_start, zp_zq.example_zq_start)))
-    #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
-    
-    
-    
-#%%
-
-
-
-#------------------
-# This makes q, p, and dkl for each module of the sensation or higher layers of longer-term memory.
-#------------------
-
-class World_Model_Layer(nn.Module):
-    
-    def __init__(
-            self, 
-            hidden_state_size,
-            observation_model_dict,             # The lowest layer sees observations 
-            action_model_dict,                  # and actions.
-            bottom_layer,           
-            top_layer,          
-            layer_number = 0,
-            lower_zp_zq_size = 0,               # Higher layers see lower priors or estimaters posteriors. 
-            higher_hidden_state_size = 0,       # Layers below the top see higher hidden states.
-            time_scale = 1,                     # Higher time-scalars mean slower memory. 
-            verbose = False):
-        super(World_Model_Layer, self).__init__()
-        
-        self.bottom_layer = bottom_layer 
-        self.top_layer = top_layer
-        self.layer_number = layer_number
-
-        self.zp_zq_dict = nn.ModuleDict()
-        if bottom_layer:                                                        # For bottom layer:
-            total_action_size = sum(                                            # Consider action encoding size.
-                action_model_dict[key]['encoder'].arg_dict['encode_size'] 
-                for key in sorted(action_model_dict.keys()))
-            for key, model in sorted(observation_model_dict.items()):           # Consider observation encoding size and inner state sizes
-                zp_zq_size = model['encoder'].arg_dict['zp_zq_sizes']
-                obs_size = model['encoder'].arg_dict['encode_size']
-
-                self.zp_zq_dict[key] = ZP_ZQ(                                   # Make inner state models for actions and observations.
-                    zp_in_features = hidden_state_size + total_action_size, 
-                    zq_in_features = hidden_state_size + total_action_size + obs_size, 
-                    zp_zq_sizes = zp_zq_size)
-        else:                                                                   # For higher layers:
-            self.zp_zq_dict['zq'] = ZP_ZQ(                                      # Make inner state models for lower inner states.
-                zp_in_features = hidden_state_size, 
-                zq_in_features = hidden_state_size + lower_zp_zq_size, 
-                zp_zq_sizes = [hidden_state_size])
-    
-        self.mtrnn = MTRNN(
-                input_size = sum(
-                    zp_zq.zp_zq_sizes[-1] 
-                    for key, zp_zq in sorted(self.zp_zq_dict.items())) + higher_hidden_state_size,
-                hidden_size = hidden_state_size, 
-                time_constant = time_scale)
-            
-        self.apply(init_weights)
-        
-        
-        
-    # Information traveling from lowest layer to highest layer. 
-    def bottom_up(
-            self,
-            prev_hidden_state, 
-            encoded_obs = None, 
-            encoded_prev_action = None,
-            lower_zp_zq = None,
-            higher_hidden_state = None,
-            use_sample = True):
-        
-        episodes, steps = prev_hidden_state.shape[0], prev_hidden_state.shape[1]
-        
-        def process_z_func_outputs(zp_inputs, zq_inputs, z_func):
-            zp_inputs = zp_inputs.reshape(episodes * steps, zp_inputs.shape[2])
-            zq_inputs = zq_inputs.reshape(episodes * steps, zq_inputs.shape[2])
-            inner_states = z_func(zp_inputs, zq_inputs, use_sample = use_sample)
-            return inner_states
-                
-                
-                
-        if self.bottom_layer:
-            zp_inputs = torch.cat([prev_hidden_state] + [v for k, v in sorted(encoded_prev_action.items())], dim=-1)
-            zq_inputs_dict = {key: torch.cat([zp_inputs, obs_part], dim=-1) for key, obs_part in sorted(encoded_obs.items())}
-        else:
-            zp_inputs = prev_hidden_state
-            zq_inputs_dict = {'zq': torch.cat([zp_inputs, lower_zp_zq], dim=-1)}
-                
-        inner_state_dict = {
-            key: process_z_func_outputs(zp_inputs, zq_inputs_dict[key], self.zp_zq_dict[key])
-            for key in self.zp_zq_dict.keys()}
-
-        # Bottom layer is keyed by observation name; higher layers are keyed by
-        # their layer number, so a stack of hidden layers stays addressable.
-        if not self.bottom_layer:
-            inner_state_dict = {self.layer_number: inner_state_dict['zq']}
-
-        if self.top_layer:
-            mtrnn_inputs_p = torch.cat([inner_state['zp'] for _, inner_state in sorted(inner_state_dict.items())], dim=-1)
-            mtrnn_inputs_q = torch.cat([inner_state['zq'] for _, inner_state in sorted(inner_state_dict.items())], dim=-1)
-        else:
-            higher_hidden_state = higher_hidden_state.reshape(episodes * steps, higher_hidden_state.shape[2])
-            mtrnn_inputs_p = torch.cat([inner_state['zp'] for _, inner_state in sorted(inner_state_dict.items())] + [higher_hidden_state], dim=-1)
-            mtrnn_inputs_q = torch.cat([inner_state['zq'] for _, inner_state in sorted(inner_state_dict.items())] + [higher_hidden_state], dim=-1)
-        
-        mtrnn_inputs_p = mtrnn_inputs_p.reshape(episodes, steps, mtrnn_inputs_p.shape[1])
-        mtrnn_inputs_q = mtrnn_inputs_q.reshape(episodes, steps, mtrnn_inputs_q.shape[1])
-        
-        return mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict
-    
-    
-    
-    # Information traveling from highest layer to lowest layer. 
-    def top_down(
-            self,
-            inputs_p,
-            inputs_q,
-            prev_hidden_state):
-        
-        new_hidden_state_p = self.mtrnn(inputs_p, prev_hidden_state)
-        new_hidden_state_q = self.mtrnn(inputs_q, prev_hidden_state)
-        return new_hidden_state_p, new_hidden_state_q
-        
-        
-    
-    def forward(
-            self, 
-            prev_hidden_state, 
-            encoded_obs = None, 
-            encoded_prev_action = None,
-            lower_zp_zq = None,
-            higher_hidden_state = None,
-            use_sample = True):
-        mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = self.bottom_up(
-            prev_hidden_state,
-            encoded_obs,
-            encoded_prev_action,
-            lower_zp_zq,
-            higher_hidden_state,
-            use_sample)        
-        new_hidden_state_p, new_hidden_state_q = self.top_down(
-            mtrnn_inputs_p, 
-            mtrnn_inputs_q, 
-            prev_hidden_state)
-        return new_hidden_state_p, new_hidden_state_q, inner_state_dict
-        
-        
-    
-#------------------
-# Example. 
-#------------------
-
-if __name__ == '__main__':
-    
-    from general_FEP_RL.encoders.encode_image import Encode_Image
-    from general_FEP_RL.decoders.decode_image import Decode_Image
-    
-    hidden_state_size = 128
-    
-    observation_model_dict = {
-        'see_image' : { 
-            'encoder' : Encode_Image(
-                arg_dict = {
-                    'encode_size' : 128,
-                    'zp_zq_sizes' : [128, 128]}, 
-                verbose = True),
-            'decoder' : Decode_Image(
-                hidden_state_size, 
-                verbose = True),
-            'target_entropy' : 1,
-            'accuracy_scalar' : 1,                               
-            'complexity_scalar' : 1,                                 
-            'eta' : 1                                   
-            },
-        'see_image_2' : { 
-            'encoder' : Encode_Image(
-                arg_dict = {
-                    'encode_size' : 64,
-                    'zp_zq_sizes' : [64, 64]}, 
-                verbose = True),
-            'decoder' : Decode_Image(
-                hidden_state_size, 
-                verbose = True),
-            'target_entropy' : 1,
-            'accuracy_scalar' : 1,                               
-            'complexity_scalar' : 1,                                 
-            'eta' : 1                                   
-            }
-        }
-    
-    action_model_dict = {
-        'make_image' : {
-            'encoder' : Encode_Image(verbose = True),
-            'decoder' : Decode_Image(hidden_state_size, entropy = True, verbose = True),
-            'target_entropy' : 1,
-            'accuracy_scalar' : 1,                               
-            'complexity_scalar' : 1,                                 
-            'eta' : 1                                   
-            }
-        }
-    
-    wl = World_Model_Layer(
-        hidden_state_size = hidden_state_size,
-        observation_model_dict = observation_model_dict, 
-        action_model_dict = action_model_dict, 
-        bottom_layer = True,
-        top_layer = True,
-        layer_number = 0,
-        time_scale = 1, 
-        verbose = True)
-    print('\n\n')
-    print(wl)
-    print()
-    
-    dummies = generate_dummy_inputs(
-        observation_model_dict,
-        action_model_dict, 
-        hidden_state_size)
-    dummy_inputs = dummies['hidden'], dummies['obs_enc_out'], dummies['act_enc_out'], 0
-        
-    with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-        with record_function('model_inference'):
-            print(summary(wl, input_data=(dummy_inputs)))
-    #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
-    
-
-    
-#%%
-
-        
-
-#------------------
-# Combining layers to make a model like a PVRNN.
-#------------------
 
 class World_Model(nn.Module):
     
     def __init__(
-            self, 
-            hidden_state_sizes,             # Sizes of the agent's short-term/long-term memories.
-            observation_dict,               # Observations the agent observes.
-            action_dict,                    # Actions the agent performs.
-            time_scales,                    # Time-scales of the short-term/long-tem memories.
-            verbose = False):
-        super(World_Model, self).__init__()
-                
-        self.use_sample = True
-        self.hidden_state_sizes = hidden_state_sizes 
-        self.example_input = torch.zeros((32, 16, hidden_state_sizes[0]))
+            self,
+            list_of_world_model_layers):
         
-        # World model encodes actions. 
-        self.action_model_dict = nn.ModuleDict()
-        for key, model in sorted(action_dict.items()):
-            self.action_model_dict[key] = nn.ModuleDict()
-            self.action_model_dict[key]['encoder'] = model['encoder'](
-                arg_dict = model['encoder_arg_dict'], verbose = verbose)
-        
-        encoded_action_size = 0 
-        for key, value in sorted(self.action_model_dict.items()):
-            encoded_action_size += value['encoder'].arg_dict['encode_size']
-        
-        # World model encodes observations and predicts future observations. 
-        self.observation_model_dict = nn.ModuleDict()
-        for key, model in sorted(observation_dict.items()):
-            self.observation_model_dict[key] = nn.ModuleDict()
-            self.observation_model_dict[key]['encoder'] = model['encoder'](
-                arg_dict = model['encoder_arg_dict'], verbose = verbose)
-            self.observation_model_dict[key]['decoder'] = model['decoder'](
-                hidden_state_sizes[0] + encoded_action_size, arg_dict = model['decoder_arg_dict'], verbose = verbose)
-               
-        # Multiple layers of MTRNN produce short-term and long-term memory.
-        # On the bottom layer, with an observation of n parts,
-        # h^q_t = RNN(h^q_{t-1}, z^q_{t,0} || ... || z^q_{t,n}).
-        self.world_layers = nn.ModuleList()
-        first_layer_zp_zq_size = sum(
-            self.observation_model_dict[key]['encoder'].arg_dict['zp_zq_sizes'][-1] 
-            for key in sorted(self.observation_model_dict.keys()))
-        for i, time_scale in enumerate(time_scales):
-            self.world_layers.append(
-                World_Model_Layer(
-                    hidden_state_size = hidden_state_sizes[i],      
-                    observation_model_dict = self.observation_model_dict if i == 0 else None,   
-                    action_model_dict = self.action_model_dict if i == 0 else None,            
-                    bottom_layer = i == 0,
-                    top_layer = i + 1 == len(time_scales), 
-                    layer_number = i,
-                    lower_zp_zq_size = 0 if i == 0 else first_layer_zp_zq_size if i == 1 else hidden_state_sizes[i-1],
-                    higher_hidden_state_size = 0 if i+1 == len(time_scales) else hidden_state_sizes[i+1],
-                    time_scale = time_scale, 
-                    verbose = verbose))
-            
-        self.predict_extrinsic_reward = nn.Sequential(
-            nn.Linear(hidden_state_sizes[0] + encoded_action_size, 16),
-            nn.PReLU(),
-            nn.Linear(16, 1))
+        super().__init__()
 
-        self.apply(init_weights)
-                
-                
-            
-    # Encode incoming actions.
-    def action_in(self, action):
-        encoded_action = {}
-        for key, value in sorted(action.items()):
-            encoded_action[key] = self.action_model_dict[key]['encoder'](value)
-        return encoded_action
-            
-            
-            
-    # Encode incoming observations.
-    def obs_in(self, obs):
-        encoded_obs = {}
-        for key, value in sorted(obs.items()):
-            encoded_obs[key] = self.observation_model_dict[key]['encoder'](value)
-        return encoded_obs
-    
-    
-    
-    # Predict upcoming observations.
-    def predict(self, hidden_state, encoded_action):
-        hidden_state_and_action = torch.cat([hidden_state] + [v for k, v in sorted(encoded_action.items())], dim=-1)
-        predicted_obs = {}
-        for key, value in sorted(self.observation_model_dict.items()):
-            prediction, _ = self.observation_model_dict[key]['decoder'](hidden_state_and_action)
-            predicted_obs[key] = prediction
-        prediction = self.predict_extrinsic_reward(hidden_state_and_action)
-        predicted_obs['extrinsic_reward'] = prediction
-        return predicted_obs
-    
-    
-    
-    # Transfer information from bottom layer to top layer, then top layer to bottom layer.
-    def bottom_to_top_step(self, prev_hidden_states, encoded_obs, encoded_prev_action):
+        self.list_of_world_model_layers = nn.ModuleList(list_of_world_model_layers)
+        
+        
+        
+    def forward_one_step(
+            self,
+            list_of_previous_hidden_states,
+            list_of_prior_values_dicts,
+            list_of_posterior_values_dicts):
 
-        inner_state_dict_list = []
-        mtrnn_inputs_p_list = []
-        mtrnn_inputs_q_list = []
-        first_layer_zp_zq = []
-        for i, world_layer in enumerate(self.world_layers):
-            mtrnn_inputs_p, mtrnn_inputs_q, inner_state_dict = world_layer.bottom_up(
-                prev_hidden_state = prev_hidden_states[i], 
-                encoded_obs = encoded_obs if i==0 else None, 
-                encoded_prev_action = encoded_prev_action if i==0 else None,
-                lower_zp_zq = None if i==0 else first_layer_zp_zq if i==1 else inner_state_dict_list[-1][i-1]['zq'].unsqueeze(1),
-                higher_hidden_state = None if i+1 == len(self.world_layers) else prev_hidden_states[i+1],   
-                use_sample = self.use_sample)
-            if i==0:
-                first_layer_zp_zq = torch.cat([value['zq'] for key, value in sorted(inner_state_dict.items())], dim = -1).unsqueeze(1)
-            inner_state_dict_list.append(inner_state_dict)
-            mtrnn_inputs_p_list.append(mtrnn_inputs_p)
-            mtrnn_inputs_q_list.append(mtrnn_inputs_q)
-        
-        new_hidden_states_p = []
-        new_hidden_states_q = []
-        for i in reversed(range(len(self.world_layers))):
-            world_layer = self.world_layers[i]
-            new_hidden_state_p, new_hidden_state_q = world_layer.top_down(
-                mtrnn_inputs_p_list[i],
-                mtrnn_inputs_q_list[i],
-                prev_hidden_states[i])
-            new_hidden_states_p.append(new_hidden_state_p)
-            new_hidden_states_q.append(new_hidden_state_q)
-            
-        new_hidden_states_p.reverse() 
-        new_hidden_states_q.reverse()
-            
-        inner_state_dict = {}
-        for d in inner_state_dict_list:
-            inner_state_dict.update(d)
-            
-        return(
-            new_hidden_states_p, 
-            new_hidden_states_q, 
-            inner_state_dict)
-    
-    
-    
-    # Update hidden states and predict next observations.
-    def forward(self, prev_hidden_states, obs, prev_action, one_step = False):
-                           
-        first = next(iter(obs.values()))
-        episodes, steps = first.shape[0], first.shape[1]
-                                    
-        if prev_hidden_states is None:
-            prev_hidden_states = [
-                torch.zeros((episodes, 1, hidden_state_size))
-                for hidden_state_size in self.hidden_state_sizes]
-                        
-        encoded_obs = self.obs_in(obs)
-        encoded_prev_action = self.action_in(prev_action)
-        
-        hidden_states_p_list = [prev_hidden_states]
-        hidden_states_q_list = [prev_hidden_states]
-        inner_state_dicts_list = []
-                                    
-        for step in range(steps):
-                                    
-            step_obs = {}
-            for key, value in sorted(encoded_obs.items()):
-                step_obs[key] = value[:,step].unsqueeze(1)
-                
-            step_prev_action = {}
-            for key, value in sorted(encoded_prev_action.items()):
-                step_prev_action[key] = value[:,step].unsqueeze(1)
-                                        
-            new_hidden_states_p, new_hidden_states_q, inner_state_dict = \
-                self.bottom_to_top_step(prev_hidden_states, step_obs, step_prev_action)
-                
-            prev_hidden_states = new_hidden_states_q
-            hidden_states_p_list.append(new_hidden_states_p)
-            hidden_states_q_list.append(new_hidden_states_q)
-            inner_state_dicts_list.append(inner_state_dict)
-                                       
-        hidden_states_p = [] 
-        hidden_states_q = [] 
-        for i in range(len(hidden_states_p_list[0])):
-            hidden_states_p.append(torch.cat([h[i] for h in hidden_states_p_list], dim = 1))
-            hidden_states_q.append(torch.cat([h[i] for h in hidden_states_q_list], dim = 1))
-                        
-        catted_inner_state_dicts = {}
-        for key in inner_state_dicts_list[0].keys():
-            zp  = torch.stack([d[key]['zp']  for d in inner_state_dicts_list], dim=1)
-            zq  = torch.stack([d[key]['zq']  for d in inner_state_dicts_list], dim=1)
-            dkl = torch.stack([d[key]['dkl'] for d in inner_state_dicts_list], dim=1)
-            catted_inner_state_dicts[key] = {'zp': zp, 'zq': zq, 'dkl': dkl}
+        layers = self.list_of_world_model_layers
+        num_layers = len(layers)
 
-        if one_step:
-            # If working with only one step, we can't predict the next
-            # observation, because we don't have the next action.
-            return [h[:,1:] for h in hidden_states_p], [h[:,1:] for h in hidden_states_q], catted_inner_state_dicts
-        else:
-            # If working with a whole episode, predict future observations. 
-            skip_non_action = {}
-            for key, value in sorted(encoded_prev_action.items()):    
-                skip_non_action[key] = value[:, 1:]
-            
-            pred_obs_p = self.predict(hidden_states_p[0][:, 1:-1], skip_non_action)
-            pred_obs_q = self.predict(hidden_states_q[0][:, 1:-1], skip_non_action)
+        list_of_inner_states = []
+        list_of_posterior_samples = []
+        list_of_prior_prediction_dicts = []
+        list_of_posterior_prediction_dicts = []
+
+        # From bottom to top.
+        for i, world_model_layer in enumerate(layers):
+            prior_values = {
+                **list_of_prior_values_dicts[i],
+                'previous_hidden_state' : list_of_previous_hidden_states[i]}
+            posterior_values = {
+                **list_of_posterior_values_dicts[i],
+                'previous_hidden_state' : list_of_previous_hidden_states[i]}
+            if i > 0:
+                posterior_values['lower_layer_posterior_sample'] = list_of_posterior_samples[i - 1]
+
+            inner_states = world_model_layer.make_inner_states(prior_values, posterior_values)
+            prior_sample = world_model_layer.combine_inner_state_samples(inner_states, 'prior')
+            posterior_sample = world_model_layer.combine_inner_state_samples(inner_states, 'posterior')
+
+            list_of_inner_states.append(inner_states)
+            list_of_posterior_samples.append(posterior_sample)
+            list_of_prior_prediction_dicts.append(world_model_layer.make_predictions(prior_sample))             # WE SHOULD BE USING SOMETHING ELSE
+            list_of_posterior_prediction_dicts.append(world_model_layer.make_predictions(posterior_sample))     # FOR PREDICTION INPUTS.
+
+        # From top to bottom.
+        list_of_new_hidden_states = [None] * num_layers
+        for i in range(num_layers - 1, -1, -1):
+            list_of_new_hidden_states[i] = layers[i].make_hidden_state(
+                previous_hidden_state = list_of_previous_hidden_states[i],
+                inner_state_sample = list_of_posterior_samples[i],
+                higher_layer_hidden_state = None if i == num_layers - 1 else list_of_new_hidden_states[i + 1])
+
+        return {
+            'list_of_hidden_states' : list_of_new_hidden_states,
+            'list_of_inner_states' : list_of_inner_states,
+            'list_of_posterior_samples' : list_of_posterior_samples,
+            'list_of_prior_predictions' : list_of_prior_prediction_dicts,
+            'list_of_posterior_predictions' : list_of_posterior_prediction_dicts}
+
+
+
+    def start_hidden_states(self, batch_size, device = None, dtype = None):
+        example_parameter = next(self.parameters())
+        device = example_parameter.device if device is None else device
+        dtype = example_parameter.dtype if dtype is None else dtype
+        return [
+            torch.zeros(
+                batch_size, 1, world_model_layer.hidden_state_decoder.output_shape[0],
+                device = device, dtype = dtype)
+            for world_model_layer in self.list_of_world_model_layers]
+
+
+
+    def forward(
+            self,
+            list_of_lists_of_prior_values_dicts,
+            list_of_lists_of_posterior_values_dicts,
+            list_of_previous_hidden_states = None):     # Pass this in to continue an episode.
+
+        episode_length = len(list_of_lists_of_prior_values_dicts)
+        example_value = next(iter(list_of_lists_of_posterior_values_dicts[0][0].values()))
+
+        if list_of_previous_hidden_states is None:
+            list_of_previous_hidden_states = self.start_hidden_states(
+                example_value.shape[0],
+                device = example_value.device,
+                dtype = example_value.dtype)
+
+        list_of_step_dicts = []
+        for t in range(episode_length):
+            list_of_step_dicts.append(self.forward_one_step(
+                list_of_previous_hidden_states,
+                list_of_lists_of_prior_values_dicts[t],
+                list_of_lists_of_posterior_values_dicts[t]))
+            list_of_previous_hidden_states = list_of_step_dicts[-1]['list_of_hidden_states']
+
+        return list_of_step_dicts
+
+
+
+######################
+
         
-            return(
-                hidden_states_p, 
-                hidden_states_q, 
-                catted_inner_state_dicts, 
-                pred_obs_p, 
-                pred_obs_q)
-        
-        
-        
-    # This function prints the complete architecture of the world model.
-    def summary(self):
-                
-        """# Layers can only be summarized if there is just one layer.
-        if len(self.world_layers) == 1:
-            dummies = generate_dummy_inputs(self.observation_model_dict, self.action_model_dict, self.hidden_state_sizes)        
+
+def make_world_model(
+    hidden_state_sizes,
     
-            for i, world_layer in enumerate(self.world_layers):
-                print(f'\n\nWORLD_MODEL_LAYER {i}')
-                if i == 0:
-                    dummy_inputs = dummies['hidden'][0], dummies['obs_enc_out'], dummies['act_enc_out'], 0
-                else:
-                    dummy_inputs = dummies['hidden'][i], None, None
-                    
-                with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-                    with record_function('model_inference'):
-                        print(summary(
-                            self.world_layers[i], 
-                            input_data=(dummy_inputs)))
-                #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))"""
+    list_of_dict_of_prior_input_encoder_class_dicts,                # List of dictionaries of dictionaries for prior_input encoders. (Inner state decoder is automatically generated.)
+                                                                    # Do NOT include hidden_state encoding. (This is automatically generated.)
+                                                                    # Keys:
+                                                                        # name.
+                                                                        # Keys:
+                                                                            # class. (These must have fixed input_size and fixed output_size.)
+                                                                            # (There is no decoding_output_size. Only inner_states shared with posterior_inner_states are decoded.)
+                                                                
+    list_of_dict_of_posterior_input_encoder_class_dicts,            # List of dictionaries of dictionaries for posterior_input encoders. (Inner state decoder is automatically generated.)
+                                                                    # Do NOT include hidden_state encoding or lower_layer_posterior_sample encoding. (These are automatically generated.)
+                                                                    # Do NOT include lower_layer_posterior_sample_output_size. (This is automatically generated.)
+                                                                    # Keys:
+                                                                        # name.
+                                                                        # Keys:
+                                                                            # class. (These must have fixed input_shape and fixed output_shape.)
+                                                                            # decoding_output_size.
+                                                                
+    list_of_dict_of_prediction_decoder_class_dicts,                 # List of dictionaries of dictionaries for prediction decoders.
+                                                                    # Must decode nothing more or less than everything in the list_of_posterior_input_encoder_class_dicts.
+                                                                    # Do NOT include lower_layer_posterior_sample. (This is automatically generated.)
+                                                                    # Keys:
+                                                                        # name.
+                                                                        # Keys:
+                                                                            # decoding class. (These must have OPEN input_shape but fixed output_shape.
+                                                                            # (They must also have loss-functions.)
+                                                                
+    lower_layer_posterior_sample_decoding_output_sizes,             # Width of each layer's inner state for the layer below it.
+                                                                    # Entry 0 is ignored: layer 0 has no lower layer.
+    time_constants,
+    isolate_modality_posteriors = True,                             # Each modality's posterior reads only shared context
+                                                                    # plus its own encoding.
+    verbose = False):
+    
+    
+    
+    all_same = all(len(l) == len(hidden_state_sizes) for l in [
+        list_of_dict_of_prior_input_encoder_class_dicts, 
+        list_of_dict_of_posterior_input_encoder_class_dicts,
+        list_of_dict_of_prediction_decoder_class_dicts,
+        lower_layer_posterior_sample_decoding_output_sizes,
+        time_constants])
+    
+    if not all_same: 
+        raise ValueError("Inputs of make_world_model need to share length.")
+    
+    list_of_world_model_layers = []
+    
+    # Each layer's inner_state_size is what the layer above sees, so it is read off
+    # the layer just built rather than passed in and trusted.
+    lower_layer_posterior_sample_size = 0
+    
+    for i in range(len(hidden_state_sizes)):
         
+        higher_layer_hidden_state_size = 0
+        if i < len(hidden_state_sizes)-1:
+            higher_layer_hidden_state_size = hidden_state_sizes[i+1]
         
-        print('\n\nOBSERVATIONS')
-        for key, value in sorted(self.observation_model_dict.items()):
-            print(f'\n{key} ENCODER')
-            with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-                with record_function('model_inference'):
-                    print(summary(
-                        self.observation_model_dict[key]['encoder'], 
-                        input_data=(self.observation_model_dict[key]['encoder'].example_input)))
-            #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
-                    
-            print(f'\n{key} DECODER')
-            with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-                with record_function('model_inference'):
-                    print(summary(
-                        self.observation_model_dict[key]['decoder'], 
-                        input_data=(self.observation_model_dict[key]['decoder'].example_input)))
-            #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
+        world_model_layer = make_world_model_layer(
+            hidden_state_sizes[i],                                      
             
-        print('\n\nACTIONS')
-        for key, value in sorted(self.action_model_dict.items()):
-            print(f'\n{key} ENCODER')
-            with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
-                with record_function('model_inference'):
-                    print(summary(
-                        self.action_model_dict[key]['encoder'], 
-                        input_data=(self.action_model_dict[key]['encoder'].example_input)))
-            #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
-        
-        
-        
+            list_of_dict_of_prior_input_encoder_class_dicts[i],                
+            list_of_dict_of_posterior_input_encoder_class_dicts[i],
+            list_of_dict_of_prediction_decoder_class_dicts[i],                
+                                                                        
+            lower_layer_posterior_sample_size = lower_layer_posterior_sample_size,                  # Size of lower_layer_posterior_sample.
+            lower_layer_posterior_sample_decoding_output_size = (
+                0 if i == 0 else lower_layer_posterior_sample_decoding_output_sizes[i]),
+            higher_layer_hidden_state_size = higher_layer_hidden_state_size,                        # Size of hidden_state of higher_layer.
+            isolate_modality_posteriors = isolate_modality_posteriors,
+            time_constant = time_constants[i],
+            verbose = verbose)
+    
+        list_of_world_model_layers.append(world_model_layer)
+        lower_layer_posterior_sample_size = world_model_layer.inner_state_size
+    
+    world_model = World_Model(list_of_world_model_layers)
+
+    return world_model
+
+
+
+######################
+
+
+
 if __name__ == '__main__':
-    
-    observation_dict = {
-        'see_image' : {
-            'encoder' : Encode_Image,
-            'encoder_arg_dict' : {
-                'encode_size' : 256,
-                'zp_zq_sizes' : [256]},
-            'decoder' : Decode_Image,
-            'decoder_arg_dict' : {},
-            },
-        'see_image_2' : {
-            'encoder' : Encode_Image,
-            'encoder_arg_dict' : {
-                'encode_size' : 16,
-                'zp_zq_sizes' : [16]},
-            'decoder' : Decode_Image,
-            'decoder_arg_dict' : {},
-            }
-        }
-    
-    action_dict = {
-        'make_image' : {
-            'encoder' : Encode_Image,
-            'encoder_arg_dict' : {
-                'encode_size' : 128},
-            'decoder' : Decode_Image,
-            'decoder_arg_dict' : {},
-            }
-        }
-    
-    hidden_state_sizes = [128]
-    wm = World_Model(            
-        hidden_state_sizes = hidden_state_sizes,
-        observation_dict = observation_dict, 
-        action_dict = action_dict,
-        time_scales = [1],
-        verbose = True)
-    print('\n\n')
-    print(wm)
-    print()
-    
-    
 
-    dummies = generate_dummy_inputs(
-        wm.observation_model_dict, 
-        wm.action_model_dict, 
-        hidden_state_size)
-    dummy_inputs = [dummies['hidden'], dummies['hidden']], dummies['obs_enc_in'], dummies['act_enc_in'], 0
-    
-    wm.summary()
 
-# %%
+
+    import math
+    from functools import partial
+
+    import torch
+    from torch import nn
+    import torch.nn.functional as F
+
+    from shape_to_shape_models import Shape_to_Shape_Model
+
+    print("\n\n\n\n\n\n\n\n\n\n")
+
+
+
+    ######################
+    # Concrete encoders and decoders, same as in world_model_layer.py's example.
+    #
+    # Encoders need fixed input_shape AND fixed output_shape and are built with no
+    # arguments, so their sizes are bound ahead of time with functools.partial.
+    # Prediction decoders need an OPEN input_shape (it depends on inner_state_size,
+    # which make_world_model_layer computes), so only their output_shape is bound.
+    ######################
+
+
+    class Vector_Encoder(Shape_to_Shape_Model):
+
+        def __init__(self, name, input_size, output_size, hidden_size = 32, verbose = False):
+            super().__init__(
+                name = name,
+                input_shape = (input_size,),
+                output_shape = (output_size,),
+                arg_dict = {'hidden_size' : hidden_size},
+                verbose = verbose)
+
+        def build_model(self, arg_dict):
+            hidden_size = arg_dict.get('hidden_size', 32)
+            self.model = nn.Sequential(
+                nn.Linear(self.input_shape[0], hidden_size),
+                nn.LeakyReLU(),
+                nn.Linear(hidden_size, self.output_shape[0]),
+                nn.LeakyReLU())
+
+        def forward(self, value):
+            return self.model(value)
+
+
+    class Image_Encoder(Shape_to_Shape_Model):
+
+        def __init__(self, name, input_shape, output_size, hidden_channels = [16, 32], verbose = False):
+            super().__init__(
+                name = name,
+                input_shape = input_shape,
+                output_shape = (output_size,),
+                arg_dict = {'hidden_channels' : hidden_channels},
+                verbose = verbose)
+
+        def build_model(self, arg_dict):
+            hidden_channels = arg_dict.get('hidden_channels', [16, 32])
+            in_channels, in_height, in_width = self.input_shape
+            channels = [in_channels] + hidden_channels
+
+            layers = []
+            for in_ch, out_ch in zip(channels[:-1], channels[1:]):
+                layers.append(nn.Conv2d(in_ch, out_ch, kernel_size = 4, stride = 2, padding = 1))
+                layers.append(nn.LeakyReLU())
+            self.model = nn.Sequential(*layers)
+
+            self.end_shape = (
+                hidden_channels[-1],
+                in_height // 2**len(hidden_channels),
+                in_width // 2**len(hidden_channels))
+            self.linear = nn.Linear(math.prod(self.end_shape), self.output_shape[0])
+
+        def forward(self, value):
+            batch_size, episode_length = value.shape[:2]
+            value = value.reshape(batch_size * episode_length, *self.input_shape)
+            value = self.model(value).reshape(batch_size * episode_length, -1)
+            encoding = self.linear(value)
+            return encoding.reshape(batch_size, episode_length, self.output_shape[0])
+
+
+    class Vector_Decoder(Shape_to_Shape_Model):
+
+        def __init__(self, name, input_size, output_size, hidden_size = 32, verbose = False):
+            super().__init__(
+                name = name,
+                input_shape = (input_size,),
+                output_shape = (output_size,),
+                arg_dict = {'hidden_size' : hidden_size},
+                verbose = verbose)
+
+        def build_model(self, arg_dict):
+            hidden_size = arg_dict.get('hidden_size', 32)
+            self.model = nn.Sequential(
+                nn.Linear(self.input_shape[0], hidden_size),
+                nn.LeakyReLU(),
+                nn.Linear(hidden_size, self.output_shape[0]))
+
+        def forward(self, value):
+            return self.model(value)
+
+        @staticmethod
+        def loss_func(predicted_values, target_values):
+            return F.mse_loss(predicted_values, target_values, reduction = 'none')
+
+
+    class Image_Decoder(Shape_to_Shape_Model):
+
+        def __init__(self, name, input_size, output_shape, hidden_size = 64, verbose = False):
+            super().__init__(
+                name = name,
+                input_shape = (input_size,),
+                output_shape = output_shape,
+                arg_dict = {'hidden_size' : hidden_size},
+                verbose = verbose)
+
+        def build_model(self, arg_dict):
+            hidden_size = arg_dict.get('hidden_size', 64)
+            self.model = nn.Sequential(
+                nn.Linear(self.input_shape[0], hidden_size),
+                nn.LeakyReLU(),
+                nn.Linear(hidden_size, math.prod(self.output_shape)))
+
+        def forward(self, value):
+            batch_size, episode_length = value.shape[:2]
+            output = self.model(value)
+            return output.reshape(batch_size, episode_length, *self.output_shape)
+
+        @staticmethod
+        def loss_func(predicted_values, target_values):
+            return F.mse_loss(predicted_values, target_values, reduction = 'none')
+
+
+
+    ######################
+    # A three-layer hierarchy.
+    #
+    #   layer 0 (fast):     acts, sees vision and touch.            time_constant 1
+    #   layer 1 (medium):   no senses of its own, only layer 0.      time_constant 4
+    #   layer 2 (slow):     sees a task command, plus layer 1.       time_constant 16
+    #
+    # Layer 0 has no lower layer, layer 2 has no higher layer, and layer 1 has both,
+    # so every branch in make_world_model_layer gets exercised. Layers 1 and 2 have
+    # empty prior input dicts: their priors are driven by their own hidden states
+    # alone. Layer 1 shows a layer with no observations, layer 2 shows one that mixes
+    # its own observation with a summary of the layer below.
+    ######################
+
+    action_shape  = (4,)
+    vision_shape  = (3, 16, 16)
+    touch_shape   = (6,)
+    command_shape = (8,)
+
+    hidden_state_sizes = [32, 24, 16]
+    time_constants     = [1, 4, 16]
+
+    list_of_dict_of_prior_input_encoder_class_dicts = [
+        # Layer 0: acts on the world.
+        {'action' : {
+            'class' : partial(Vector_Encoder, name = 'action', input_size = action_shape[0], output_size = 16)}},
+        # Layer 1 and 2: prior is driven by their own hidden state alone.
+        {},
+        {}]
+
+    list_of_dict_of_posterior_input_encoder_class_dicts = [
+        # Layer 0.
+        {'vision' : {
+            'class' : partial(Image_Encoder, name = 'vision', input_shape = vision_shape, output_size = 32),
+            'decoding_output_size' : 16},
+         'touch' : {
+            'class' : partial(Vector_Encoder, name = 'touch', input_size = touch_shape[0], output_size = 16),
+            'decoding_output_size' : 8}},
+        # Layer 1: no senses of its own, only the layer below.
+        {},
+        # Layer 2: a task command, plus the layer below.
+        {'command' : {
+            'class' : partial(Vector_Encoder, name = 'command', input_size = command_shape[0], output_size = 16),
+            'decoding_output_size' : 8}}]
+
+    list_of_dict_of_prediction_decoder_class_dicts = [
+        # Layer 0.
+        {'vision' : {
+            'class' : partial(Image_Decoder, name = 'vision', output_shape = vision_shape)},
+         'touch' : {
+            'class' : partial(Vector_Decoder, name = 'touch', output_size = touch_shape[0])}},
+        # Layer 1: the lower_layer_posterior_sample decoder is generated for it.
+        {},
+        # Layer 2.
+        {'command' : {
+            'class' : partial(Vector_Decoder, name = 'command', output_size = command_shape[0])}}]
+
+    # How wide each layer's summary of the layer below is. Entry 0 is unused.
+    lower_layer_posterior_sample_decoding_output_sizes = [0, 12, 8]
+
+    world_model = make_world_model(
+        hidden_state_sizes,
+        list_of_dict_of_prior_input_encoder_class_dicts,
+        list_of_dict_of_posterior_input_encoder_class_dicts,
+        list_of_dict_of_prediction_decoder_class_dicts,
+        lower_layer_posterior_sample_decoding_output_sizes,
+        time_constants,
+        verbose = False)
+
+    print("inner_state_size per layer:",
+          [layer.inner_state_size for layer in world_model.list_of_world_model_layers])
+
+    print(f"\nparameters: {sum(p.numel() for p in world_model.parameters()):,}\n")
+
+
+
+    ######################
+    # A dummy episode.
+    #
+    # forward expects list_of_lists_of_..._values_dicts[time][layer], and every tensor
+    # is (batch, 1, ...) because the hidden state is recurrent and one call to
+    # forward_one_step covers exactly one time-step.
+    ######################
+
+    batch_size = 2
+    episode_length = 5
+
+    def make_step_values():
+        action  = torch.randn(batch_size, 1, *action_shape)
+        vision  = torch.randn(batch_size, 1, *vision_shape)
+        touch   = torch.randn(batch_size, 1, *touch_shape)
+        command = torch.randn(batch_size, 1, *command_shape)
+        prior_values_dicts = [
+            {'action' : action},
+            {},
+            {}]
+        posterior_values_dicts = [
+            {'action' : action, 'vision' : vision, 'touch' : touch},
+            {},
+            {'command' : command}]
+        return prior_values_dicts, posterior_values_dicts
+
+    list_of_lists_of_prior_values_dicts = []
+    list_of_lists_of_posterior_values_dicts = []
+    for _ in range(episode_length):
+        prior_values_dicts, posterior_values_dicts = make_step_values()
+        list_of_lists_of_prior_values_dicts.append(prior_values_dicts)
+        list_of_lists_of_posterior_values_dicts.append(posterior_values_dicts)
+
+
+
+    ######################
+    # One step, printing every shape the diagram names.
+    ######################
+
+    print("###\nOne step\n###\n")
+
+    previous_hidden_states = [
+        torch.zeros(batch_size, 1, hidden_state_size)
+        for hidden_state_size in hidden_state_sizes]
+
+    step_dict = world_model.forward_one_step(
+        previous_hidden_states,
+        list_of_lists_of_prior_values_dicts[0],
+        list_of_lists_of_posterior_values_dicts[0])
+
+    for i in range(len(hidden_state_sizes)):
+        print(f"layer {i}:")
+        print(f"\thidden state: \t\t{list(step_dict['list_of_hidden_states'][i].shape)}")
+        for name, inner_state_dict in step_dict['list_of_inner_states'][i].items():
+            for key, value in inner_state_dict.items():
+                print(f"\tinner state '{name}' {key}: \t{list(value.shape)}")
+        print(f"\tposterior sample: \t{list(step_dict['list_of_posterior_samples'][i].shape)}")
+        for name, prediction in step_dict['list_of_prior_predictions'][i].items():
+            print(f"\tprior prediction '{name}': \t{list(prediction.shape)}")
+        for name, prediction in step_dict['list_of_posterior_predictions'][i].items():
+            print(f"\tposterior prediction '{name}': \t{list(prediction.shape)}")
+        print()
+
+
+
+    ######################
+    # A whole episode.
+    ######################
+
+    print("###\nWhole episode\n###\n")
+
+    list_of_step_dicts = world_model(
+        list_of_lists_of_prior_values_dicts,
+        list_of_lists_of_posterior_values_dicts)
+
+    print(f"steps returned: {len(list_of_step_dicts)} (expected {episode_length})")
+
+    # The MTRNN leak is h(t) = (1/time_constant) * decoded + (1 - 1/time_constant) * h(t-1).
+    # Calling make_hidden_state twice with the same inner_state_sample but different
+    # previous hidden states isolates the leak weight exactly, which is a sharper test
+    # than watching how much the hidden state happens to move.
+    print("\nMTRNN leak check:")
+    for i, (world_model_layer, time_constant) in enumerate(
+            zip(world_model.list_of_world_model_layers, time_constants)):
+        inner_state_sample = list_of_step_dicts[0]['list_of_posterior_samples'][i]
+        previous_hidden_state = torch.ones(batch_size, 1, hidden_state_sizes[i])
+        higher_layer_hidden_state = (
+            None if i == len(time_constants) - 1
+            else list_of_step_dicts[0]['list_of_hidden_states'][i + 1])
+        with torch.no_grad():
+            from_zero = world_model_layer.make_hidden_state(
+                torch.zeros_like(previous_hidden_state), inner_state_sample, higher_layer_hidden_state)
+            from_previous = world_model_layer.make_hidden_state(
+                previous_hidden_state, inner_state_sample, higher_layer_hidden_state)
+        measured = (from_previous - from_zero).mean().item()
+        expected = 1 - 1 / time_constant
+        print(f"\tlayer {i} (time_constant {time_constant:>2}): "
+              f"measured old-weight {measured:.4f}, expected {expected:.4f}")
+
+    ######################
+    # The two red arrows in the diagram, summed over the episode.
+    #
+    # Accuracy compares predictions to the values the posterior actually saw. The
+    # lower_layer_posterior_sample target is itself a network output, so it is
+    # detached: without that, the lower layer learns to be predictable rather than
+    # informative.
+    ######################
+
+    print("\n###\nFree energy\n###\n")
+
+    accuracy = 0.
+    complexity = 0.
+
+    for t, step_dict in enumerate(list_of_step_dicts):
+        for i, world_model_layer in enumerate(world_model.list_of_world_model_layers):
+
+            for name, prediction in step_dict['list_of_prior_predictions'][i].items():
+                if name == 'lower_layer_posterior_sample':
+                    target = step_dict['list_of_posterior_samples'][i-1].detach()
+                else:
+                    target = list_of_lists_of_posterior_values_dicts[t][i][name]
+                loss_func = world_model_layer.prediction_decoder.models_dict[name].loss_func
+                accuracy = accuracy + loss_func(prediction, target).mean()
+
+            for name, inner_state_dict in step_dict['list_of_inner_states'][i].items():
+                complexity = complexity + inner_state_dict['dkl'].mean()
+
+    free_energy = accuracy + complexity
+    print(f"accuracy: \t{accuracy.item():.5f}")
+    print(f"complexity: \t{complexity.item():.5f}")
+    print(f"free energy: \t{free_energy.item():.5f}")
+
+
+
+    ######################
+    # Does every parameter actually receive a gradient? A parameter with no gradient
+    # is a branch of the diagram that nothing is training.
+    ######################
+
+    print("\n###\nGradient check\n###\n")
+
+    free_energy.backward()
+
+    without_gradient = [
+        name for name, parameter in world_model.named_parameters()
+        if parameter.grad is None]
+
+    if without_gradient:
+        print(f"{len(without_gradient)} parameters received NO gradient:")
+        for name in without_gradient:
+            print(f"\t{name}")
+    else:
+        print("every parameter received a gradient.")
