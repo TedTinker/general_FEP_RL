@@ -31,15 +31,22 @@ class World_Model(nn.Module):
             self,
             list_of_previous_hidden_states,
             list_of_prior_values_dicts,
-            list_of_posterior_values_dicts):
+            list_of_posterior_values_dicts,
+            use_posterior = True):      # False dreams: the hierarchy runs on its own priors.
 
         layers = self.list_of_world_model_layers
         num_layers = len(layers)
 
         list_of_inner_states = []
+        list_of_prior_samples = []
         list_of_posterior_samples = []
         list_of_prior_prediction_dicts = []
         list_of_posterior_prediction_dicts = []
+
+        # Whichever branch is driving is what feeds the layer above AND what advances
+        # the hidden state. Aliasing one list here means those two can never disagree.
+        list_of_driving_samples = (
+            list_of_posterior_samples if use_posterior else list_of_prior_samples)
 
         # From bottom to top.
         for i, world_model_layer in enumerate(layers):
@@ -50,28 +57,32 @@ class World_Model(nn.Module):
                 **list_of_posterior_values_dicts[i],
                 'previous_hidden_state' : list_of_previous_hidden_states[i]}
             if i > 0:
-                posterior_values['lower_layer_posterior_sample'] = list_of_posterior_samples[i - 1]
+                posterior_values['lower_layer_posterior_sample'] = list_of_driving_samples[i - 1]
 
             inner_states = world_model_layer.make_inner_states(prior_values, posterior_values)
-            prior_sample = world_model_layer.combine_inner_state_samples(inner_states, 'prior')
-            posterior_sample = world_model_layer.combine_inner_state_samples(inner_states, 'posterior')
 
             list_of_inner_states.append(inner_states)
-            list_of_posterior_samples.append(posterior_sample)
-            list_of_prior_prediction_dicts.append(world_model_layer.make_predictions(prior_sample))             # WE SHOULD BE USING SOMETHING ELSE
-            list_of_posterior_prediction_dicts.append(world_model_layer.make_predictions(posterior_sample))     # FOR PREDICTION INPUTS.
+            list_of_prior_samples.append(
+                world_model_layer.combine_inner_state_samples(inner_states, 'prior'))
+            list_of_posterior_samples.append(
+                world_model_layer.combine_inner_state_samples(inner_states, 'posterior'))
+            list_of_prior_prediction_dicts.append(
+                world_model_layer.make_predictions(list_of_prior_samples[i]))
+            list_of_posterior_prediction_dicts.append(
+                world_model_layer.make_predictions(list_of_posterior_samples[i]))
 
         # From top to bottom.
         list_of_new_hidden_states = [None] * num_layers
         for i in range(num_layers - 1, -1, -1):
             list_of_new_hidden_states[i] = layers[i].make_hidden_state(
                 previous_hidden_state = list_of_previous_hidden_states[i],
-                inner_state_sample = list_of_posterior_samples[i],
+                inner_state_sample = list_of_driving_samples[i],
                 higher_layer_hidden_state = None if i == num_layers - 1 else list_of_new_hidden_states[i + 1])
 
         return {
             'list_of_hidden_states' : list_of_new_hidden_states,
             'list_of_inner_states' : list_of_inner_states,
+            'list_of_prior_samples' : list_of_prior_samples,
             'list_of_posterior_samples' : list_of_posterior_samples,
             'list_of_prior_predictions' : list_of_prior_prediction_dicts,
             'list_of_posterior_predictions' : list_of_posterior_prediction_dicts}
@@ -94,7 +105,8 @@ class World_Model(nn.Module):
             self,
             list_of_lists_of_prior_values_dicts,
             list_of_lists_of_posterior_values_dicts,
-            list_of_previous_hidden_states = None):     # Pass this in to continue an episode.
+            list_of_previous_hidden_states = None,      # Pass this in to continue an episode.
+            use_posterior = True):
 
         episode_length = len(list_of_lists_of_prior_values_dicts)
         example_value = next(iter(list_of_lists_of_posterior_values_dicts[0][0].values()))
@@ -110,7 +122,8 @@ class World_Model(nn.Module):
             list_of_step_dicts.append(self.forward_one_step(
                 list_of_previous_hidden_states,
                 list_of_lists_of_prior_values_dicts[t],
-                list_of_lists_of_posterior_values_dicts[t]))
+                list_of_lists_of_posterior_values_dicts[t],
+                use_posterior = use_posterior))
             list_of_previous_hidden_states = list_of_step_dicts[-1]['list_of_hidden_states']
 
         return list_of_step_dicts
