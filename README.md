@@ -31,24 +31,4 @@ G_t
 \end{aligned}
 ```
 
-Combined, the World Model and SAC are somewhat adversarial. 
-The World Model tries to avoid surprise by understanding the relationship between observations, actions, and the environment. 
-The SAC seeks states and actions that yield both expected reward and information gain, forcing the world model to adapt to novel and surprising experiences.
-
-To use this package for any RL setup, provide an encoder and decoder for each module of observation and action. These models require these variables:
-
-Encoder requirements:
-    example_input
-    example_output
-    arg_dict:
-        encode_size
-        zp_zq_sizes
-
-    This returns one value: the encoding of the input.
-
-Decoder requirements:
-    example_input
-    example_output
-    loss_func
-
-    This returns two values: the generated output and log-probabilities of those outputs.
+Combined, the World Model and SAC can be described as adversarial. The World Model tries to avoid surprise by understanding the relationship between observations, actions, and the environment. The SAC seeks states and actions that yield both expected reward and information gain, forcing the world model to adapt to novel and surprising experiences.
