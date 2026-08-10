@@ -11,20 +11,17 @@ https://direct.mit.edu/neco/article/36/9/1854/123686/Intrinsic-Rewards-for-Explo
 Curiosity-Driven Development of Action and Language in Robots Through Self-Exploration
 https://www.science.org/doi/10.1126/sciadv.aee7533
 
-The agent learns a probabilistic world model (AKA forward model) implemented as a recurrent neural network (RNN).
-This model minimizes Free Energy by maintaining prior and posterior latent states and predicting future observations. 
+The agent learns a probabilistic world model (AKA forward model) implemented as a recurrent neural network (RNN). This model minimizes Free Energy F by maintaining prior and posterior latent states and predicting future observations. 
 
 ```math 
 F_t = \underbrace{D_{KL}[q(z_t)||p(z_t)]}_{\text{Complexity}} - \underbrace{\mathbb{E}_{q(z_t)}[\log p(o_{t+1}|z_t)]}_{\text{Accuracy}}.
 ```
 
-The hidden states are used as inputs for a Soft Actor Critic (SAC). 
-The critic predicts a Q-value consisting of extrinsic rewards, entropy, curiosity, and imitation. 
-The actor samples an action which maximizes predicted Q-value and entropy. This minimizes Expected Free Energy.
+The hidden states are used as inputs for a Soft Actor Critic (SAC). The critic predicts a Q-value consisting of extrinsic rewards, entropy, curiosity, and imitation. The actor samples an action which maximizes predicted Q-value and entropy. This minimizes Expected Free Energy G.
 
 ```math
 \begin{aligned}
-Q_t
+G_t
 &= r_t
 + \eta D_{KL}[q(z_t|o_t,h_{t-1})||p(z_t|h_{t-1})]
 + \alpha \mathcal{H}(\pi_{\phi}(a_{t+1}|h_t)) \\
