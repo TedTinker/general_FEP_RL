@@ -96,7 +96,7 @@ class Inner_State_Decoder(Shape_to_Shape_Model):
     
     def forward(self, value):
         mu = self.mu(value)
-        std = 1e-2 + F.softplus(self.std(value))
+        std = 1e-2 + F.softplus(self.std(value))      # We may want a larger minimum.
         inner_state_sample = sample(mu, std)
         return {'mu' : mu, 'std' : std, 'sample' : inner_state_sample}
 
