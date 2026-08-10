@@ -3,13 +3,13 @@ This package provides a configurable, customizable Reinforcement Learning (RL) a
 
 ![architecture](images_for_readme/architecture.png)
 
-This is based on these papers:
+This is inspired by, but much different than, the architectures presented in these papers:
 
 Intrinsic Rewards for Exploration without Harm from Observational Noise: A Simulation Study Based on the Free Energy Principle
-https://arxiv.org/abs/2405.07473
+https://direct.mit.edu/neco/article/36/9/1854/123686/Intrinsic-Rewards-for-Exploration-Without-Harm
 
 Curiosity-Driven Development of Action and Language in Robots Through Self-Exploration
-https://arxiv.org/abs/2510.05013
+https://www.science.org/doi/10.1126/sciadv.aee7533
 
 The agent learns a probabilistic world model (AKA forward model) implemented as a recurrent neural network (RNN).
 This model minimizes Free Energy by maintaining prior and posterior latent states and predicting future observations. 
@@ -22,9 +22,16 @@ The hidden states are used as inputs for a Soft Actor Critic (SAC).
 The critic predicts a Q-value consisting of extrinsic rewards, entropy, curiosity, and imitation. 
 The actor samples an action which maximizes predicted Q-value and entropy. This minimizes Expected Free Energy.
 
-```math 
-Q_t &= r_t + \eta D_{KL}[q(z_{t}|o_{t},h_{t-1})||p(z_{t}|h_{t-1})] + \alpha \mathcal{H}(\pi_{\phi} (a_{t+1} | h_{t})) \\ 
-+ &\gamma (1 - done_t) \mathbb{E}_{o_{t+1} \sim D, a_{t+1} \sim \pi_\phi} [Q_{\bar{\theta}}(o_{t+1}, a_{t+1})].
+```math
+\begin{aligned}
+Q_t
+&= r_t
++ \eta D_{KL}[q(z_t|o_t,h_{t-1})||p(z_t|h_{t-1})]
++ \alpha \mathcal{H}(\pi_{\phi}(a_{t+1}|h_t)) \\
+&\quad + \gamma (1 - done_t)
+\mathbb{E}_{o_{t+1} \sim D,\; a_{t+1} \sim \pi_\phi}
+[Q_{\bar{\theta}}(o_{t+1}, a_{t+1})].
+\end{aligned}
 ```
 
 Combined, the World Model and SAC are somewhat adversarial. 
