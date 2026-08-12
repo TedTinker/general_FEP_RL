@@ -41,6 +41,12 @@ set_seed(777)
 
 
 
+def sample(mu, std):
+    epsilon = torch.randn_like(std)
+    return mu + epsilon * std
+
+
+
 #------------------
 # Functions for durations.
 #------------------

@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torchinfo import summary
 
 from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model
-
+from general_FEP_RL.utils import sample
 
 
 # I use this encoder for hidden_states and posterior_sample.
