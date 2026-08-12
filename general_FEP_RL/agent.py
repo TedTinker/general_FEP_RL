@@ -151,7 +151,6 @@ class Agent(Agent_Methods, nn.Module):
             list_of_dict_of_prediction_decoder_class_dicts,
             lower_layer_posterior_sample_decoding_output_sizes,
             time_constants,
-            isolate_modality_posteriors = isolate_modality_posteriors,
             verbose = verbose)
 
         self.hidden_state_sizes = hidden_state_sizes
