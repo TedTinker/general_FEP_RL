@@ -125,7 +125,6 @@ class Agent(Agent_Methods, nn.Module):
             max_steps = 32,
             max_epochs_in_log = 64,
 
-            isolate_modality_posteriors = True,
             verbose = False):
 
         super().__init__()
