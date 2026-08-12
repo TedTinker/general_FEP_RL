@@ -32,7 +32,7 @@ class Shape_to_Shape_Model(nn.Module):
         self.input_shape = input_shape
         self.output_shape = output_shape
         self.arg_dict = arg_dict
-        self.build_model()
+        self.build_model(arg_dict)
         
         if verbose:
             self.print_examples()
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     
     
     class Example_Model(Shape_to_Shape_Model):
-        def build_model(self):
+        def build_model(self, arg_dict):
 
             in_channels, in_height, in_width = self.input_shape
 
