@@ -4,7 +4,7 @@
 #
 # Both read the lowest world model layer's hidden state. 
 # The critic also reads the action.
-# The actor may be given a "best action" for imitation.
+# The actor may be given a "best action" for imitation. The action is included in the prior's inputs.
 #------------------
 
 from math import log

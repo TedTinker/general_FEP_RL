@@ -244,7 +244,7 @@ def make_world_model_layer(
                 input_size = inner_state_size,
                 verbose = verbose))
     if lower_layer_posterior_sample_size != 0:
-        list_of_prediction_decoders.append(   # POTENTIAL ISSUE: the decoder outputs tanh, while the posterior_same is mu + e*std
+        list_of_prediction_decoders.append(   # POTENTIAL ISSUE: the decoder outputs tanh, while the posterior_sample is mu + e*std. (-1, 1) isn't everything.
             Misc_Decoder(
                 name = 'lower_layer_posterior_sample',
                 input_size = inner_state_size,
@@ -310,7 +310,7 @@ if __name__ == '__main__':
     
     
     
-    # Make share_to_shape_models encoders and decoders to use.
+    # Make shape_to_shape_models encoders and decoders to use.
     class Vector_Encoder(Shape_to_Shape_Model):
     
         def __init__(self, name, input_size, output_size, hidden_size = 32, verbose = False):
