@@ -62,3 +62,34 @@ def estimate_total_duration(
     else: 
         estimated_total = '?:??:??'
     return estimated_total
+
+
+
+#------------------
+# Randomly initiate parameters of a model.
+#------------------
+            
+def init_weights(m):
+    """Initialize weights of a neural network layer using Xavier normal and zero bias."""
+    try:
+        torch.nn.init.xavier_normal_(m.weight)
+        m.bias.data.fill_(0.0)
+    except:
+        pass
+    
+    
+    
+#------------------
+# Calculate Kullback-Leibler divergence between the prior and estimated posterior.
+# DKL(Q||P) = .5 * ( (p_mu - q_mu)**2 / p_std**2 + q_std**2 / p_std**2 - log(q_std**2 / p_std**2) - 1 )
+#------------------
+
+def calculate_dkl(q_mu, q_std, p_mu, p_std):
+    p_std = p_std ** 2
+    q_std = q_std ** 2
+    term_1 = (p_mu - q_mu) ** 2 / p_std
+    term_2 = q_std / p_std
+    term_3 = torch.log(term_2)
+    out = 0.5 * (term_1 + term_2 - term_3 - 1)
+    out = torch.nan_to_num(out)
+    return out

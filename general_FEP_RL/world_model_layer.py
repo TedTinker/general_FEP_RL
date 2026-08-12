@@ -16,7 +16,7 @@ from torchinfo import summary
 from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model, Combinor, Divider
 from general_FEP_RL.encoder_decoder import Misc_Encoder, Misc_Decoder, Inner_State_Decoder, Sliced_Inner_State_Decoder, Hidden_State_Decoder
 
-from general_FEP_RL.utils_torch import init_weights, parametrize_normal, sample, calculate_dkl, generate_dummy_inputs
+from general_FEP_RL.utils import calculate_dkl
 
 
 

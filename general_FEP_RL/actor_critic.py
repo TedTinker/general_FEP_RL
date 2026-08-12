@@ -44,8 +44,6 @@ class Action_Decoder(Shape_to_Shape_Model):
 
     def build_model(self, arg_dict):
         hidden_size = arg_dict.get('hidden_size', 32)
-        self.min_std = arg_dict.get('min_std', 1e-2)
-
         self.shared_layers = nn.Sequential(
             nn.Linear(self.input_shape[0], hidden_size),
             nn.LeakyReLU())
@@ -57,7 +55,7 @@ class Action_Decoder(Shape_to_Shape_Model):
         mu = self.mu(shared)
         # min_std + softplus rather than a clamp, so there is no boundary where the
         # gradient dies and a unit can get stuck.
-        std = self.min_std + F.softplus(self.std(shared))
+        std = 1e-2 + F.softplus(self.std(shared))
 
         unsquashed = mu + std * torch.randn_like(std)
         action = torch.tanh(unsquashed)

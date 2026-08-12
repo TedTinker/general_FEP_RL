@@ -303,7 +303,7 @@ Given this step: {sorted(value_dict)}
 
                 loss_func = world_model_layer.prediction_decoder.models_dict[name].loss_func
                 layer_accuracy = self.masked_mean(loss_func(predicted, target), mask)
-                accuracy_loss = accuracy_loss + scalars['upsilon'] * layer_accuracy
+                accuracy_loss = accuracy_loss + scalars['upsilon'] * layer_accuracy             # It might be best to also have recreation from posterior. 
                 accuracy_losses[layer_key][name] = layer_accuracy.item()
 
                 dkl = torch.cat(

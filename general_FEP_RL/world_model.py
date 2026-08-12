@@ -11,7 +11,7 @@ from torchinfo import summary
 
 from general_FEP_RL.world_model_layer import World_Model_Layer, make_world_model_layer
 
-from general_FEP_RL.utils_torch import init_weights, parametrize_normal, sample, calculate_dkl, generate_dummy_inputs
+from general_FEP_RL.utils import calculate_dkl
 
 
 
