@@ -256,7 +256,7 @@ def make_world_model_layer(
     list_of_hidden_state_input_encoders = [Misc_Encoder('inner_state_sample', inner_state_size, verbose = verbose)]
     if higher_layer_hidden_state_size != 0:
         list_of_hidden_state_input_encoders.append(Misc_Encoder('higher_layer_hidden_state', higher_layer_hidden_state_size, verbose = verbose))
-    hidden_state_input_encoder = Combinor('hidden_state_input_encoder', list_of_hidden_state_input_encoders, verbose = verbose)
+    hidden_state_input_encoder = Combiner('hidden_state_input_encoder', list_of_hidden_state_input_encoders, verbose = verbose)
     
     # Make hidden_state decoder.
     hidden_state_input_encoding_size = hidden_state_input_encoder.total_output_shape[-1]
