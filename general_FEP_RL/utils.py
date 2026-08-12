@@ -5,7 +5,6 @@
 
 import datetime  
 import random
-import matplotlib
 import numpy as np
 
 import torch 
@@ -38,12 +37,6 @@ def set_seed(seed):
     torch.backends.cudnn.benchmark = False
     
 set_seed(777)
-
-
-
-def sample(mu, std):
-    epsilon = torch.randn_like(std)
-    return mu + epsilon * std
 
 
 

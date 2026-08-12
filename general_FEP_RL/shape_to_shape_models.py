@@ -8,17 +8,17 @@ from torch.profiler import profile, record_function, ProfilerActivity
 
 
 
+# Super-model for arbitrary shape-to-shape models.
 class Shape_to_Shape_Model(nn.Module):
 
     def __init__(
             self,      
-            name,               # String.
+            name,               # String. Should be unique. 
             input_shape,        # Tuple like a torch shape, not including batch_size and episode_length. 
                                 # Example: (64,).
                                 # Example: (16, 4, 4). 
             output_shape,       # Another tuple like that.
-            
-            arg_dict = {},      # Anything the sub-class needs for building or running. 
+            arg_dict = {},      # Anything sub-classes need for building or running. 
             verbose = False):   # Add print-outs.
     
         super().__init__()
@@ -27,18 +27,19 @@ class Shape_to_Shape_Model(nn.Module):
         self.input_shape = input_shape
         self.output_shape = output_shape
         self.arg_dict = arg_dict
-        self.build_model(arg_dict)
+        self.build_model()
         
         if verbose:
             self.print_examples()
         
-    # Using sub-models, change these functions.
-    def build_model(self, arg_dict):
+    # Change these functions for sub-classes.
+    def build_model(self):
         raise NotImplementedError("Subclasses must implement this method")
     
     def forward(self, value):
         raise NotImplementedError("Subclasses must implement this method")
         
+    # Handy tool. Make example of input and output.
     def make_examples(self, batch_size = 1, episode_length = 1):
         return(
             torch.zeros(batch_size, episode_length, *self.input_shape),
@@ -47,14 +48,13 @@ class Shape_to_Shape_Model(nn.Module):
     def print_examples(self):
         example_input, example_output = self.make_examples()
         print(
-            f"""
-{self.name} Shape_to_Shape_Model:
-\texample input: \t\t{list(example_input.shape)}
-\texample output: \t{list(example_output.shape)}
-               """)
+            f"{self.name} Shape_to_Shape_Model:",
+            f"\texample input: \t\t{list(example_input.shape)}",
+            f"\texample output: \t{list(example_output.shape)}")
 
     
     
+# Example.
 if __name__ == '__main__':
     
     
@@ -63,34 +63,21 @@ if __name__ == '__main__':
     
     
     
-    class ExampleEncoder(Shape_to_Shape_Model):
-        # input_shape is assumed to be (channels, height, width).
-        def build_model(self, arg_dict = {'hidden_channels' : [32, 64, 128]}):
+    class Example_Model(Shape_to_Shape_Model):
+        def build_model(self):
+
             in_channels, in_height, in_width = self.input_shape
-            hidden_channels = arg_dict['hidden_channels']
-            downsamples = len(hidden_channels)        # Each conv halves H and W.
 
-            end_height = in_height // 2**downsamples
-            end_width  = in_width  // 2**downsamples
-            assert end_height >= 1 and end_width >= 1, \
-                f"{self.input_shape} too small for {downsamples} downsamples."
-            self.end_shape = (hidden_channels[-1], end_height, end_width)
-
-            # Image -> feature map.
-            channels = [in_channels] + hidden_channels
-            layers = []
-            for in_ch, out_ch in zip(channels[:-1], channels[1:]):
-                layers.append(nn.Conv2d(
-                    in_channels = in_ch,
-                    out_channels = out_ch,
-                    kernel_size = 4,
-                    stride = 2,
+            self.model = nn.Sequential(
+                nn.Conv2d(
+                    in_channels = in_channels, 
+                    out_channels = 16, 
+                    kernel_size = 3,
                     padding = 1))
-                layers.append(nn.LeakyReLU())
-            self.model = nn.Sequential(*layers)
-
-            # Flat feature map -> encoding vector.
-            self.linear = nn.Linear(math.prod(self.end_shape), self.output_shape[0])
+            
+            self.linear = nn.Linear(
+                in_features = 16 * in_height * in_width, 
+                out_features = self.output_shape[0])
 
         def forward(self, value):
             batch_size, episode_length = value.shape[:2]
@@ -99,22 +86,22 @@ if __name__ == '__main__':
             encoding = self.linear(value)
             return encoding.reshape(batch_size, episode_length, self.output_shape[0])
 
-    example_encoder = ExampleEncoder(
+    example_model = Example_Model(
         name = 'example',
         input_shape = (3, 32, 32),
         output_shape = (64,),
-        arg_dict = {'hidden_channels' : [32, 64, 128]},
         verbose = True)
+    
     print('\n\n')
-    print(example_encoder)
+    print(example_model)
     print()
 
-    example_input, example_output = example_encoder.make_examples()
+    example_input, example_output = example_model.make_examples()
 
     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
         with record_function('model_inference'):
             print(summary(
-                example_encoder,
+                example_model,
                 input_data = example_input))
     #print(prof.key_averages().table(sort_by='cpu_time_total', row_limit=100))
             
@@ -124,38 +111,42 @@ if __name__ == '__main__':
 
 
 
+# Super-model for arbitrary list-of-shapes-to-one-shape models.
 class Combinor(nn.Module):
     
     def __init__(
             self,
-            name,
-            list_of_models,
+            name,               # String. Should be unique.
+            list_of_models,     # List of shape_to_shape_models, with output_shapes matching except final dimension.
             verbose = False):
         
         super().__init__()
         
         self.name = name 
         
+        # TEST: Are shape_to_shape_model names unique?
         name_counts = Counter(model.name for model in list_of_models)
         repeated_names = sorted(name for name, count in name_counts.items() if count > 1)
         if repeated_names:
             raise ValueError(
-                f"""
-These model names are used more than once: {repeated_names}
-Every model in list_of_models needs its own name.
-                """)
+                f"These model names are used more than once: {repeated_names}",
+                "Every model in list_of_models needs its own name.")
         
+        # Make list of models while tracking output_shapes.
         self.list_of_output_shapes = []
         self.models_dict = nn.ModuleDict()
         for model in sorted(list_of_models, key=lambda model: model.name):
-            self.models_dict[model.name] = model
             self.list_of_output_shapes.append(model.output_shape)
+            self.models_dict[model.name] = model
+        
+        # TEST: Can all output_shapes be concatenated along the last dimension?
         leading_shape = self.list_of_output_shapes[0][:-1]
         if any(shape[:-1] != leading_shape for shape in self.list_of_output_shapes):
             raise ValueError(
-                "All model output shapes must match except for their final dimension. "
+                "All model output shapes must match except for their final dimension.",
                 f"Received: {self.list_of_output_shapes}")
         
+        # Find size of output.
         self.total_output_shape = (
             *leading_shape,
             sum(shape[-1] for shape in self.list_of_output_shapes),)
@@ -164,18 +155,19 @@ Every model in list_of_models needs its own name.
             self.print_examples()
             
     def forward(self, value_dict):
+        # TEST: Do names of models match names of values, and vice-versa?
         keys_only_in_models = self.models_dict.keys() - value_dict.keys()        
         keys_only_in_values = value_dict.keys() - self.models_dict.keys()
         if keys_only_in_models or keys_only_in_values:
             raise ValueError(
-                f"""
-These dictionaries aren't matched!
-These keys are only in models_dict: \t{keys_only_in_models}
-These keys are only in value_dict: \t{keys_only_in_values}
-                """)
+                "These dictionaries aren't matched!",
+                f"These keys are only in models_dict: \t{keys_only_in_models}",
+                f"These keys are only in value_dict: \t{keys_only_in_values}")
+        # Use all models, combine outputs.
         outputs = [model(value_dict[name]) for name, model in self.models_dict.items()]
         return torch.cat(outputs, dim=-1)
     
+    # Handy tool. Make example of inputs and output.
     def make_examples(self, batch_size = 1, episode_length = 1):
         example_input_dict = {
             name : model.make_examples(batch_size, episode_length)[0]
@@ -190,14 +182,13 @@ These keys are only in value_dict: \t{keys_only_in_values}
             f"\n\t\t{name}: \t{list(example_input.shape)}"
             for name, example_input in example_input_dict.items())
         print(
-            f"""
-{len(self.models_dict)} models ({', '.join(self.models_dict.keys())}):
-\texample inputs: {example_inputs}
-\texample output: \t{list(example_output.shape)}
-            """)
+            f"{len(self.models_dict)} models ({', '.join(self.models_dict.keys())}):",
+            f"\texample inputs: {example_inputs}",
+            f"\texample output: \t{list(example_output.shape)}")
             
             
-            
+        
+# Example.
 if __name__ == '__main__':
     
     
@@ -205,18 +196,17 @@ if __name__ == '__main__':
     print("\n\n\n\n\n\n\n\n\n\n")
     
     
-    
-    class ExampleBranchModel(Shape_to_Shape_Model):
+    # First, make shape_to_shape_models with concatable outputs. 
+    class Example_Branch_Model(Shape_to_Shape_Model):
 
-        def build_model(self, arg_dict = {'hidden_size' : 32}):
-            hidden_size = arg_dict['hidden_size']
+        def build_model(self, arg_dict = {'hidden_size' : 64}):
             input_size = math.prod(self.input_shape)
             output_size = math.prod(self.output_shape)
 
             self.model = nn.Sequential(
-                nn.Linear(input_size, hidden_size),
+                nn.Linear(input_size, arg_dict['hidden_size']),
                 nn.LeakyReLU(),
-                nn.Linear(hidden_size, output_size))
+                nn.Linear(arg_dict['hidden_size'], output_size))
 
         def forward(self, value):
             batch_size, episode_length = value.shape[:2]
@@ -224,18 +214,19 @@ if __name__ == '__main__':
             output = self.model(value)
             return output.reshape(batch_size, episode_length, *self.output_shape)
 
-    image_encoder = ExampleBranchModel(
+    image_encoder = Example_Branch_Model(
         name='image',
         input_shape=(3, 8, 8),
         output_shape=(4, 16),
-        arg_dict = {'hidden_size' : 32})
+        arg_dict = {'hidden_size' : 64})
 
-    position_encoder = ExampleBranchModel(
+    position_encoder = Example_Branch_Model(
         name='position',
         input_shape=(6,),
         output_shape=(4, 8),
         arg_dict = {'hidden_size' : 32})
 
+    # Make a combinor with list of shape_to_shape_models.
     combinor = Combinor(
         name = 'example_combinor',
         list_of_models=[
@@ -260,32 +251,35 @@ if __name__ == '__main__':
             
     
     
+# Super-model for arbitrary one-shape-to-list-of-shapes models.
 class Divider(nn.Module):
     
     def __init__(
             self,
-            name,
-            list_of_models,
+            name,               # String. Should be unique.
+            list_of_models,     # List of shape_to_shape_models, with matching input_shapes.
             verbose = False):
                 
         super().__init__()
         
         self.name = name
         
+        # TEST: Are shape_to_shape_model names unique?
         name_counts = Counter(model.name for model in list_of_models)
         repeated_names = sorted(name for name, count in name_counts.items() if count > 1)
         if repeated_names:
             raise ValueError(
-                f"""These model names are used more than once: {repeated_names}
-                Every model in list_of_models needs its own name.
-                """)
+                f"These model names are used more than once: {repeated_names}",
+                "Every model in list_of_models needs its own name.")
         
+        # Make list of models while tracking input_shapes.
         list_of_input_shapes = []
         self.models_dict = nn.ModuleDict()
         for model in sorted(list_of_models, key=lambda model: model.name):
-            self.models_dict[model.name] = model
             list_of_input_shapes.append(model.input_shape)
+            self.models_dict[model.name] = model
             
+        # TEST: Are all input_shapes the same?
         self.input_shape = list_of_input_shapes[0]
         if any(shape != self.input_shape for shape in list_of_input_shapes[1:]):
             raise ValueError(
@@ -296,8 +290,10 @@ class Divider(nn.Module):
             self.print_examples()
             
     def forward(self, value):
+        # Use all models with the same input.
         return {name: model(value) for name, model in self.models_dict.items()}
     
+    # Handy tool. Make example of input and outputs.
     def make_examples(self, batch_size=1, episode_length=1):
         example_input = torch.zeros(batch_size, episode_length, *self.input_shape)
         example_output_dict = {
@@ -311,14 +307,13 @@ class Divider(nn.Module):
             f"\n\t\t{name}: \t{list(example_output.shape)}"
             for name, example_output in example_output_dict.items())
         print(
-            f"""
-{len(self.models_dict)} models ({', '.join(self.models_dict.keys())}):
-\texample input: {list(example_input.shape)}
-\texample outputs: \t{example_outputs}
-            """)
+            f"{len(self.models_dict)} models ({', '.join(self.models_dict.keys())}):",
+            f"\texample input: {list(example_input.shape)}",
+            f"\texample outputs: \t{example_outputs}")
             
 
 
+# Example.
 if __name__ == '__main__':
     
     
@@ -326,18 +321,17 @@ if __name__ == '__main__':
     print("\n\n\n\n\n\n\n\n\n\n")
     
     
-
-    class ExampleOutputModel(Shape_to_Shape_Model):
+    # First, make shape_to_shape_models the same input_shape. 
+    class Example_Output_Model(Shape_to_Shape_Model):
 
         def build_model(self, arg_dict = {'hidden_size' : 32}):
-            hidden_size = arg_dict['hidden_size']
             input_size = math.prod(self.input_shape)
             output_size = math.prod(self.output_shape)
 
             self.model = nn.Sequential(
-                nn.Linear(input_size, hidden_size),
+                nn.Linear(input_size, arg_dict["hidden_size"]),
                 nn.LeakyReLU(),
-                nn.Linear(hidden_size, output_size))
+                nn.Linear(arg_dict["hidden_size"], output_size))
 
         def forward(self, value):
             batch_size, episode_length = value.shape[:2]
@@ -349,18 +343,19 @@ if __name__ == '__main__':
             return output.reshape(batch_size, episode_length, *self.output_shape)
 
 
-    position_model = ExampleOutputModel(
+    position_model = Example_Output_Model(
         name='position',
         input_shape=(64,),
         output_shape=(3,),
         arg_dict = {'hidden_size' : 32})
 
-    image_model = ExampleOutputModel(
+    image_model = Example_Output_Model(
         name='image',
         input_shape=(64,),
         output_shape=(3, 8, 8),
         arg_dict = {'hidden_size' : 32})
 
+    # Make a divider with list of shape_to_shape_models.
     divider = Divider(
         name = 'example_divider',
         list_of_models=[
@@ -374,7 +369,7 @@ if __name__ == '__main__':
     
     example_input, example_output_dict = divider.make_examples()
     
-    #print(summary(
-    #    divider,
-    #    input_data=example_input,
-    #    depth=4))
+    print(summary(
+        divider,
+        input_data=example_input,
+        depth=4))
