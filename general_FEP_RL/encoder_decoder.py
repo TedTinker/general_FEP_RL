@@ -7,23 +7,22 @@ from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model
 
 
 
+# Function for sampling from Gaussions.
 def sample(mu, std):
     epsilon = torch.randn_like(std)
     return mu + epsilon * std
 
 
 
-# I use this encoder for hidden_states and posterior_sample.
+# Encoder for hidden_states and posterior_sample.
 class Misc_Encoder(Shape_to_Shape_Model):
     
     def __init__(
         self,
-        name,
-        input_size,        
+        name,               # String. Should be unique.
+        input_size,         # Input_shape will equal output_shape.
         verbose = False):
-            
-        self.input_size = input_size
-        
+                    
         super().__init__(
             name = name,               
             input_shape = (input_size,),        
@@ -32,9 +31,13 @@ class Misc_Encoder(Shape_to_Shape_Model):
         
     def build_model(self, arg_dict):
         self.linear_layers = nn.Sequential(
-            nn.Linear(in_features = self.input_shape[0], out_features = self.input_shape[0]),
+            nn.Linear(
+                in_features = self.input_shape[0], 
+                out_features = self.input_shape[0]),
             nn.LeakyReLU(),
-            nn.Linear(in_features = self.input_shape[0], out_features = self.input_shape[0]),
+            nn.Linear(
+                in_features = self.input_shape[0], 
+                out_features = self.input_shape[0]),
             nn.LeakyReLU())
     
     def forward(self, value):
@@ -42,21 +45,31 @@ class Misc_Encoder(Shape_to_Shape_Model):
     
     
     
-# I use this to predict another layer's posterior_sample.
+# Decoder to predict a lower layer's posterior_sample, and decode hidden_state.
 class Misc_Decoder(Shape_to_Shape_Model):
 
-    def __init__(self, name, input_size, output_size, verbose = False):
+    def __init__(
+            self, 
+            name,               # String. Should be unique.
+            input_size,         # Size of prior_sample, or encoded posterior_sample (and higher hidden state, if available).
+            output_size,        # Size of lower_layer_posterior_sample, or hidden_state.
+            verbose = False):
+        
         super().__init__(
-            name = name,
-            input_shape = (input_size,),
+            name = name,                    
+            input_shape = (input_size,),    
             output_shape = (output_size,),
             verbose = verbose)
 
     def build_model(self, arg_dict):
         self.linear_layers = nn.Sequential(
-            nn.Linear(self.input_shape[0], self.input_shape[0]),
+            nn.Linear(
+                in_features = self.input_shape[0], 
+                out_features = self.input_shape[0]),
             nn.LeakyReLU(),
-            nn.Linear(self.input_shape[0], self.output_shape[0]),
+            nn.Linear(                
+                in_features = self.input_shape[0], 
+                out_features = self.input_shape[0]),
             nn.Tanh())
 
     def forward(self, value):
@@ -68,14 +81,14 @@ class Misc_Decoder(Shape_to_Shape_Model):
     
     
 
-# I use this is decode prior_ and posterior_inner_states.
+# Probabilistic decoder for prior_ and posterior_inner_states.
 class Inner_State_Decoder(Shape_to_Shape_Model):
     
     def __init__(
         self,
-        name,
-        input_size,
-        output_size,
+        name,               # String. Should be unique.
+        input_size,         # Size of encoded prior inputs or posterior inputs.
+        output_size,        # Size of inner states.
         verbose = False):
                     
         super().__init__(
@@ -85,12 +98,15 @@ class Inner_State_Decoder(Shape_to_Shape_Model):
             verbose = verbose)
         
     def build_model(self, arg_dict):
+        
+        # Mean.
         self.mu = nn.Sequential(
             nn.Linear(in_features = self.input_shape[0], out_features = self.output_shape[0]),
             nn.LeakyReLU(),
             nn.Linear(in_features = self.output_shape[0], out_features = self.output_shape[0]),
             nn.Tanh())
         
+        # Standard deviation.
         self.std = nn.Sequential(
             nn.Linear(in_features = self.input_shape[0], out_features = self.output_shape[0]),
             nn.LeakyReLU(),
@@ -98,10 +114,9 @@ class Inner_State_Decoder(Shape_to_Shape_Model):
     
     def forward(self, value):
         mu = self.mu(value)
-        std = 1e-2 + F.softplus(self.std(value))      # We may want a larger minimum.
+        std = 1e-2 + F.softplus(self.std(value))
         inner_state_sample = sample(mu, std)
         return {'mu' : mu, 'std' : std, 'sample' : inner_state_sample}
-
 
 
 
@@ -141,27 +156,9 @@ class Sliced_Inner_State_Decoder(Shape_to_Shape_Model):
         return self.inner_state_decoder(value.index_select(-1, self.columns))
 
 
-class Hidden_State_Decoder(Shape_to_Shape_Model):
-    
-    def __init__(
-        self,
-        name,
-        input_size,
-        output_size,
-        verbose = False):
-                    
-        super().__init__(
-            name = name,               
-            input_shape = (input_size,),        
-            output_shape = (output_size,),        
-            verbose = verbose)
-        
-    def build_model(self, arg_dict):
-        self.linear_layers = nn.Sequential(
-            nn.Linear(in_features = self.input_shape[0], out_features = self.input_shape[0]),
-            nn.LeakyReLU(),
-            nn.Linear(in_features = self.input_shape[0], out_features = self.output_shape[0]),
-            nn.Tanh())
-    
-    def forward(self, value):
-        return self.linear_layers(value)
+
+
+
+
+
+
