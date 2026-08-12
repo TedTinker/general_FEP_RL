@@ -109,7 +109,6 @@ class World_Model_Layer(nn.Module):
             value_dict['higher_layer_hidden_state'] = higher_layer_hidden_state
         encoding = self.hidden_state_input_encoder(value_dict)
         new_hidden_state = self.hidden_state_decoder(encoding)
-        print(f"\n\n{new_hidden_state.shape, previous_hidden_state.shape}\n\n")
         new_hidden_state = self.new * new_hidden_state + self.old * previous_hidden_state
         return new_hidden_state
         
