@@ -18,6 +18,7 @@ from general_FEP_RL.utils import calculate_dkl
 
 
 
+# The model itself.
 class World_Model_Layer(nn.Module):
     
     def __init__(

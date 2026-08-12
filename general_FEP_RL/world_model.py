@@ -1,20 +1,17 @@
 #%% 
 #------------------
 # world_model.py provides an architecture for creating predictions of future observations
-# based on multi-layer mtrnn. Actor and Critic utilize its hidden states.  
+# based on multi-layer mtrnn. Actor and Critic use its hidden states.  
 #------------------
 
 import torch
 from torch import nn
-from torch.profiler import profile, record_function, ProfilerActivity
-from torchinfo import summary
 
-from general_FEP_RL.world_model_layer import World_Model_Layer, make_world_model_layer
-
-from general_FEP_RL.utils import calculate_dkl
+from general_FEP_RL.world_model_layer import make_world_model_layer
 
 
 
+# The model itself.
 class World_Model(nn.Module):
     
     def __init__(
@@ -32,7 +29,7 @@ class World_Model(nn.Module):
             list_of_previous_hidden_states,
             list_of_prior_values_dicts,
             list_of_posterior_values_dicts,
-            use_posterior = True):      # False dreams: the hierarchy runs on its own priors.
+            use_posterior = True):      # Not using the prior is like "dreams:" the hierarchy runs on its own predictions.
 
         layers = self.list_of_world_model_layers
         num_layers = len(layers)
@@ -43,8 +40,6 @@ class World_Model(nn.Module):
         list_of_prior_prediction_dicts = []
         list_of_posterior_prediction_dicts = []
 
-        # Whichever branch is driving is what feeds the layer above AND what advances
-        # the hidden state. Aliasing one list here means those two can never disagree.
         list_of_driving_samples = (
             list_of_posterior_samples if use_posterior else list_of_prior_samples)
 
@@ -89,6 +84,7 @@ class World_Model(nn.Module):
 
 
 
+    # Initiate with 0s.
     def start_hidden_states(self, batch_size, device = None, dtype = None):
         example_parameter = next(self.parameters())
         device = example_parameter.device if device is None else device
@@ -101,6 +97,7 @@ class World_Model(nn.Module):
 
 
 
+    # One step with bottom-to-top and then top-to-bottom.
     def forward(
             self,
             list_of_lists_of_prior_values_dicts,
@@ -134,6 +131,7 @@ class World_Model(nn.Module):
 
         
 
+# Function to make the whole world model.
 def make_world_model(
     hidden_state_sizes,
     
@@ -170,6 +168,7 @@ def make_world_model(
     
     
     
+    # TEST: Are length for the layers consistent?
     all_same = all(len(l) == len(hidden_state_sizes) for l in [
         list_of_dict_of_prior_input_encoder_class_dicts, 
         list_of_dict_of_posterior_input_encoder_class_dicts,
@@ -182,16 +181,19 @@ def make_world_model(
     
     list_of_world_model_layers = []
     
-    # Each layer's inner_state_size is what the layer above sees, so it is read off
-    # the layer just built rather than passed in and trusted.
+    # Each layer's inner_state_size is what the layer above sees,
+    # so it is read off the new layer rather than trusted.
     lower_layer_posterior_sample_size = 0
     
+    # For each layer:
     for i in range(len(hidden_state_sizes)):
         
+        # Check for higher layer.
         higher_layer_hidden_state_size = 0
         if i < len(hidden_state_sizes)-1:
             higher_layer_hidden_state_size = hidden_state_sizes[i+1]
         
+        # Make world_model_layer, as described in world_model_layer.py.
         world_model_layer = make_world_model_layer(
             hidden_state_sizes[i],                                      
             
@@ -215,6 +217,7 @@ def make_world_model(
 
 
 
+# Example.
 ######################
 
 
@@ -226,7 +229,6 @@ if __name__ == '__main__':
     import math
     from functools import partial
 
-    import torch
     from torch import nn
     import torch.nn.functional as F
 
@@ -236,16 +238,7 @@ if __name__ == '__main__':
 
 
 
-    ######################
-    # Concrete encoders and decoders, same as in world_model_layer.py's example.
-    #
-    # Encoders need fixed input_shape AND fixed output_shape and are built with no
-    # arguments, so their sizes are bound ahead of time with functools.partial.
-    # Prediction decoders need an OPEN input_shape (it depends on inner_state_size,
-    # which make_world_model_layer computes), so only their output_shape is bound.
-    ######################
-
-
+    # Concrete encoders and decoders, like world_model_layer.py's example.
     class Vector_Encoder(Shape_to_Shape_Model):
 
         def __init__(self, name, input_size, output_size, hidden_size = 32, verbose = False):
@@ -266,6 +259,7 @@ if __name__ == '__main__':
 
         def forward(self, value):
             return self.model(value)
+
 
 
     class Image_Encoder(Shape_to_Shape_Model):
@@ -303,6 +297,7 @@ if __name__ == '__main__':
             return encoding.reshape(batch_size, episode_length, self.output_shape[0])
 
 
+
     class Vector_Decoder(Shape_to_Shape_Model):
 
         def __init__(self, name, input_size, output_size, hidden_size = 32, verbose = False):
@@ -326,6 +321,7 @@ if __name__ == '__main__':
         @staticmethod
         def loss_func(predicted_values, target_values):
             return F.mse_loss(predicted_values, target_values, reduction = 'none')
+
 
 
     class Image_Decoder(Shape_to_Shape_Model):
@@ -359,15 +355,14 @@ if __name__ == '__main__':
     ######################
     # A three-layer hierarchy.
     #
-    #   layer 0 (fast):     acts, sees vision and touch.            time_constant 1
+    #   layer 0 (fast):     acts, sees vision and touch.             time_constant 1
     #   layer 1 (medium):   no senses of its own, only layer 0.      time_constant 4
     #   layer 2 (slow):     sees a task command, plus layer 1.       time_constant 16
     #
-    # Layer 0 has no lower layer, layer 2 has no higher layer, and layer 1 has both,
-    # so every branch in make_world_model_layer gets exercised. Layers 1 and 2 have
-    # empty prior input dicts: their priors are driven by their own hidden states
-    # alone. Layer 1 shows a layer with no observations, layer 2 shows one that mixes
-    # its own observation with a summary of the layer below.
+    # Layer 0 has no lower layer, layer 2 has no higher layer, and layer 1 has higher AND lower layer,
+    # so every branch in make_world_model_layer gets tested. 
+    # Layers 1 and 2 have empty prior input dicts: their priors are driven by their own hidden states alone.
+    # Layer 1 shows a layer with no observations, layer 2 shows one that mixes its own observation with a summary of the layer below.
     ######################
 
     action_shape  = (4,)
@@ -467,10 +462,8 @@ if __name__ == '__main__':
 
 
 
-    ######################
-    # One step, printing every shape the diagram names.
-    ######################
-
+    
+    # One step.
     print("###\nOne step\n###\n")
 
     previous_hidden_states = [
@@ -497,10 +490,7 @@ if __name__ == '__main__':
 
 
 
-    ######################
     # A whole episode.
-    ######################
-
     print("###\nWhole episode\n###\n")
 
     list_of_step_dicts = world_model(
@@ -531,15 +521,9 @@ if __name__ == '__main__':
         print(f"\tlayer {i} (time_constant {time_constant:>2}): "
               f"measured old-weight {measured:.4f}, expected {expected:.4f}")
 
-    ######################
-    # The two red arrows in the diagram, summed over the episode.
-    #
-    # Accuracy compares predictions to the values the posterior actually saw. The
-    # lower_layer_posterior_sample target is itself a network output, so it is
-    # detached: without that, the lower layer learns to be predictable rather than
-    # informative.
-    ######################
-
+    
+    
+    # Accuracy and complexity.
     print("\n###\nFree energy\n###\n")
 
     accuracy = 0.
@@ -566,11 +550,7 @@ if __name__ == '__main__':
 
 
 
-    ######################
-    # Does every parameter actually receive a gradient? A parameter with no gradient
-    # is a branch of the diagram that nothing is training.
-    ######################
-
+    # Is every parameter with a gradient, actually trained?
     print("\n###\nGradient check\n###\n")
 
     free_energy.backward()
