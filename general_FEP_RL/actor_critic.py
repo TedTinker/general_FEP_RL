@@ -1,68 +1,66 @@
 #%%
 #------------------
-# actor_critic.py provides a model for an actor (policy) and critic (Q-network).
+# actor_critic.py provides a model for an soft-actor (policy) and critic (Q-network).
 #
-# Both read the lowest world model layer's hidden state. That layer is the fastest,
-# which suits reactive control, and it already carries the hierarchy's context: its
-# hidden state is computed with the layer above it as an input, so the slow layers
-# reach the actor through it rather than around it.
+# Both read the lowest world model layer's hidden state. 
+# The critic also reads the action.
+# The actor may be given a "best action" for imitation.
 #------------------
 
 from math import log
+from functools import partial
 
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torchinfo import summary
 
 from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model, Combinor, Divider
 
 
 
-#------------------
-# Tanh-squashed Gaussian, as SAC needs: bounded actions, and a log-probability that
-# accounts for the squashing so motor entropy is measured on the action actually taken.
-#------------------
-
+# Part of a soft actor, making an action out of a probability distribution. 
+# Returns action, entropy, mean, and standard deviation.
 class Action_Decoder(Shape_to_Shape_Model):
 
     def __init__(
             self,
-            name,
-            input_size,
-            output_size,
-            hidden_size = 32,
-            min_std = 1e-2,
+            name,               # String. Should be unique.
+            input_size,         # Size of hidden_state.
+            output_size,        # Size of action.
+            hidden_size = 32,   # One linear layer shared by mu and std.
             verbose = False):
 
         super().__init__(
             name = name,
             input_shape = (input_size,),
             output_shape = (output_size,),
-            arg_dict = {'hidden_size' : hidden_size, 'min_std' : min_std},
+            arg_dict = {'hidden_size' : hidden_size},
             verbose = verbose)
 
     def build_model(self, arg_dict):
-        hidden_size = arg_dict.get('hidden_size', 32)
         self.shared_layers = nn.Sequential(
-            nn.Linear(self.input_shape[0], hidden_size),
+            nn.Linear(
+                in_features = self.input_shape[0], 
+                out_features = arg_dict['hidden_size']),
             nn.LeakyReLU())
-        self.mu = nn.Linear(hidden_size, self.output_shape[0])
-        self.std = nn.Linear(hidden_size, self.output_shape[0])
+        
+        self.mu = nn.Linear(
+            in_features = arg_dict['hidden_size'], 
+            out_features =self.output_shape[0])
+        
+        self.std = nn.Linear(
+            in_features = arg_dict['hidden_size'], 
+            out_features = self.output_shape[0])
 
     def forward(self, value):
         shared = self.shared_layers(value)
         mu = self.mu(shared)
-        # min_std + softplus rather than a clamp, so there is no boundary where the
-        # gradient dies and a unit can get stuck.
         std = 1e-2 + F.softplus(self.std(shared))
 
         unsquashed = mu + std * torch.randn_like(std)
         action = torch.tanh(unsquashed)
 
         log_prob = torch.distributions.Normal(mu, std).log_prob(unsquashed)
-        # The change-of-variables correction for tanh, written as
-        # log(1 - tanh(x)^2) = 2*(log 2 - x - softplus(-2x)) to stay stable at large |x|.
         log_prob = log_prob - 2 * (log(2) - unsquashed - F.softplus(-2 * unsquashed))
         log_prob = log_prob.sum(dim = -1, keepdim = True)
 
@@ -74,18 +72,13 @@ class Action_Decoder(Shape_to_Shape_Model):
 
 
 
-#------------------
-# Actor generates actions from World Model hidden states.
-# a_t = \pi_\phi(h^q_t)
-#------------------
-
+# Soft actor makes all actions. 
 class Actor(nn.Module):
 
     def __init__(
             self,
-            hidden_state_size,
-            dict_of_action_decoder_class_dicts,      # name -> {'class' : partial(...)}, one per part
-                                                     # of the action ('move', 'make_voice', ...).
+            hidden_state_size,                      # Size of the world_model's lowest layer's hidden state.
+            dict_of_action_decoder_class_dicts,     # name -> {'class' : partial(...)}, one per part of the action.
             verbose = False):
 
         super().__init__()
@@ -108,30 +101,23 @@ class Actor(nn.Module):
 
         imitation_loss_dict = {}
         for name, model in self.action_decoder.models_dict.items():
-            # (predicted, target), matching every other loss_func in this codebase.
             imitation_loss_dict[name] = model.loss_func(action_dict[name], best_action_dict[name])
         return action_dict, log_prob_dict, imitation_loss_dict
 
+    # Find complete entropy values.
     def total_log_prob(self, log_prob_dict):
-        # The parts of an action are independent given the hidden state, so their
-        # log-probabilities add. This is what the motor entropy term needs.
         return sum(log_prob_dict.values())
 
 
 
-#------------------
-# Critic predicts Q-values.
-# \widehat{Q}_t = Q_\theta(h^q_t, a_t)
-#------------------
-
+# Critic predicting Q-value.
 class Critic(nn.Module):
 
     def __init__(
             self,
-            hidden_state_size,
-            dict_of_action_encoder_class_dicts,      # name -> {'class' : partial(...)}, matching
-                                                     # the actor's action parts.
-            value_decoder = None,
+            hidden_state_size,                          # Size of the world_model's lowest layer's hidden state.
+            dict_of_action_encoder_class_dicts,         # name -> {'class' : partial(...)}, matching the actor's action parts.
+            value_decoder = None,                       # If you have another model you want to use, put it here.
             verbose = False):
 
         super().__init__()
@@ -153,24 +139,23 @@ class Critic(nn.Module):
                 nn.Linear(hidden_state_size, 1))
 
     def forward(self, hidden_state, action_dict):
-        # The Combinor concatenates in sorted-name order and checks the dictionaries
-        # match, so a missing or misnamed action part fails here rather than silently.
         encoded_action = self.action_encoder(action_dict)
         hidden_state_and_action = torch.cat([hidden_state, encoded_action], dim = -1)
         return self.value_decoder(hidden_state_and_action)
 
 
 
+# Examples.
 ######################
-
-
-
 if __name__ == '__main__':
 
-    from functools import partial
+    
 
     print("\n\n\n\n\n\n\n\n\n\n")
+    
+    
 
+    # Two models just to make example actions.
     class Vector_Encoder(Shape_to_Shape_Model):
         def __init__(self, name, input_size, output_size, verbose = False):
             super().__init__(name = name, input_shape = (input_size,),
@@ -196,9 +181,9 @@ if __name__ == '__main__':
         def loss_func(predicted_values, target_values):
             return F.mse_loss(predicted_values, target_values, reduction = 'none')
 
-    ######################
-    # An action with two parts, as intended.
-    ######################
+
+
+    # An actor and critic, with actions having two parts. 
 
     move_size, voice_size = 2, 5
     hidden_state_size = 24
@@ -208,10 +193,8 @@ if __name__ == '__main__':
         'make_voice' : {'class' : partial(Action_Decoder, name = 'make_voice', output_size = voice_size)}}
 
     dict_of_action_encoder_class_dicts = {
-        'move' : {'class' : partial(Vector_Encoder, name = 'move',
-                                    input_size = move_size, output_size = 16)},
-        'make_voice' : {'class' : partial(Vector_Encoder, name = 'make_voice',
-                                          input_size = voice_size, output_size = 16)}}
+        'move' : {'class' : partial(Vector_Encoder, name = 'move', input_size = move_size, output_size = 16)},
+        'make_voice' : {'class' : partial(Vector_Encoder, name = 'make_voice', input_size = voice_size, output_size = 16)}}
 
     actor = Actor(hidden_state_size, dict_of_action_decoder_class_dicts)
     critic_1 = Critic(hidden_state_size, dict_of_action_encoder_class_dicts)
@@ -220,9 +203,9 @@ if __name__ == '__main__':
     print(f"actor parameters:  {sum(p.numel() for p in actor.parameters()):,}")
     print(f"critic parameters: {sum(p.numel() for p in critic_1.parameters()):,}\n")
 
-    ######################
+    
+
     # One step.
-    ######################
 
     batch_size, episode_length = 4, 1
     hidden_state = torch.randn(batch_size, episode_length, hidden_state_size)
@@ -244,9 +227,9 @@ if __name__ == '__main__':
     print(f"\nQ from each critic: \t{list(value_1.shape)}")
     print(f"SAC takes the smaller: \t{torch.min(value_1, value_2).mean().item():.4f}")
 
-    ######################
+
+
     # Imitation, when the buffer has a best action to copy.
-    ######################
 
     best_action_dict = {name : torch.tanh(torch.randn_like(value))
                         for name, value in action_dict.items()}
@@ -254,14 +237,3 @@ if __name__ == '__main__':
     print("\nimitation loss per action part:")
     for name, loss in imitation_loss_dict.items():
         print(f"\t{name}: \t{list(loss.shape)}\tmean {loss.mean().item():.4f}")
-
-    ######################
-    # The Combinor catches a mismatched action.
-    ######################
-
-    print("\nmismatched action parts:")
-    try:
-        critic_1(hidden_state, {'move' : action_dict['move']})
-    except ValueError as e:
-        print(f"\traised ValueError: only in models_dict "
-              f"{ {'make_voice'} }")

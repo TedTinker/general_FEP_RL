@@ -151,10 +151,6 @@ def make_world_model_layer(
     lower_layer_posterior_sample_decoding_output_size = 0,  # Width of THIS layer's inner state for the lower layer's sample.
                                                             # Needed whenever lower_layer_posterior_sample_size != 0.
     higher_layer_hidden_state_size = 0,                     # Size of hidden_state of higher_layer.
-    isolate_modality_posteriors = True,                     # Each modality's posterior reads only shared context
-                                                            # (previous hidden_state, prior inputs) plus its own
-                                                            # encoding. False lets every modality read every other,
-                                                            # which is the older behaviour.
     time_constant = 1,
     verbose = False):
     
@@ -237,19 +233,12 @@ Only in posterior encoders: \t{set(dict_of_posterior_input_encoder_class_dicts) 
 
     list_of_posterior_inner_state_decoders = []
     for name, size in dict_of_inner_state_sizes.items():
-        if isolate_modality_posteriors:
-            list_of_posterior_inner_state_decoders.append(
-                Sliced_Inner_State_Decoder(
-                    name = name,
-                    input_size = posterior_input_encoding_size,
-                    output_size = size,
-                    columns = sorted(shared_columns + dict_of_encoding_columns[name])))
-        else:
-            list_of_posterior_inner_state_decoders.append(
-                Inner_State_Decoder(
-                    name = name,
-                    input_size = posterior_input_encoding_size,
-                    output_size = size))
+        list_of_posterior_inner_state_decoders.append(
+            Sliced_Inner_State_Decoder(
+                name = name,
+                input_size = posterior_input_encoding_size,
+                output_size = size,
+                columns = sorted(shared_columns + dict_of_encoding_columns[name])))
     posterior_inner_state_decoder = Divider(
         'posterior_inner_state_decoder', list_of_posterior_inner_state_decoders, verbose = verbose)
 

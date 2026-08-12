@@ -1,3 +1,8 @@
+#%%
+#------------------
+# encoder_decoder.py provides models convenient for world_models.
+#------------------
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -120,20 +125,16 @@ class Inner_State_Decoder(Shape_to_Shape_Model):
 
 
 
-# I use this so each modality's posterior sees only its own encoding.
-#
-# A Divider hands every sub-model the whole encoding it was given, and requires them
-# all to declare the same input_shape. So this advertises the full encoding width to
-# satisfy the Divider, and takes its slice inside forward: shared context (the
-# previous hidden_state and the prior inputs) plus this modality's own encoding.
+# Decoder for encoded posterior inputs. One Inner_State_Decoder per modality.
+# This ensures that each modality's inner_state is independent from the others.
 class Sliced_Inner_State_Decoder(Shape_to_Shape_Model):
 
     def __init__(
         self,
-        name,
+        name,                   # String. Should be unique.
         input_size,             # Width of the WHOLE encoding.
-        output_size,
-        columns,                # Which columns of it this modality may read.
+        output_size,            # Size of this modality's inner state decoding.
+        columns,                # Which inputs may be read?
         verbose = False):
 
         super().__init__(
@@ -145,7 +146,6 @@ class Sliced_Inner_State_Decoder(Shape_to_Shape_Model):
 
     def build_model(self, arg_dict):
         columns = torch.as_tensor(arg_dict['columns'], dtype = torch.long)
-        # A buffer rather than a plain attribute, so it follows .to(device).
         self.register_buffer('columns', columns)
         self.inner_state_decoder = Inner_State_Decoder(
             name = f'{self.name}_from_own_encoding',

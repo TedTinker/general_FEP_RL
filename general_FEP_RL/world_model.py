@@ -166,8 +166,6 @@ def make_world_model(
     lower_layer_posterior_sample_decoding_output_sizes,             # Width of each layer's inner state for the layer below it.
                                                                     # Entry 0 is ignored: layer 0 has no lower layer.
     time_constants,
-    isolate_modality_posteriors = True,                             # Each modality's posterior reads only shared context
-                                                                    # plus its own encoding.
     verbose = False):
     
     
@@ -205,7 +203,6 @@ def make_world_model(
             lower_layer_posterior_sample_decoding_output_size = (
                 0 if i == 0 else lower_layer_posterior_sample_decoding_output_sizes[i]),
             higher_layer_hidden_state_size = higher_layer_hidden_state_size,                        # Size of hidden_state of higher_layer.
-            isolate_modality_posteriors = isolate_modality_posteriors,
             time_constant = time_constants[i],
             verbose = verbose)
     

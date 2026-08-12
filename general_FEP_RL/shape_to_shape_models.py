@@ -1,3 +1,8 @@
+#%%
+#------------------
+# shape_to_shape_models.py provides models convenient for world_models.
+#------------------
+
 import math
 from collections import Counter
 
