@@ -38,7 +38,7 @@ class Shape_to_Shape_Model(nn.Module):
             self.print_examples()
         
     # Change these functions for sub-classes.
-    def build_model(self):
+    def build_model(self, arg_dict):
         raise NotImplementedError("Subclasses must implement this method")
     
     def forward(self, value):
