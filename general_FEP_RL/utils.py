@@ -12,6 +12,10 @@ torch.set_default_device("cpu")
 
 
 
+# This collection of files assumes tensor shape (batch_size, episode_length, ...)
+
+
+
 #------------------
 # Set pytorch device. (Right now, only cpu is supported.)
 #------------------
@@ -84,10 +88,8 @@ def init_weights(m):
 #------------------
 
 def calculate_dkl(q_mu, q_std, p_mu, p_std):
-    p_std = p_std ** 2
-    q_std = q_std ** 2
-    term_1 = (p_mu - q_mu) ** 2 / p_std
-    term_2 = q_std / p_std
+    term_1 = (p_mu - q_mu) ** 2 / (p_std ** 2)
+    term_2 = (q_std ** 2) / (p_std ** 2)
     term_3 = torch.log(term_2)
     out = 0.5 * (term_1 + term_2 - term_3 - 1)
     out = torch.nan_to_num(out)

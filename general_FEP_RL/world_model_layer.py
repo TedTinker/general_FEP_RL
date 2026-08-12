@@ -26,7 +26,7 @@ class World_Model_Layer(nn.Module):
             prior_input_encoder,            # Combinor (encodes values, including previous hidden_state).
             prior_inner_state_decoder,      # Divider (makes prior inner_states for everything in prediction_decoder).
             
-            posterior_input_encoder,        # Combinor (entodes values, including everything in prior_input_encoder and perhaps lower_layer_posterior_sample).
+            posterior_input_encoder,        # Combinor (encodes values, including everything in prior_input_encoder and perhaps lower_layer_posterior_sample).
             posterior_inner_state_decoder,  # Divider (makes inner_states, perhaps including lower_layer_posterior_sample).
             
             prediction_decoder,             # Divider (prediction of posterior input values).
@@ -56,7 +56,8 @@ class World_Model_Layer(nn.Module):
         
         
     def forward(self):
-        pass # I leave this empty, as it is never used.
+        # I leave this empty, as it is never used.
+        NotImplementedError("Unused forward pass of world_model_layer.")
     
     
     

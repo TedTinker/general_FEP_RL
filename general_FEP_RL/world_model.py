@@ -29,7 +29,7 @@ class World_Model(nn.Module):
             list_of_previous_hidden_states,
             list_of_prior_values_dicts,
             list_of_posterior_values_dicts,
-            use_posterior = True):      # Not using the prior is like "dreams:" the hierarchy runs on its own predictions.
+            use_posterior = True):      # Not using the posterior is like "dreams:" the hierarchy runs on its own predictions.
 
         layers = self.list_of_world_model_layers
         num_layers = len(layers)
@@ -97,7 +97,7 @@ class World_Model(nn.Module):
 
 
 
-    # One step with bottom-to-top and then top-to-bottom.
+    # Episode of steps with bottom-to-top and then top-to-bottom.
     def forward(
             self,
             list_of_lists_of_prior_values_dicts,
