@@ -1,7 +1,7 @@
 #%% 
 #------------------
-# world_model.py provides an architecture for creating predictions of future observations
-# based on multi-layer mtrnn. Actor and Critic utilize its hidden states.  
+# world_model_layer.py provides architecture for predicting future observations
+# in one mtrnn layer of a world_model.  
 #------------------
 
 import math 
@@ -10,8 +10,6 @@ from functools import partial
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.profiler import profile, record_function, ProfilerActivity
-from torchinfo import summary
 
 from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model, Combinor, Divider
 from general_FEP_RL.encoder_decoder import Misc_Encoder, Misc_Decoder, Inner_State_Decoder, Sliced_Inner_State_Decoder
@@ -57,7 +55,7 @@ class World_Model_Layer(nn.Module):
         
         
     def forward(self):
-        pass # I don't think anything is really needed here.
+        pass # I leave this empty, as it is never used.
     
     
     
@@ -68,7 +66,7 @@ class World_Model_Layer(nn.Module):
         encoding = self.posterior_input_encoder(posterior_value_dict)           # Encodes values.   
         posterior_inner_states = self.posterior_inner_state_decoder(encoding)   # Decodes (mu, std, sample) for posterior_value.
         
-        inner_states = {
+        inner_states = {                                                        # Dictionary of everything found.
             name : {
             'prior_mu' : prior_inner_states[name]['mu'],
             'prior_std' : prior_inner_states[name]['std'],
@@ -87,9 +85,9 @@ class World_Model_Layer(nn.Module):
     
     
     
+    # Concatenate modules.
+    # Dividers sort at construction. 
     def combine_inner_state_samples(self, inner_states, prior_or_posterior):
-        # No sorting here. Divider sorted once at construction; models_dict replays
-        # that order, so this can never disagree with how the layer was sized.
         key = f'{prior_or_posterior}_sample'
         return torch.cat(
             [inner_states[name][key] for name in self.posterior_inner_state_decoder.models_dict.keys()],
@@ -97,12 +95,15 @@ class World_Model_Layer(nn.Module):
         
         
     
+    # Predictions based on inner_state_sample.
     def make_predictions(self, inner_state_sample):
         predictions = self.prediction_decoder(inner_state_sample)
         return predictions
     
     
     
+    # Hidden state based on inner_state_sample, and higher_layer_hidden_state if there's a higher layer.
+    # For MTRNN, previous_hidden_state may be preserved.
     def make_hidden_state(self, previous_hidden_state, inner_state_sample, higher_layer_hidden_state = None):
         value_dict = {'inner_state_sample' : inner_state_sample}
         if higher_layer_hidden_state is not None:
@@ -118,6 +119,7 @@ class World_Model_Layer(nn.Module):
 
 
 
+# Function to make the layer.
 def make_world_model_layer(
     hidden_state_size,                                      # Size of this layer's hidden_state.
     
@@ -170,20 +172,15 @@ def make_world_model_layer(
         list_of_posterior_input_encoders.append(Misc_Encoder('lower_layer_posterior_sample', lower_layer_posterior_sample_size, verbose = verbose))                                    
     posterior_input_encoder = Combinor('posterior_input_encoder', list_of_posterior_input_encoders, verbose = verbose)
     
-    # Which inner states does this layer have, and how wide is each?
-    #
-    # Everything the prediction decoder predicts needs an inner state to be decoded
-    # from, and that includes the lower layer's posterior sample when there is a
-    # lower layer. A layer with no senses of its own is therefore legal: its only
-    # inner state summarises the layer below it.
+    # Everything the prediction decoder predicts needs an inner state to be decoded from
+    # and that includes the lower layer's posterior sample when there is a lower layer.
     if set(dict_of_prediction_decoder_class_dicts) != set(dict_of_posterior_input_encoder_class_dicts):
         raise ValueError(
-            f"""
-The prediction decoders must decode exactly the posterior input encoders.
-Only in prediction decoders: \t{set(dict_of_prediction_decoder_class_dicts) - set(dict_of_posterior_input_encoder_class_dicts)}
-Only in posterior encoders: \t{set(dict_of_posterior_input_encoder_class_dicts) - set(dict_of_prediction_decoder_class_dicts)}
-            """)
+            "The prediction decoders must decode exactly the posterior input encoders.",
+            f"Only in prediction decoders: \t{set(dict_of_prediction_decoder_class_dicts) - set(dict_of_posterior_input_encoder_class_dicts)}",
+            f"Only in posterior encoders: \t{set(dict_of_posterior_input_encoder_class_dicts) - set(dict_of_prediction_decoder_class_dicts)}")
 
+    # Dictionaries of sizes.
     dict_of_inner_state_sizes = {
         name : dict_of_posterior_input_encoder_class_dicts[name]['decoding_output_size']
         for name in dict_of_prediction_decoder_class_dicts.keys()}
@@ -211,11 +208,6 @@ Only in posterior encoders: \t{set(dict_of_posterior_input_encoder_class_dicts) 
         verbose = verbose)
 
     # Make posterior inner state decoder.
-    #
-    # The Combinor concatenates its sub-models' outputs in models_dict order, so the
-    # posterior encoding is a run of known-width blocks and each modality's block can
-    # be located by name. Anything that is not itself an inner state -- the previous
-    # hidden_state and the prior inputs -- is shared context every modality may read.
     posterior_input_encoding_size = posterior_input_encoder.total_output_shape[-1]
 
     dict_of_encoding_columns = {}
@@ -270,19 +262,19 @@ Only in posterior encoders: \t{set(dict_of_posterior_input_encoder_class_dicts) 
 
     # Put all of those things together in a world_model_layer.
     world_model_layer = World_Model_Layer(
-            prior_input_encoder,            
-            prior_inner_state_decoder,              
-            
-            posterior_input_encoder,       
-            posterior_inner_state_decoder,              
-            
-            prediction_decoder,        
-            
-            hidden_state_input_encoder,     
-            hidden_state_decoder,         
-            
-            time_constant = time_constant,
-            verbose = verbose)
+        prior_input_encoder,            
+        prior_inner_state_decoder,              
+        
+        posterior_input_encoder,       
+        posterior_inner_state_decoder,              
+        
+        prediction_decoder,        
+        
+        hidden_state_input_encoder,     
+        hidden_state_decoder,         
+        
+        time_constant = time_constant,
+        verbose = verbose)
 
     world_model_layer.inner_state_size = inner_state_size
     world_model_layer.hidden_state_size = hidden_state_size
@@ -292,6 +284,7 @@ Only in posterior encoders: \t{set(dict_of_posterior_input_encoder_class_dicts) 
 
 
 
+# Example.
 ######################
 
 
@@ -307,13 +300,15 @@ if __name__ == '__main__':
     ######################
     # Concrete encoders and decoders to hand to the class-dicts.
     #
-    # Encoders need fixed input_shape AND fixed output_shape, and get built with no
-    # arguments, so their sizes are bound ahead of time with functools.partial.
+    # Encoders need fixed input_shape AND fixed output_shape, and get built with out arguments,
+    # so their sizes are bound ahead of time with functools.partial.
     # Prediction decoders need an OPEN input_shape (it depends on inner_state_size,
     # which make_world_model_layer computes), so only their output_shape is bound.
     ######################
     
     
+    
+    # Make share_to_shape_models encoders and decoders to use.
     class Vector_Encoder(Shape_to_Shape_Model):
     
         def __init__(self, name, input_size, output_size, hidden_size = 32, verbose = False):
@@ -334,6 +329,7 @@ if __name__ == '__main__':
     
         def forward(self, value):
             return self.model(value)
+    
     
     
     class Image_Encoder(Shape_to_Shape_Model):
@@ -371,6 +367,7 @@ if __name__ == '__main__':
             return encoding.reshape(batch_size, episode_length, self.output_shape[0])
     
     
+    
     class Vector_Decoder(Shape_to_Shape_Model):
     
         def __init__(self, name, input_size, output_size, hidden_size = 32, verbose = False):
@@ -395,6 +392,7 @@ if __name__ == '__main__':
         def loss_func(predicted_values, target_values):
             loss_value = F.mse_loss(predicted_values, target_values, reduction = 'none')
             return loss_value
+    
     
     
     class Image_Decoder(Shape_to_Shape_Model):
@@ -490,10 +488,7 @@ if __name__ == '__main__':
 
 
 
-    ######################
-    # One time-step through the layer, following the diagram left to right.
-    ######################
-
+    # One step.
     batch_size = 2
     episode_length = 3
 
@@ -544,17 +539,14 @@ if __name__ == '__main__':
 
 
 
-    ######################
-    # The two red arrows in the diagram.
-    ######################
-
-    complexity = sum(
-        inner_state_dict['dkl'].mean()
-        for inner_state_dict in all_inner_state_dicts.values())
-
+    # Finding accuracy and complexity.
     accuracy = sum(
         nn.functional.mse_loss(predictions[name], posterior_value_dict[name])
         for name in predictions.keys())
+    
+    complexity = sum(
+        inner_state_dict['dkl'].mean()
+        for inner_state_dict in all_inner_state_dicts.values())
 
     print(f"\ncomplexity (dkl): \t{complexity.item():.5f}")
     print(f"accuracy (mse): \t{accuracy.item():.5f}")
