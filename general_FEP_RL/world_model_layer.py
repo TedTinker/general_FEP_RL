@@ -267,7 +267,7 @@ Only in posterior encoders: \t{set(dict_of_posterior_input_encoder_class_dicts) 
     
     # Make hidden_state decoder.
     hidden_state_input_encoding_size = hidden_state_input_encoder.total_output_shape[-1]
-    hidden_state_decoder = Hidden_State_Decoder('hidden_state_decoder', hidden_state_input_encoding_size, hidden_state_size, verbose = verbose)
+    hidden_state_decoder = Misc_Decoder('hidden_state_decoder', hidden_state_input_encoding_size, hidden_state_size, verbose = verbose)
 
     # Put all of those things together in a world_model_layer.
     world_model_layer = World_Model_Layer(

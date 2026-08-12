@@ -74,7 +74,7 @@ class Misc_Decoder(Shape_to_Shape_Model):
             nn.LeakyReLU(),
             nn.Linear(                
                 in_features = self.input_shape[0], 
-                out_features = self.input_shape[0]),
+                out_features = self.output_shape[0]),
             nn.Tanh())
 
     def forward(self, value):
@@ -160,28 +160,5 @@ class Sliced_Inner_State_Decoder(Shape_to_Shape_Model):
 
 
 
-class Hidden_State_Decoder(Shape_to_Shape_Model):
-    
-    def __init__(
-        self,
-        name,
-        input_size,
-        output_size,
-        verbose = False):
-                    
-        super().__init__(
-            name = name,               
-            input_shape = (input_size,),        
-            output_shape = (output_size,),        
-            verbose = verbose)
-        
-    def build_model(self, arg_dict):
-        self.linear_layers = nn.Sequential(
-            nn.Linear(in_features = self.input_shape[0], out_features = self.input_shape[0]),
-            nn.LeakyReLU(),
-            nn.Linear(in_features = self.input_shape[0], out_features = self.output_shape[0]),
-            nn.Tanh())
-    
-    def forward(self, value):
-        return self.linear_layers(value)
+
 
