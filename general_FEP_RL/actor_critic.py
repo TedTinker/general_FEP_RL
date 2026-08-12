@@ -14,7 +14,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model, Combinor, Divider
+from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model, Combiner, Divider
 
 
 
@@ -123,7 +123,7 @@ class Critic(nn.Module):
         super().__init__()
 
         self.hidden_state_size = hidden_state_size
-        self.action_encoder = Combinor(
+        self.action_encoder = Combiner(
             'action_encoder',
             [class_dict['class']() for class_dict in dict_of_action_encoder_class_dicts.values()],
             verbose = verbose)

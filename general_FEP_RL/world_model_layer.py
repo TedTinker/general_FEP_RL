@@ -11,7 +11,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model, Combinor, Divider
+from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model, Combiner, Divider
 from general_FEP_RL.encoder_decoder import Misc_Encoder, Misc_Decoder, Inner_State_Decoder, Sliced_Inner_State_Decoder
 
 from general_FEP_RL.utils import calculate_dkl
@@ -23,15 +23,15 @@ class World_Model_Layer(nn.Module):
     
     def __init__(
             self,
-            prior_input_encoder,            # Combinor (encodes values, including previous hidden_state).
+            prior_input_encoder,            # Combiner (encodes values, including previous hidden_state).
             prior_inner_state_decoder,      # Divider (makes prior inner_states for everything in prediction_decoder).
             
-            posterior_input_encoder,        # Combinor (encodes values, including everything in prior_input_encoder and perhaps lower_layer_posterior_sample).
+            posterior_input_encoder,        # Combiner (encodes values, including everything in prior_input_encoder and perhaps lower_layer_posterior_sample).
             posterior_inner_state_decoder,  # Divider (makes inner_states, perhaps including lower_layer_posterior_sample).
             
             prediction_decoder,             # Divider (prediction of posterior input values).
             
-            hidden_state_input_encoder,     # Combinor (encodes posterior_sample, and perhaps higher_layer_hidden_state)
+            hidden_state_input_encoder,     # Combiner (encodes posterior_sample, and perhaps higher_layer_hidden_state)
             hidden_state_decoder,           # Shape_to_Shape_Model (makes hidden_state).
             
             time_constant = 1,
@@ -162,7 +162,7 @@ def make_world_model_layer(
     list_of_prior_input_encoders = [Misc_Encoder('previous_hidden_state', hidden_state_size, verbose = verbose)]        # Start with encoder for previous hidden state.
     for prior_input_encoder_class_dict in dict_of_prior_input_encoder_class_dicts.values():                             # Add encoders for prior_input.
         list_of_prior_input_encoders.append(prior_input_encoder_class_dict['class']())                                            
-    prior_input_encoder = Combinor('prior_input_encoder', list_of_prior_input_encoders, verbose = verbose)
+    prior_input_encoder = Combiner('prior_input_encoder', list_of_prior_input_encoders, verbose = verbose)
     
     # Make posterior input encoder.
     list_of_posterior_input_encoders = [Misc_Encoder('previous_hidden_state', hidden_state_size, verbose = verbose)]    # Start with encoder for previous hidden state.
@@ -172,7 +172,7 @@ def make_world_model_layer(
         list_of_posterior_input_encoders.append(posterior_input_encoder_class_dict['class']())   
     if lower_layer_posterior_sample_size != 0:                                                                          # If available, add encoder for lower_layer_posterior_sample
         list_of_posterior_input_encoders.append(Misc_Encoder('lower_layer_posterior_sample', lower_layer_posterior_sample_size, verbose = verbose))                                    
-    posterior_input_encoder = Combinor('posterior_input_encoder', list_of_posterior_input_encoders, verbose = verbose)
+    posterior_input_encoder = Combiner('posterior_input_encoder', list_of_posterior_input_encoders, verbose = verbose)
     
     # Everything the prediction decoder predicts needs an inner state to be decoded from
     # and that includes the lower layer's posterior sample when there is a lower layer.

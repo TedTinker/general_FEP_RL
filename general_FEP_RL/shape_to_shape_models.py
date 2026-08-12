@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
 
 # Super-model for arbitrary list-of-shapes-to-one-shape models.
-class Combinor(nn.Module):
+class Combiner(nn.Module):
     
     def __init__(
             self,
@@ -232,8 +232,8 @@ if __name__ == '__main__':
         output_shape=(4, 8),
         arg_dict = {'hidden_size' : 32})
 
-    # Make a combinor with list of shape_to_shape_models.
-    combinor = Combinor(
+    # Make a Combiner with list of shape_to_shape_models.
+    Combiner = Combiner(
         name = 'example_combinor',
         list_of_models=[
             position_encoder,
@@ -241,13 +241,13 @@ if __name__ == '__main__':
         verbose=True)
 
     print('\n')
-    print(combinor)
+    print(Combiner)
     print()
 
-    example_input_dict, example_output = combinor.make_examples()
+    example_input_dict, example_output = Combiner.make_examples()
 
     print(summary(
-        combinor,
+        Combiner,
         input_data=[example_input_dict],
         depth=4))
     

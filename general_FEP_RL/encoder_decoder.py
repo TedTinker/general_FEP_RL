@@ -6,7 +6,6 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torchinfo import summary
 
 from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model
 
