@@ -157,8 +157,3 @@ class Sliced_Inner_State_Decoder(Shape_to_Shape_Model):
 
 
 
-
-
-
-
-

@@ -201,6 +201,7 @@ if __name__ == '__main__':
     print("\n\n\n\n\n\n\n\n\n\n")
     
     
+    
     # First, make shape_to_shape_models with concatable outputs. 
     class Example_Branch_Model(Shape_to_Shape_Model):
 
@@ -324,6 +325,7 @@ if __name__ == '__main__':
     
     
     print("\n\n\n\n\n\n\n\n\n\n")
+    
     
     
     # First, make shape_to_shape_models the same input_shape. 

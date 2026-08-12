@@ -184,7 +184,6 @@ if __name__ == '__main__':
 
 
     # An actor and critic, with actions having two parts. 
-
     move_size, voice_size = 2, 5
     hidden_state_size = 24
 
@@ -206,7 +205,6 @@ if __name__ == '__main__':
     
 
     # One step.
-
     batch_size, episode_length = 4, 1
     hidden_state = torch.randn(batch_size, episode_length, hidden_state_size)
 
@@ -230,7 +228,6 @@ if __name__ == '__main__':
 
 
     # Imitation, when the buffer has a best action to copy.
-
     best_action_dict = {name : torch.tanh(torch.randn_like(value))
                         for name, value in action_dict.items()}
     action_dict, log_prob_dict, imitation_loss_dict = actor(hidden_state, best_action_dict)
