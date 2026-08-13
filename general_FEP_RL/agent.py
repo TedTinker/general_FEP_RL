@@ -253,7 +253,7 @@ class Agent(Agent_Methods, nn.Module):
         #------------------
 
         dict_of_observation_shapes, dict_of_action_shapes = shapes_from_world_model(self.world_model)
-        self.buffer = RecurrentReplayBuffer(
+        self.buffer = Recurrent_Replay_Buffer(
             dict_of_observation_shapes, dict_of_action_shapes, capacity, max_steps)
 
         self.training_log = {'max_epochs_in_log' : self.max_epochs_in_log}
