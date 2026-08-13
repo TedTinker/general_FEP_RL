@@ -93,9 +93,14 @@ class Actor(nn.Module):
             [class_dict['class'](input_size = hidden_state_size)
              for class_dict in dict_of_action_decoder_class_dicts.values()],
             verbose = verbose)
+        
+        def forward_with_deterministic_option(self, value, deterministic = False):
+            return {name: model(value, deterministic) for name, model in self.models_dict.items()}
+    
+        self.action_decoder.forward = forward_with_deterministic_option
 
     def forward(self, hidden_state, best_action_dict = None, deterministic = False):
-        outputs = self.action_decoder(hidden_state, deterministic)
+        outputs = self.action_decoder(hidden_state, deterministic) 
 
         action_dict = {name : output['action'] for name, output in outputs.items()}
         log_prob_dict = {name : output['log_prob'] for name, output in outputs.items()}
@@ -238,3 +243,5 @@ if __name__ == '__main__':
     print("\nimitation loss per action part:")
     for name, loss in imitation_loss_dict.items():
         print(f"\t{name}: \t{list(loss.shape)}\tmean {loss.mean().item():.4f}")
+
+# %%
