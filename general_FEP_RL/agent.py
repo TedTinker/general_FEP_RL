@@ -9,7 +9,7 @@ import torch
 from torch import nn
 import torch.optim as optim
 
-from general_FEP_RL.buffer import RecurrentReplayBuffer, shapes_from_world_model
+from general_FEP_RL.buffer import Recurrent_Replay_Buffer, shapes_from_world_model
 from general_FEP_RL.world_model import World_Model, make_world_model
 from general_FEP_RL.actor_critic import Actor, Critic
 from general_FEP_RL.agent_methods import Agent_Methods, GENERATED_INPUT_NAMES
