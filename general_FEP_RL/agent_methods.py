@@ -116,7 +116,7 @@ class Agent_Methods:
 
             # Get hidden states, actions, and Q-value predictions. 
             self.hidden_states = step_dict['list_of_hidden_states']
-            self.action, log_prob_dict, imitation_loss_dict = self.actor(self.hidden_states[0], deterministic = deterministic) 
+            self.action, log_prob = self.actor(self.hidden_states[0], deterministic = deterministic) 
             values = [critic(self.hidden_states[0], self.action) for critic in self.critics]
 
             # Sort out predictions.
