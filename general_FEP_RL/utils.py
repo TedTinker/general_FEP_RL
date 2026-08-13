@@ -12,7 +12,7 @@ torch.set_default_device("cpu")
 
 
 
-# This collection of files assumes tensor shape (batch_size, episode_length, ...)
+# This files assumes tensor shape (batch_size, episode_length, ...)
 
 
 

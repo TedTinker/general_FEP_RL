@@ -2,30 +2,35 @@
 #------------------
 # buffer.py provides a recurrent replay buffer.
 #
-# Episodes are stored whole, in slots. When the buffer is full a slot must be freed
-# before a new episode can start, and which slot that is depends on the eviction
-# policy: oldest-first by default, or whatever the caller decides. The point of the
-# second option is to eventually eject episodes by how little curiosity they carry.
+# Episodes are stored whole, in slots. When the buffer is full, which slot is evicted depends on the eviction policy:
+# oldest-first by default, or the caller's decidion. We hope to eventually eject episodes based on how little curiosity they carry.
 #------------------
 
+import random
+from functools import partial
+
 import torch
+from torch import nn
+import torch.nn.functional as F
+
+from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model
+from general_FEP_RL.world_model import make_world_model
 
 
 
 #------------------
 # Buffer for a single variable.
-# Observations have a final element at the end of the episode, because the accuracy
-# term predicts the NEXT observation and so needs one more of them than of actions.
+# Each episode has an extra, final element for observations, because
+# the accuracy term is based on predictions of the NEXT observation.
 #------------------
-
-class VariableBuffer:
+class Variable_Buffer:
 
     def __init__(
             self,
-            capacity,
-            max_steps,
-            shape = (1,),
-            observation = False):
+            capacity,                   # How many episodes can be saved?
+            max_steps,                  # How long can an episode be?
+            shape = (1,),               # Shape of element.
+            observation = False):       # Is this element an observation?
 
         self.shape = tuple(shape)
         self.observation = observation
@@ -38,8 +43,7 @@ class VariableBuffer:
 
     def push(self, slot, time_ptr, value):
         value = torch.as_tensor(value, dtype = torch.float32)
-        # Values arriving from the model carry (batch, episode_length, ...) dimensions
-        # of size 1, so squeeze them back down rather than failing to broadcast.
+        # Values have shape (batch, episode_length, ...). Reshape.
         if value.shape != self.shape:
             if value.numel() != int(torch.tensor(self.shape).prod()):
                 raise ValueError(
@@ -57,16 +61,15 @@ class VariableBuffer:
 # Recurrent replay buffer.
 #------------------
 
-class RecurrentReplayBuffer:
+class Recurrent_Replay_Buffer:
 
     def __init__(
             self,
-            dict_of_observation_shapes,     # name -> shape tuple, not including batch or time.
-            dict_of_action_shapes,          # name -> shape tuple.
-            capacity,                       # In episodes.
-            max_steps,                      # Longest episode the buffer can hold.
-            eviction_policy = None):        # f(buffer) -> episode_id, called when the buffer is
-                                            # full. Default is oldest-first.
+            dict_of_observation_shapes,     # name : shape tuple, not including batch or time.
+            dict_of_action_shapes,          # name : shape tuple, not including batch or time.
+            capacity,                       # How many episodes?
+            max_steps,                      # How long can an episode be?
+            eviction_policy = None):        # If at capacity, how to choose which episode to evict? Default: first-in, first-out.
 
         self.capacity = capacity
         self.max_episode_len = max_steps
@@ -74,37 +77,35 @@ class RecurrentReplayBuffer:
 
         # Observations.
         self.observation_buffers = {
-            name : VariableBuffer(capacity, max_steps, shape = shape, observation = True)
+            name : Variable_Buffer(capacity, max_steps, shape = shape, observation = True)
             for name, shape in dict_of_observation_shapes.items()}
 
         # Actions.
         self.action_buffers = {
-            name : VariableBuffer(capacity, max_steps, shape = shape)
+            name : Variable_Buffer(capacity, max_steps, shape = shape)
             for name, shape in dict_of_action_shapes.items()}
 
         # Best actions, for an imitation term.
         self.best_action_buffers = {
-            name : VariableBuffer(capacity, max_steps, shape = shape)
+            name : Variable_Buffer(capacity, max_steps, shape = shape)
             for name, shape in dict_of_action_shapes.items()}
 
         # Scalars.
-        self.reward = VariableBuffer(capacity, max_steps)
-        self.done = VariableBuffer(capacity, max_steps)
-        self.mask = VariableBuffer(capacity, max_steps)
-        self.best_action_mask = VariableBuffer(capacity, max_steps)
+        self.reward = Variable_Buffer(capacity, max_steps)
+        self.done = Variable_Buffer(capacity, max_steps)
+        self.mask = Variable_Buffer(capacity, max_steps)                 # To ignore dummy padding, it is masked.
+        self.best_action_mask = Variable_Buffer(capacity, max_steps)     # If "best actions" are provided, a mask reveals them.
 
         # Slot bookkeeping.
         #
-        # An episode_id is a handle that is never reused, so a caller can hold onto one
-        # across evictions without it silently coming to mean a different episode. A
-        # slot is a row of the tensors, and slots ARE reused.
+        # An episode_id is a unique an unchanging handle, for consistency in choosing episodes.
+        # A slot is a row of the tensors, and slots ids ARE changed and reused.
         self.set_of_free_slots = set(range(capacity))
         self.list_of_episode_ids_by_age = []         # Committed episodes, oldest first.
         self.dict_of_slots_by_episode_id = {}
         self.next_episode_id = 0
 
-        # The episode currently being written is in neither of the above: its slot is
-        # not free, and it is not yet committed, so it cannot be evicted mid-write.
+        # The current episode cannot be evicted mid-write.
         self.current_episode_id = None
         self.current_slot = None
         self.time_ptr = 0
@@ -123,16 +124,14 @@ class RecurrentReplayBuffer:
         return len(self.list_of_episode_ids_by_age)
 
     def choose_episode_to_evict(self):
-        if self.eviction_policy is not None:
+        if self.eviction_policy is not None:                # If the user provided another episode-deletion function, use it.
             episode_id = self.eviction_policy(self)
             if episode_id not in self.dict_of_slots_by_episode_id:
                 raise ValueError(
-                    f"""
-The eviction policy chose episode {episode_id}, which this buffer does not hold.
-Episodes currently held: {self.list_of_episode_ids_by_age}
-                    """)
+                    f"The eviction policy chose episode {episode_id}, which this buffer does not hold."
+                    f"Episodes currently held: {self.list_of_episode_ids_by_age}")
             return episode_id
-        return self.list_of_episode_ids_by_age[0]           # First in, first out.
+        return self.list_of_episode_ids_by_age[0]           # Otherwise, the default is first-in, first-out.
 
     def evict(self, episode_id):
         if episode_id == self.current_episode_id:
@@ -140,10 +139,8 @@ Episodes currently held: {self.list_of_episode_ids_by_age}
                 f"Episode {episode_id} is still being written and cannot be evicted.")
         if episode_id not in self.dict_of_slots_by_episode_id:
             raise ValueError(
-                f"""
-This buffer does not hold episode {episode_id}.
-Episodes currently held: {self.list_of_episode_ids_by_age}
-                """)
+                f"This buffer does not hold episode {episode_id}."
+                f"Episodes currently held: {self.list_of_episode_ids_by_age}")
         slot = self.dict_of_slots_by_episode_id.pop(episode_id)
         self.list_of_episode_ids_by_age.remove(episode_id)
         self.set_of_free_slots.add(slot)
@@ -168,10 +165,7 @@ Episodes currently held: {self.list_of_episode_ids_by_age}
 
 
 
-    #------------------
-    # Writing.
-    #------------------
-
+    # Writing inputs.
     def push(
             self,
             observation_dict,
@@ -226,16 +220,12 @@ Episodes currently held: {self.list_of_episode_ids_by_age}
 
 
 
-    #------------------
-    # Reading.
-    #------------------
-
+    # Fetching a batch.
     def sample(self, batch_size, random_sample = True, device = None):
         if not self.list_of_episode_ids_by_age:
             return None
 
-        # Occupied slots are no longer a contiguous prefix once episodes can be evicted
-        # out of order, so sample episode_ids and look their slots up.
+        # Sample the unique episode_ids, and look their slots up.
         count = min(batch_size, len(self.list_of_episode_ids_by_age))
         if random_sample:
             positions = torch.randperm(len(self.list_of_episode_ids_by_age))[:count]
@@ -249,7 +239,7 @@ Episodes currently held: {self.list_of_episode_ids_by_age}
             return value if device is None else value.to(device)
 
         return {
-            'episode_ids' : episode_ids,        # So the caller can score episodes and evict by id.
+            'episode_ids' : episode_ids,       
             'obs' : {k : get(b) for k, b in self.observation_buffers.items()},
             'action' : {k : get(b) for k, b in self.action_buffers.items()},
             'best_action' : {k : get(b) for k, b in self.best_action_buffers.items()},
@@ -260,17 +250,10 @@ Episodes currently held: {self.list_of_episode_ids_by_age}
 
 
 
-######################
-
-
-
+# Find the shapes of a world_model.
+# The prior inputs (EXCEPT the hidden state) are labeled actions.
+# The posterior inptus (EXCEPT those shared with the prior) are labeled observations.
 def shapes_from_world_model(world_model):
-
-    # Reads the buffer's shapes off a built World_Model, so they cannot drift apart.
-    #
-    # Actions are whatever the prior input encoders read; observations are whatever the
-    # posterior encoders read that the priors do not. previous_hidden_state and
-    # lower_layer_posterior_sample are generated inside the model, so they are skipped.
 
     generated = {'previous_hidden_state', 'lower_layer_posterior_sample'}
     dict_of_action_shapes = {}
@@ -297,23 +280,19 @@ def shapes_from_world_model(world_model):
 
 
 
+# Example.
 ######################
 
 
 
 if __name__ == '__main__':
 
-    import random
-    from functools import partial
 
-    from torch import nn
-    import torch.nn.functional as F
-
-    from shape_to_shape_models import Shape_to_Shape_Model
-    from world_model import make_world_model
 
     print("\n\n\n\n\n\n\n\n\n\n")
-
+    
+    
+    # Two models for examples.
     class Vector_Encoder(Shape_to_Shape_Model):
         def __init__(self, name, input_size, output_size, verbose = False):
             super().__init__(name = name, input_shape = (input_size,),
@@ -339,10 +318,9 @@ if __name__ == '__main__':
         def loss_func(predicted_values, target_values):
             return F.mse_loss(predicted_values, target_values, reduction = 'none')
 
-    ######################
-    # A two-layer world model, only so the buffer has something real to feed.
-    ######################
 
+
+    # A two-layer world model.
     action_size, touch_size, command_size = 4, 6, 8
 
     world_model = make_world_model(
@@ -368,10 +346,9 @@ if __name__ == '__main__':
     print(f"observations read off the model: {dict_of_observation_shapes}")
     print(f"actions read off the model:      {dict_of_action_shapes}\n")
 
-    ######################
-    # Filling the buffer past capacity, oldest-first.
-    ######################
 
+
+    # Filling the buffer past capacity.
     capacity, max_steps = 4, 6
 
     def push_episode(buffer, length):
@@ -386,7 +363,7 @@ if __name__ == '__main__':
                                          'command' : torch.randn(command_size)},
                 done = done)
 
-    buffer = RecurrentReplayBuffer(
+    buffer = Recurrent_Replay_Buffer(
         dict_of_observation_shapes, dict_of_action_shapes, capacity, max_steps)
 
     print("###\nFirst in, first out\n###\n")
@@ -394,12 +371,10 @@ if __name__ == '__main__':
         push_episode(buffer, random.randint(3, max_steps))
         print(f"\tpushed -> holding episode_ids {buffer.episode_ids}")
 
-    ######################
-    # Sampling, and scoring each episode by the complexity it produced.
-    ######################
-
+    
+    
+    # Sampling. 
     print("\n###\nSampling\n###\n")
-
     batch = buffer.sample(batch_size = 4, random_sample = False)
     print(f"sampled episode_ids: {batch['episode_ids']}")
     print(f"touch:  {list(batch['obs']['touch'].shape)}   (max_steps + 1 observations)")
@@ -409,8 +384,10 @@ if __name__ == '__main__':
 
     generated = {'previous_hidden_state', 'lower_layer_posterior_sample'}
 
+
+
+    # An experiment: testing the complexity (curiosity) of sampled episodes. 
     def values_at(batch, time_step):
-        # Routes each stored variable to the layers whose encoders ask for it by name.
         def pull(name):
             source = batch['action'] if name in batch['action'] else batch['obs']
             return source[name][:, time_step : time_step + 1]
@@ -452,10 +429,9 @@ if __name__ == '__main__':
     for episode_id, score in dict_of_scores.items():
         print(f"\tepisode {episode_id}: {score:.4f}")
 
-    ######################
-    # Evicting the most boring episode instead of the oldest.
-    ######################
 
+
+    # Evicting the most boring episode instead of the oldest.
     print("\n###\nEvicting the most boring\n###\n")
 
     def evict_most_boring(buffer):

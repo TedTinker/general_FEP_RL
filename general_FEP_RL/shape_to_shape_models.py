@@ -53,8 +53,8 @@ class Shape_to_Shape_Model(nn.Module):
     def print_examples(self):
         example_input, example_output = self.make_examples()
         print(
-            f"{self.name} Shape_to_Shape_Model:",
-            f"\texample input: \t\t{list(example_input.shape)}",
+            f"{self.name} Shape_to_Shape_Model:"
+            f"\texample input: \t\t{list(example_input.shape)}"
             f"\texample output: \t{list(example_output.shape)}")
 
     
@@ -67,8 +67,10 @@ if __name__ == '__main__':
     print("\n\n\n\n\n\n\n\n\n\n")
     
     
-    
+
+    # Make a class.
     class Example_Model(Shape_to_Shape_Model):
+        
         def build_model(self, arg_dict):
 
             in_channels, in_height, in_width = self.input_shape
@@ -90,7 +92,10 @@ if __name__ == '__main__':
             value = self.model(value).reshape(batch_size * episode_length, -1)
             encoding = self.linear(value)
             return encoding.reshape(batch_size, episode_length, self.output_shape[0])
-
+        
+        
+        
+    # Make an instance of the class.
     example_model = Example_Model(
         name = 'example',
         input_shape = (3, 32, 32),
@@ -122,7 +127,7 @@ class Combiner(nn.Module):
     def __init__(
             self,
             name,               # String. Should be unique.
-            list_of_models,     # List of shape_to_shape_models, with output_shapes matching except final dimension.
+            list_of_models,     # List of shape_to_shape_models, with output_shapes matching. (The final dimension can be different.)
             verbose = False):
         
         super().__init__()
@@ -134,10 +139,10 @@ class Combiner(nn.Module):
         repeated_names = sorted(name for name, count in name_counts.items() if count > 1)
         if repeated_names:
             raise ValueError(
-                f"These model names are used more than once: {repeated_names}",
+                f"These model names are used more than once: {repeated_names}"
                 "Every model in list_of_models needs its own name.")
         
-        # Make list of models while tracking output_shapes.
+        # Make dictionary of models while tracking output_shapes.
         self.list_of_output_shapes = []
         self.models_dict = nn.ModuleDict()
         for model in sorted(list_of_models, key=lambda model: model.name):
@@ -148,7 +153,7 @@ class Combiner(nn.Module):
         leading_shape = self.list_of_output_shapes[0][:-1]
         if any(shape[:-1] != leading_shape for shape in self.list_of_output_shapes):
             raise ValueError(
-                "All model output shapes must match except for their final dimension.",
+                "All model output shapes must match except for their final dimension."
                 f"Received: {self.list_of_output_shapes}")
         
         # Find size of output.
@@ -165,8 +170,8 @@ class Combiner(nn.Module):
         keys_only_in_values = value_dict.keys() - self.models_dict.keys()
         if keys_only_in_models or keys_only_in_values:
             raise ValueError(
-                "These dictionaries aren't matched!",
-                f"These keys are only in models_dict: \t{keys_only_in_models}",
+                "These dictionaries aren't matched!"
+                f"These keys are only in models_dict: \t{keys_only_in_models}"
                 f"These keys are only in value_dict: \t{keys_only_in_values}")
         # Use all models, combine outputs.
         outputs = [model(value_dict[name]) for name, model in self.models_dict.items()]
@@ -187,8 +192,8 @@ class Combiner(nn.Module):
             f"\n\t\t{name}: \t{list(example_input.shape)}"
             for name, example_input in example_input_dict.items())
         print(
-            f"{len(self.models_dict)} models ({', '.join(self.models_dict.keys())}):",
-            f"\texample inputs: {example_inputs}",
+            f"{len(self.models_dict)} models ({', '.join(self.models_dict.keys())}):"
+            f"\texample inputs: {example_inputs}"
             f"\texample output: \t{list(example_output.shape)}")
             
             
@@ -220,6 +225,8 @@ if __name__ == '__main__':
             output = self.model(value)
             return output.reshape(batch_size, episode_length, *self.output_shape)
 
+
+
     image_encoder = Example_Branch_Model(
         name='image',
         input_shape=(3, 8, 8),
@@ -232,9 +239,11 @@ if __name__ == '__main__':
         output_shape=(4, 8),
         arg_dict = {'hidden_size' : 32})
 
+
+
     # Make a Combiner with list of shape_to_shape_models.
     Combiner = Combiner(
-        name = 'example_combinor',
+        name = 'example_combiner',
         list_of_models=[
             position_encoder,
             image_encoder],
@@ -275,10 +284,10 @@ class Divider(nn.Module):
         repeated_names = sorted(name for name, count in name_counts.items() if count > 1)
         if repeated_names:
             raise ValueError(
-                f"These model names are used more than once: {repeated_names}",
+                f"These model names are used more than once: {repeated_names}"
                 "Every model in list_of_models needs its own name.")
         
-        # Make list of models while tracking input_shapes.
+        # Make dictionary of models while tracking input_shapes.
         list_of_input_shapes = []
         self.models_dict = nn.ModuleDict()
         for model in sorted(list_of_models, key=lambda model: model.name):
@@ -313,8 +322,8 @@ class Divider(nn.Module):
             f"\n\t\t{name}: \t{list(example_output.shape)}"
             for name, example_output in example_output_dict.items())
         print(
-            f"{len(self.models_dict)} models ({', '.join(self.models_dict.keys())}):",
-            f"\texample input: {list(example_input.shape)}",
+            f"{len(self.models_dict)} models ({', '.join(self.models_dict.keys())}):"
+            f"\texample input: {list(example_input.shape)}"
             f"\texample outputs: \t{example_outputs}")
             
 
@@ -350,6 +359,7 @@ if __name__ == '__main__':
             return output.reshape(batch_size, episode_length, *self.output_shape)
 
 
+
     position_model = Example_Output_Model(
         name='position',
         input_shape=(64,),
@@ -361,6 +371,8 @@ if __name__ == '__main__':
         input_shape=(64,),
         output_shape=(3, 8, 8),
         arg_dict = {'hidden_size' : 32})
+    
+    
 
     # Make a divider with list of shape_to_shape_models.
     divider = Divider(

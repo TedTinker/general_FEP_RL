@@ -110,7 +110,7 @@ class Actor(nn.Module):
 
 
 
-# Critic predicting Q-value.
+# Critic predicts Q-value.
 class Critic(nn.Module):
 
     def __init__(
@@ -155,7 +155,7 @@ if __name__ == '__main__':
     
     
 
-    # Two models just to make example actions.
+    # Two models for example actions.
     class Vector_Encoder(Shape_to_Shape_Model):
         def __init__(self, name, input_size, output_size, verbose = False):
             super().__init__(name = name, input_shape = (input_size,),
@@ -227,7 +227,7 @@ if __name__ == '__main__':
 
 
 
-    # Imitation, when the buffer has a best action to copy.
+    # Imitation, when the buffer has a "best action" to copy.
     best_action_dict = {name : torch.tanh(torch.randn_like(value))
                         for name, value in action_dict.items()}
     action_dict, log_prob_dict, imitation_loss_dict = actor(hidden_state, best_action_dict)

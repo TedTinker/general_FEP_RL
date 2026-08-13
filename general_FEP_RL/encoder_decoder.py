@@ -11,7 +11,7 @@ from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model
 
 
 
-# Function for sampling from Gaussion distributions.
+# Function for sampling from Gaussian distributions.
 def sample(mu, std):
     epsilon = torch.randn_like(std)
     return mu + epsilon * std

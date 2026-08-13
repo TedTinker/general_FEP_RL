@@ -178,8 +178,8 @@ def make_world_model_layer(
     # and that includes the lower layer's posterior sample when there is a lower layer.
     if set(dict_of_prediction_decoder_class_dicts) != set(dict_of_posterior_input_encoder_class_dicts):
         raise ValueError(
-            "The prediction decoders must decode exactly the posterior input encoders.",
-            f"Only in prediction decoders: \t{set(dict_of_prediction_decoder_class_dicts) - set(dict_of_posterior_input_encoder_class_dicts)}",
+            "The prediction decoders must decode exactly the posterior input encoders."
+            f"Only in prediction decoders: \t{set(dict_of_prediction_decoder_class_dicts) - set(dict_of_posterior_input_encoder_class_dicts)}"
             f"Only in posterior encoders: \t{set(dict_of_posterior_input_encoder_class_dicts) - set(dict_of_prediction_decoder_class_dicts)}")
 
     # Dictionaries of sizes.
