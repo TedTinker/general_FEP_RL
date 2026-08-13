@@ -1,36 +1,36 @@
 #%%
 #------------------
-# agent_methods.py provides every method of Agent that is not __init__.
-#
-# Agent gets these by inheritance:
-#
-#     from general_FEP_RL.agent_methods import Agent_Methods, GENERATED_INPUT_NAMES
-#     class Agent(Agent_Methods, nn.Module):
-#
-# and __init__ must end with:
-#
-#     self.build_episode_routing()
-#
-# This file needs the use_posterior version of World_Model.forward_one_step, which
-# lives in world_model.py, NOT here. See world_model_forward_one_step.py.
+# agent_methods.py provides these methods for the actor:
+#       build_episode_routing
+#       route
+#       begin
+#       step_in_episode
+#       decide
+#       episode_values_from_batch
+#       epoch
+#       alpha 
+#       apply_mask 
+#       recursive_log_append 
+#       add_to_training_log 
+#       print_scalars
 #------------------
 
 import torch
 from copy import deepcopy
 
 
-# Generated inside the world model, so never routed in from outside.
+
+# These input names are generated inside the world model, so they should not be used elsewhere.
 GENERATED_INPUT_NAMES = {'previous_hidden_state', 'lower_layer_posterior_sample'}
+
 
 
 class Agent_Methods:
 
 
-    #------------------
-    # Which name goes to which layer, worked out once from what the encoders ask for.
-    # Call at the end of __init__.
-    #------------------
 
+    # Make lists of names of prior inputs, posterior inputs, and predictions.
+    # Call at the end of __init__.
     def build_episode_routing(self):
         self.list_of_prior_input_names = []
         self.list_of_posterior_input_names = []
@@ -42,8 +42,7 @@ class Agent_Methods:
             self.list_of_posterior_input_names.append([
                 name for name in world_model_layer.posterior_input_encoder.models_dict
                 if name not in GENERATED_INPUT_NAMES])
-            # What a dream can feed back to itself: predictions of observations, not
-            # the layer below's sample.
+            # In a "dream," the agent feeds itself its own predictions.
             self.list_of_observation_prediction_names.append([
                 name for name in world_model_layer.prediction_decoder.models_dict
                 if name not in GENERATED_INPUT_NAMES])
@@ -54,36 +53,26 @@ class Agent_Methods:
             missing = sorted(name for name in names if name not in value_dict)
             if missing:
                 raise ValueError(
-                    f"""
-Layer {i}'s {description} encoder asks for {missing}, which this step was not given.
-Given this step: {sorted(value_dict)}
-                    """)
+                    f"Layer {i}'s {description} encoder asks for {missing}, which this step was not given."
+                    f"Given this step: {sorted(value_dict)}")
             list_of_value_dicts.append({name : value_dict[name] for name in names})
         return list_of_value_dicts
 
 
 
-    #------------------
-    # To begin an episode, initiate hidden states and a zero action.
-    #------------------
-
+    # To begin an episode, initiate hidden states and actions as zeros. 
     def begin(self, batch_size = 1):
+        self.step_num = 0
         example_parameter = next(self.parameters())
+        self.hallucinated_observation = None    # What a dream feeds itself next step.
 
-        # Shaped from what the actor actually decodes, so this cannot drift from the
-        # actor the way a hard-coded shape would.
         self.action = {
             name : torch.zeros(
                 batch_size, 1, *model.output_shape,
                 device = example_parameter.device, dtype = example_parameter.dtype)
             for name, model in self.actor.action_decoder.models_dict.items()}
 
-        # One list, not a prior list and a posterior list. Which branch advanced it is
-        # exactly the use_posterior flag of the step that produced it.
         self.hidden_states = self.world_model.start_hidden_states(batch_size)
-
-        self.hallucinated_observation = None    # What a dream feeds itself next step.
-        self.step_num = 0
 
 
 
@@ -91,26 +80,21 @@ Given this step: {sorted(value_dict)}
     # In each step, the agent encodes the current observation and its previous action to
     # update hidden states, then decodes a new action and predicts observations and Q.
     #
-    # use_posterior = True  is a real episode: observations arrive, and the posterior
-    #                       sample advances the hierarchy.
-    # use_posterior = False is a dream: the prior sample advances it instead, and if no
-    #                       observation is given the agent sees what it predicted last
-    #                       step. Passing a real observation anyway is legal and useful
-    #                       for asking what the agent would have done without looking.
+    # use_posterior = True  is a "real" step: observations arrive and the posterior sample advances the hierarchy.
+    # use_posterior = False is a "dream" step: the prior sample advances it instead, and observations are not observed.
     #------------------
 
     def step_in_episode(
             self,
-            observation = None,         # name -> (batch, 1, ...). Required unless dreaming.
-            use_posterior = True,
-            best_action = None,         # Teacher forcing: what the PREVIOUS action should have been.
+            observation = None,         # name : (batch, 1, ...). Required unless dreaming.
+            use_posterior = True,       # True if a "real" step, False if a "dream" step.
             deterministic = False):     # tanh(mu) rather than a sample, for evaluation.
+
+        self.step_num += 1
 
         with torch.no_grad():
 
-            if best_action is not None:
-                self.action = best_action
-
+            # Check if real step/dream step is handled correctly.
             if observation is None:
                 if use_posterior:
                     raise ValueError(
@@ -122,6 +106,7 @@ Given this step: {sorted(value_dict)}
                         "Take one step with an observation before dreaming on.")
                 observation = self.hallucinated_observation
 
+            # Use the world model.
             value_dict = {**observation, **self.action}
             step_dict = self.world_model.forward_one_step(
                 self.hidden_states,
@@ -129,27 +114,18 @@ Given this step: {sorted(value_dict)}
                 self.route(value_dict, self.list_of_posterior_input_names, 'posterior'),
                 use_posterior = use_posterior)
 
+            # Get hidden states, actions, and Q-value predictions. 
             self.hidden_states = step_dict['list_of_hidden_states']
-
-            # The old code chose hq[0] or hp[0] here. It no longer has to: the carried
-            # hidden state was already advanced by whichever branch use_posterior named,
-            # so there is one flag rather than two that could disagree.
-            self.action, log_prob = self.decide(self.hidden_states[0], deterministic)
-
+            self.action, log_prob_dict, imitation_loss_dict = self.actor(self.hidden_states[0], deterministic) 
             values = [critic(self.hidden_states[0], self.action) for critic in self.critics]
 
-            # Kept whether dreaming or not, so a real episode can hand off to a dream.
-            # NOTE: this assumes a prediction made at step t is of the observation at
-            # step t+1. world_model.py's demo scores predictions against the SAME step's
-            # observation, so those two disagree; settle it before trusting long dreams.
+            # Sort out predictions.
             predictions = step_dict[
                 'list_of_posterior_predictions' if use_posterior else 'list_of_prior_predictions']
             self.hallucinated_observation = {
                 name : predictions[i][name]
                 for i, names in enumerate(self.list_of_observation_prediction_names)
                 for name in names}
-
-            self.step_num += 1
 
         return {
             'observation' : observation,
@@ -161,23 +137,6 @@ Given this step: {sorted(value_dict)}
             'prior_predictions' : step_dict['list_of_prior_predictions'],
             'posterior_predictions' : step_dict['list_of_posterior_predictions'],
             'dreamed' : not use_posterior}
-
-
-
-    #------------------
-    # Reaching past Actor.forward because Action_Decoder always samples. Three lines in
-    # Action_Decoder (a self.deterministic flag returning tanh(mu)) would let this go
-    # back through the actor.
-    #------------------
-
-    def decide(self, hidden_state, deterministic = False):
-        outputs = self.actor.action_decoder(hidden_state)
-        if not deterministic:
-            return (
-                {name : output['action'] for name, output in outputs.items()},
-                {name : output['log_prob'] for name, output in outputs.items()})
-        # log_prob is None rather than the sample's, which would look usable and is not.
-        return {name : torch.tanh(output['mu']) for name, output in outputs.items()}, None
 
 
 
