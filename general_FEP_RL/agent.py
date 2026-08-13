@@ -17,13 +17,7 @@ from general_FEP_RL.agent_methods import Agent_Methods, GENERATED_INPUT_NAMES
 
 
 #------------------
-# Training scalars.
-#
-# Every inner state gets all four. An inner state is named for the thing it is decoded
-# into, so 'vision' and 'lower_layer_posterior_sample' are treated the same way: the
-# old beta_hidden list, indexed by layer, is now just the beta of that layer's
-# lower_layer_posterior_sample.
-#
+# Training scalars for inner states:
 #   upsilon             accuracy scalar
 #   beta                complexity scalar
 #   eta_before_clamp    curiosity scalar, applied BEFORE clamping to [0, 1]
@@ -32,9 +26,18 @@ from general_FEP_RL.agent_methods import Agent_Methods, GENERATED_INPUT_NAMES
 
 DEFAULT_INNER_STATE_SCALARS = {
     'upsilon' : 1.0,
-    'beta' : 0.03,                  # The value used throughout chapter 2.
+    'beta' : 0.03,
     'eta_before_clamp' : 1.0,
     'eta' : 1.0}
+
+#------------------
+# Training scalars for actions:
+#   target_entropy      entropy desired for alpha's loss
+#   alpha_normal        keep actions near baseline
+#   initial_alpha       initial value of alpha
+#   lr_alpha            learning rate of alpha
+#   delta               imitation scalar
+#------------------
 
 DEFAULT_ACTION_SCALARS = {
     'target_entropy' : -1.0,
@@ -45,10 +48,8 @@ DEFAULT_ACTION_SCALARS = {
 
 
 
+# Function to check scalars. 
 def fill_scalar_dicts(provided, required_names, defaults, description):
-
-    # Fills in defaults, and refuses names or keys that do not exist. A mistyped
-    # modality would otherwise silently keep its default beta forever.
 
     provided = {} if provided is None else provided
     required_names = list(required_names)
@@ -57,10 +58,8 @@ def fill_scalar_dicts(provided, required_names, defaults, description):
     missing_is_fine = set(required_names) - set(provided)
     if unknown_names:
         raise ValueError(
-            f"""
-{description} has scalars for names which do not exist: {sorted(unknown_names)}
-Names which do exist: {sorted(required_names)}
-            """)
+            f"{description} has scalars for names which do not exist: {sorted(unknown_names)}"
+            f"Names which do exist: {sorted(required_names)}")
 
     filled = {}
     for name in required_names:
@@ -68,10 +67,8 @@ Names which do exist: {sorted(required_names)}
         unknown_keys = set(given) - set(defaults)
         if unknown_keys:
             raise ValueError(
-                f"""
-{description}, '{name}' has unknown scalars: {sorted(unknown_keys)}
-Scalars which exist: {sorted(defaults)}
-                """)
+                f"{description}, '{name}' has unknown scalars: {sorted(unknown_keys)}"
+                f"Scalars which exist: {sorted(defaults)}")
         filled[name] = {**defaults, **given}
 
     return filled, sorted(missing_is_fine)
@@ -88,7 +85,7 @@ class Agent(Agent_Methods, nn.Module):
     def __init__(
             self,
 
-            # Structure of the world model, passed straight through to make_world_model.
+            # Structure of the world model for make_world_model.
             hidden_state_sizes,
             list_of_dict_of_prior_input_encoder_class_dicts,
             list_of_dict_of_posterior_input_encoder_class_dicts,
@@ -96,25 +93,24 @@ class Agent(Agent_Methods, nn.Module):
             lower_layer_posterior_sample_decoding_output_sizes,
             time_constants,
 
-            # Structure of the actor and critics.
-            dict_of_action_decoder_class_dicts,      # For the actor.
-            dict_of_action_encoder_class_dicts,      # For the critics.
+            # Structure of actor and critics.
+            dict_of_action_decoder_class_dicts,         # For the actor.
+            dict_of_action_encoder_class_dicts,         # For the critics.
 
             # Training scalars. Both are optional and fall back to the defaults above.
-            list_of_dict_of_inner_state_scalar_dicts = None,   # Per layer: name -> scalars.
-            dict_of_action_scalar_dicts = None,                # name -> scalars.
+            list_of_dict_of_inner_state_scalar_dicts = None,   # For each layer, name : scalars.
+            dict_of_action_scalar_dicts = None,                # name : scalars.
 
-            # Reinforcement learning.
-            number_of_critics = 2,
-            tau = 0.01,
-            gamma = 0.99,
-            d = 1,                                   # Train the actor every d epochs.
-            make_value_decoder = None,               # A CALLABLE returning a fresh module.
-                                                     # Sharing one instance would make every
-                                                     # critic and target the same network.
+            # For reinforcement learning.
+            number_of_critics = 2,                      # How many critics? The actor is judged by the lowest opinion of the critics. 
+            tau = 0.01,                                 # How much should target critics meet critics?
+            gamma = 0.99,                               # How much should critics think of the future?
+            d = 1,                                      # Train the actor every d epochs.
+            make_value_decoder = None,                  # A CALLABLE returning a fresh module.
+                                                        # Sharing one instance would make every critic and target the same network.
 
             # Optimisation.
-            lr = 0.0001,
+            lr = 0.0001,                    # General learning rate, replacing many not provided.
             lr_world_model = None,
             lr_critic = None,
             lr_actor = None,
@@ -140,10 +136,7 @@ class Agent(Agent_Methods, nn.Module):
         lr_critic = lr if lr_critic is None else lr_critic
         lr_actor = lr if lr_actor is None else lr_actor
 
-        #------------------
         # World model.
-        #------------------
-
         self.world_model = make_world_model(
             hidden_state_sizes,
             list_of_dict_of_prior_input_encoder_class_dicts,
@@ -159,10 +152,7 @@ class Agent(Agent_Methods, nn.Module):
         self.world_model_opt = optim.Adam(
             self.world_model.parameters(), lr = lr_world_model, weight_decay = weight_decay)
 
-        #------------------
         # Training scalars, checked against what the world model actually built.
-        #------------------
-
         if list_of_dict_of_inner_state_scalar_dicts is None:
             list_of_dict_of_inner_state_scalar_dicts = [None] * len(hidden_state_sizes)
         if len(list_of_dict_of_inner_state_scalar_dicts) != len(hidden_state_sizes):
@@ -174,8 +164,6 @@ class Agent(Agent_Methods, nn.Module):
         for i, world_model_layer in enumerate(self.world_model.list_of_world_model_layers):
             inner_state_names = world_model_layer.posterior_inner_state_decoder.models_dict.keys()
             prediction_names = world_model_layer.prediction_decoder.models_dict.keys()
-            # One scalar dict covers accuracy and complexity because these are the same
-            # set: every inner state is decoded into exactly one prediction.
             if set(inner_state_names) != set(prediction_names):
                 raise ValueError(
                     f"Layer {i} decodes {sorted(prediction_names)} but has inner states "
@@ -194,23 +182,13 @@ class Agent(Agent_Methods, nn.Module):
             DEFAULT_ACTION_SCALARS,
             "The actor")
 
-        #------------------
         # Actor, reading the lowest layer's hidden state.
-        #------------------
-
         self.actor = Actor(
             hidden_state_sizes[0], dict_of_action_decoder_class_dicts, verbose = verbose)
         self.actor_opt = optim.Adam(
             self.actor.parameters(), lr = lr_actor, weight_decay = weight_decay)
 
-        #------------------
         # Alpha, the entropy weight, learned in log space.
-        #
-        # There is no separate self.alphas holding stale copies: alphas is derived from
-        # log_alphas on demand, so the two cannot drift apart when d > 1 and the actor
-        # does not train every epoch.
-        #------------------
-
         self.log_alphas = nn.ParameterDict({
             name : nn.Parameter(torch.log(torch.tensor(
                 float(scalars['initial_alpha']))))
@@ -223,10 +201,7 @@ class Agent(Agent_Methods, nn.Module):
                 weight_decay = 0)
             for name, scalars in self.dict_of_action_scalar_dicts.items()}
 
-        #------------------
         # Critics and target critics.
-        #------------------
-
         self.critics = nn.ModuleList()
         self.critic_targets = nn.ModuleList()
         self.critic_opts = []
@@ -241,17 +216,14 @@ class Agent(Agent_Methods, nn.Module):
                 verbose = False)
             critic_target.load_state_dict(critic.state_dict())
             for parameter in critic_target.parameters():
-                parameter.requires_grad = False      # Targets move only by polyak averaging.
+                parameter.requires_grad = False      # Target critics move by polyak averaging with tau.
 
             self.critics.append(critic)
             self.critic_targets.append(critic_target)
             self.critic_opts.append(optim.Adam(
                 critic.parameters(), lr = lr_critic, weight_decay = weight_decay))
 
-        #------------------
         # Recurrent replay buffer, with shapes read off the world model.
-        #------------------
-
         dict_of_observation_shapes, dict_of_action_shapes = shapes_from_world_model(self.world_model)
         self.buffer = Recurrent_Replay_Buffer(
             dict_of_observation_shapes, dict_of_action_shapes, capacity, max_steps)

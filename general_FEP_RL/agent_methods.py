@@ -1,17 +1,6 @@
 #%%
 #------------------
-# agent_methods.py provides these methods for the actor:
-#       build_episode_routing
-#       route
-#       begin
-#       step_in_episode
-#       episode_values_from_batch
-#       epoch
-#       alpha 
-#       apply_mask 
-#       recursive_log_append 
-#       add_to_training_log 
-#       print_scalars
+# agent_methods.py provides methods for the actor, including epoch.
 #------------------
 
 import torch
@@ -180,6 +169,17 @@ class Agent_Methods:
     # Steps after the end of an episode contributes nothing.
     def masked_mean(self, value, mask):
         return (self.per_step(value) * mask).sum() / mask.sum().clamp(min = 1.0)
+    
+    # Applying masks.
+    def apply_mask(self, tensor, mask):
+        ndims_to_add = tensor.ndim - mask.ndim
+        expanded_mask = mask.view(*mask.shape, *(1,) * ndims_to_add)
+        return tensor * expanded_mask
+    
+    # Making alpha values.
+    def alpha(self, name):
+        return torch.exp(self.log_alphas[name])
+
 
 
 
@@ -493,20 +493,6 @@ class Agent_Methods:
         self.epoch_num += 1
         self.add_to_training_log(epoch_dict)
         return epoch_dict, epoch_dict_actor
-
-
-
-    # Making alpha values.
-    def alpha(self, name):
-        return torch.exp(self.log_alphas[name])
-
-
-
-    # Applying masks.
-    def apply_mask(self, tensor, mask):
-        ndims_to_add = tensor.ndim - mask.ndim
-        expanded_mask = mask.view(*mask.shape, *(1,) * ndims_to_add)
-        return tensor * expanded_mask
 
 
 
