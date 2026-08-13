@@ -57,12 +57,8 @@ class Action_Decoder(Shape_to_Shape_Model):
         mu = self.mu(shared)
         std = 1e-2 + F.softplus(self.std(shared))
 
-        unsquashed = mu + std * torch.randn_like(std)
-        
-        if deterministic:
-            action = torch.tanh(mu)
-        else:
-            action = torch.tanh(unsquashed)
+        unsquashed = mu if deterministic else mu + std * torch.randn_like(std)
+        action = torch.tanh(unsquashed)
 
         log_prob = torch.distributions.Normal(mu, std).log_prob(unsquashed)
         log_prob = log_prob - 2 * (log(2) - unsquashed - F.softplus(-2 * unsquashed))
@@ -93,11 +89,6 @@ class Actor(nn.Module):
             [class_dict['class'](input_size = hidden_state_size)
              for class_dict in dict_of_action_decoder_class_dicts.values()],
             verbose = verbose)
-        
-        def forward_with_deterministic_option(self, value, deterministic = False):
-            return {name: model(value, deterministic) for name, model in self.models_dict.items()}
-    
-        self.action_decoder.forward = forward_with_deterministic_option
 
     def forward(self, hidden_state, best_action_dict = None, deterministic = False):
         outputs = self.action_decoder(hidden_state, deterministic) 

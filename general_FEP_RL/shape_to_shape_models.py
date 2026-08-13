@@ -304,9 +304,9 @@ class Divider(nn.Module):
         if(verbose):
             self.print_examples()
             
-    def forward(self, value):
+    def forward(self, value, *args, **kwargs):
         # Use all models with the same input.
-        return {name: model(value) for name, model in self.models_dict.items()}
+        return {name: model(value, *args, **kwargs) for name, model in self.models_dict.items()}
     
     # Handy tool. Make example of input and outputs.
     def make_examples(self, batch_size=1, episode_length=1):
