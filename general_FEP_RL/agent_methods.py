@@ -260,7 +260,7 @@ class Agent_Methods:
                 loss_func = world_model_layer.prediction_decoder.models_dict[name].loss_func
                 layer_accuracy_prior = self.masked_mean(loss_func(predicted, target), mask)
                 layer_accuracy_posterior = self.masked_mean(loss_func(reconstructed, target), mask)
-                accuracy_loss = accuracy_loss +  scalars['upsilon'] * layer_accuracy_posterior # + scalars['upsilon'] * layer_accuracy_prior
+                accuracy_loss = accuracy_loss + scalars['upsilon'] * layer_accuracy_prior + scalars['upsilon'] * layer_accuracy_posterior
                 accuracy_losses[layer_key][name] = layer_accuracy_prior.item() + layer_accuracy_posterior.item()
 
                 dkl = torch.cat(
