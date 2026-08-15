@@ -123,9 +123,9 @@ def plot_training_log(agent, figsize=(19, 17)):
 
     # 1. Accuracy, split by layer and inner state.
     ax = axs[0]
-    _lines_from_nested(ax, x, tl.get("accuracy_losses_priot"), source_style)
-    _lines_from_nested(ax, x, tl.get("accuracy_losses_posterior"), source_style)
-    _finish(ax, "World model: accuracy, per layer and source")
+    _lines_from_nested(ax, x, tl.get("accuracy_losses_prior"), source_style, lw=1.8)
+    _lines_from_nested(ax, x, tl.get("accuracy_losses_posterior"), source_style, prefix="post ", alpha=0.35, lw=1.0)
+    _finish(ax, "World model: accuracy  (bold = prior, faint = posterior)", log="auto")
 
     # 2. Complexity, on its own axis. Accuracy and complexity now live on very
     #    different scales, so sharing one panel hides whichever is smaller.
