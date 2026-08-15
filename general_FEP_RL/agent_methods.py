@@ -200,7 +200,7 @@ class Agent_Methods:
         episode_length = mask.shape[1]
 
         # Dictionaries and lists for logging training data.
-        accuracy_losses, complexity_losses = {}, {}
+        accuracy_losses_prior, accuracy_losses_posterior, complexity_losses = {}, {}, {}
         prior_stds, posterior_stds = {}, {}
         dkls, curiosities, curiosity_saturations = {}, {}, {}
         critic_losses, critic_predictions = [], []
@@ -231,7 +231,8 @@ class Agent_Methods:
 
         for i, world_model_layer in enumerate(self.world_model.list_of_world_model_layers):
             layer_key = f'layer_{i}'
-            accuracy_losses[layer_key] = {}
+            accuracy_losses_prior[layer_key] = {}
+            accuracy_losses_posterior[layer_key] = {}
             complexity_losses[layer_key] = {}
             prior_stds[layer_key] = {}
             posterior_stds[layer_key] = {}
@@ -260,8 +261,9 @@ class Agent_Methods:
                 loss_func = world_model_layer.prediction_decoder.models_dict[name].loss_func
                 layer_accuracy_prior = self.masked_mean(loss_func(predicted, target), mask)
                 layer_accuracy_posterior = self.masked_mean(loss_func(reconstructed, target), mask)
+                accuracy_losses_prior[layer_key][name] = layer_accuracy_prior.item()
+                accuracy_losses_posterior[layer_key][name] = layer_accuracy_posterior.item()
                 accuracy_loss = accuracy_loss + scalars['upsilon_prior'] * layer_accuracy_prior + scalars['upsilon_posterior'] * layer_accuracy_posterior
-                accuracy_losses[layer_key][name] = layer_accuracy_prior.item() + layer_accuracy_posterior.item()
 
                 dkl = torch.cat(
                     [step_dict['list_of_inner_states'][i][name]['dkl']
@@ -471,7 +473,8 @@ class Agent_Methods:
             'mask' : mask.detach().cpu(),
             'best_action_mask' : best_action_mask.detach().cpu(),
 
-            'accuracy_losses' : accuracy_losses,
+            'accuracy_losses_prior' : accuracy_losses_prior,
+            'accuracy_losses_posterior' : accuracy_losses_posterior,
             'complexity_losses' : complexity_losses,
             'prior_stds' : prior_stds,
             'posterior_stds' : posterior_stds,
