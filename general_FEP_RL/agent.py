@@ -18,14 +18,16 @@ from general_FEP_RL.agent_methods import Agent_Methods, GENERATED_INPUT_NAMES
 
 #------------------
 # Training scalars for inner states:
-#   upsilon             accuracy scalar
+#   upsilon_prior       accuracy scalar for prediction
+#   upsilon_posterior   accuracy scalar for reconstruction
 #   beta                complexity scalar
 #   eta_before_clamp    curiosity scalar, applied BEFORE clamping to [0, 1]
 #   eta                 curiosity scalar, applied after
 #------------------
 
 DEFAULT_INNER_STATE_SCALARS = {
-    'upsilon' : 1.0,
+    'upsilon_prior' : 1.0,
+    'upsilon_posterior' : 1.0,
     'beta' : 0.03,
     'eta_before_clamp' : 1.0,
     'eta' : 1.0}
