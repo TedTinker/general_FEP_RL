@@ -57,24 +57,24 @@ class Misc_Decoder(Shape_to_Shape_Model):
             name,               # String. Should be unique.
             input_size,         # Size of prior_sample, or encoded posterior_sample (and higher hidden state, if available).
             output_size,        # Size of lower_layer_posterior_sample, or hidden_state.
+            bounded = True,     # Apply Tanh?
             verbose = False):
         
         super().__init__(
             name = name,                    
             input_shape = (input_size,),    
             output_shape = (output_size,),
+            arg_dict = {'bounded' : bounded},
             verbose = verbose)
 
     def build_model(self, arg_dict):
-        self.linear_layers = nn.Sequential(
-            nn.Linear(
-                in_features = self.input_shape[0], 
-                out_features = self.input_shape[0]),
+        layers = [
+            nn.Linear(self.input_shape[0], self.input_shape[0]),
             nn.LeakyReLU(),
-            nn.Linear(                
-                in_features = self.input_shape[0], 
-                out_features = self.output_shape[0]),
-            nn.Tanh())
+            nn.Linear(self.input_shape[0], self.output_shape[0])]
+        if arg_dict['bounded']:
+            layers.append(nn.Tanh())
+        self.linear_layers = nn.Sequential(*layers)
 
     def forward(self, value):
         return self.linear_layers(value)
@@ -107,8 +107,9 @@ class Inner_State_Decoder(Shape_to_Shape_Model):
         self.mu = nn.Sequential(
             nn.Linear(in_features = self.input_shape[0], out_features = self.output_shape[0]),
             nn.LeakyReLU(),
-            nn.Linear(in_features = self.output_shape[0], out_features = self.output_shape[0]),
-            nn.Tanh())
+            nn.Linear(in_features = self.output_shape[0], out_features = self.output_shape[0]))
+        self.mu[-1].weight.data.mul_(0.1)
+        self.mu[-1].bias.data.zero_()
         
         # Standard deviation.
         self.std = nn.Sequential(

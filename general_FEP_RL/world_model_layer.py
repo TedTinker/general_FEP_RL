@@ -249,6 +249,7 @@ def make_world_model_layer(
                 name = 'lower_layer_posterior_sample',
                 input_size = inner_state_size,
                 output_size = lower_layer_posterior_sample_size,
+                bounded = False,
                 verbose = verbose))       
     prediction_decoder = Divider('prediction_decoder', list_of_prediction_decoders, verbose = verbose)
     
