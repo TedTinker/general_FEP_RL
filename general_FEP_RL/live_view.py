@@ -16,11 +16,19 @@ up front; the figure is built on the first update.
 
 WHAT THE COLUMNS MEAN
 
-    actual      the observation the agent was given at this step
-    prior       what it expected before looking, from the previous hidden state and
-                the previous action
-    posterior   what it says after looking
-    error       prior minus actual, red high and blue low
+    actual            the observation the agent was given at this step
+    prior             what it expected before looking, from the previous hidden
+                      state and the previous action
+    posterior         what it says after looking
+    prior error       prior minus actual
+    posterior error   posterior minus actual
+
+Both error columns are symmetric grey on ONE SHARED scale: mid-grey is an exact
+prediction, white is over-predicted, black is under-predicted. Sharing the scale is
+the point -- auto-scaling each column to its own maximum would make a posterior with
+tiny errors look every bit as dramatic as a prior with large ones, which is exactly
+the comparison this view exists to make. Pass error_limit = 1.0 to pin the scale
+across steps as well, for observations already bounded to [0, 1].
 
 Prior against actual is the honest test of the world model. Posterior against actual is
 the easier one -- the posterior has already seen the frame -- so a posterior that looks
@@ -172,7 +180,9 @@ class LiveView:
             layout = None,          # name -> 'channels' | 'rgbd' | 'rgb' | 'gray' | 'auto'
             channel_names = None,   # name -> list of labels, one per channel
             layer = 0,              # which world model layer's predictions to show
-            show_error = True,      # a fourth column: prior minus actual
+            show_error = True,      # two more columns: prior and posterior minus actual
+            error_limit = None,     # symmetric half-range for the error columns.
+                                    # None = one auto limit per row, shared by both.
             show_baseline = True,   # compare both predictions to a running mean frame
             max_panels = 12,        # refuse to build something unreadable
             pause = 0.001,
@@ -183,6 +193,7 @@ class LiveView:
         self.channel_names = dict(channel_names or {})
         self.layer = layer
         self.show_error = show_error
+        self.error_limit = error_limit
         self.show_baseline = show_baseline
         self.max_panels = max_panels
         self.pause = pause
@@ -239,7 +250,9 @@ class LiveView:
                 f"{self.max_panels}. Narrow it with layout=, e.g. "
                 f"{{'see_image' : 'rgb'}}, or raise max_panels.")
 
-        columns = ["actual", "prior", "posterior"] + (["prior error"] if self.show_error else [])
+        columns = ["actual", "prior", "posterior"]
+        if self.show_error:
+            columns += ["prior error", "posterior error"]
         self._columns = columns
         rows = len(self._panels)
 
@@ -280,16 +293,19 @@ class LiveView:
 
     # ---- drawing ---------------------------------------------------------
 
-    def _draw_image(self, row, column, data, is_rgb, diverging = False):
+    def _draw_image(self, row, column, data, is_rgb, diverging = False, limit = None):
         axes = self._axes[(row, column)]
         key = (row, column)
+        if diverging and limit is None:
+            limit = max(float(np.abs(data).max()), 1e-6)
         if key not in self._images:
             if is_rgb:
                 self._images[key] = axes.imshow(data, interpolation = "nearest")
             elif diverging:
-                limit = max(float(np.abs(data).max()), 1e-6)
+                # Symmetric grey, so zero error lands on mid-grey rather than on an
+                # end of the colour map. Over-prediction goes white, under goes black.
                 self._images[key] = axes.imshow(
-                    data, interpolation = "nearest", cmap = "bwr",
+                    data, interpolation = "nearest", cmap = "gray",
                     vmin = -limit, vmax = limit)
             else:
                 self._images[key] = axes.imshow(
@@ -298,23 +314,28 @@ class LiveView:
         else:
             self._images[key].set_data(data)
             if diverging:
-                limit = max(float(np.abs(data).max()), 1e-6)
                 self._images[key].set_clim(-limit, limit)
 
-    def _draw_vector(self, row, column, data, diverging = False):
+    def _draw_vector(self, row, column, data, diverging = False, limit = None):
         axes = self._axes[(row, column)]
         key = (row, column)
         data = np.atleast_1d(data).ravel()
         if key not in self._bars:
             self._bars[key] = axes.bar(np.arange(len(data)), data,
-                                       color = "tab:red" if diverging else "tab:blue")
+                                       color = "0.45" if diverging else "tab:blue")
             axes.axhline(0, color = "black", lw = 0.6)
         else:
             for bar, height in zip(self._bars[key], data):
                 bar.set_height(height)
-        low, high = float(np.min(data)), float(np.max(data))
-        pad = max(0.1, 0.2 * (high - low))
-        axes.set_ylim(min(low, 0) - pad, max(high, 0) + pad)
+        if diverging:
+            # Same shared scale the image error panels use, for the same reason.
+            if limit is None:
+                limit = max(float(np.abs(data).max()), 1e-6)
+            axes.set_ylim(-1.1 * limit, 1.1 * limit)
+        else:
+            low, high = float(np.min(data)), float(np.max(data))
+            pad = max(0.1, 0.2 * (high - low))
+            axes.set_ylim(min(low, 0) - pad, max(high, 0) + pad)
 
     # ---- the call you make each step -------------------------------------
 
@@ -352,15 +373,24 @@ class LiveView:
             frames['prior'] = strip_batch(prior[name]) if name in prior else None
             frames['posterior'] = strip_batch(posterior[name]) if name in posterior else None
 
+            # One limit for both error columns, so they can be read against each other.
+            errors = {which : (None if frames[which] is None else frames[which] - actual)
+                      for which in ('prior', 'posterior')}
+            limit = self.error_limit
+            if limit is None:
+                limit = max([float(np.abs(e).max())
+                             for e in errors.values() if e is not None] + [1e-6])
+
             if kind == 'image':
                 actual_image = as_image(actual)
                 for column, column_name in enumerate(self._columns):
-                    if column_name == "prior error":
-                        if frames['prior'] is None:
+                    which = column_name[:-6] if column_name.endswith(" error") else None
+                    if which is not None:
+                        if errors[which] is None:
                             continue
-                        difference = as_image(frames['prior']) - actual_image
+                        difference = as_image(frames[which]) - actual_image
                         self._draw_image(row, column, extractor(difference), False,
-                                         diverging = True)
+                                         diverging = True, limit = limit)
                     else:
                         source = frames[column_name]
                         if source is None:
@@ -368,11 +398,12 @@ class LiveView:
                         self._draw_image(row, column, extractor(as_image(source)), is_rgb)
             else:
                 for column, column_name in enumerate(self._columns):
-                    if column_name == "prior error":
-                        if frames['prior'] is None:
+                    which = column_name[:-6] if column_name.endswith(" error") else None
+                    if which is not None:
+                        if errors[which] is None:
                             continue
-                        self._draw_vector(row, column, frames['prior'] - actual,
-                                          diverging = True)
+                        self._draw_vector(row, column, errors[which],
+                                          diverging = True, limit = limit)
                     else:
                         source = frames[column_name]
                         if source is None:
@@ -403,6 +434,9 @@ class LiveView:
         message = text or ""
         if report:
             message = (message + "\n" + "\n".join(report)) if message else "\n".join(report)
+        if self.show_error:
+            message += "\n(error columns: mid-grey is exact, white over-predicts, black "
+            message += "under-predicts; both share one scale)"
         if self.show_baseline and self._baseline_count:
             message += "\n(baseline = running mean frame; over 1.00x means the model is "
             message += "not beating a constant)"

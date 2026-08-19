@@ -244,7 +244,7 @@ def make_world_model_layer(
                 input_size = inner_state_size,
                 verbose = verbose))
     if lower_layer_posterior_sample_size != 0:
-        list_of_prediction_decoders.append(   # POTENTIAL ISSUE: the decoder outputs tanh, while the posterior_sample is mu + e*std. (-1, 1) isn't everything.
+        list_of_prediction_decoders.append(  
             Misc_Decoder(
                 name = 'lower_layer_posterior_sample',
                 input_size = inner_state_size,
