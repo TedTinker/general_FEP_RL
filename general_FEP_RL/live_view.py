@@ -22,18 +22,41 @@ WHAT THE COLUMNS MEAN
     posterior         what it says after looking
     prior error       prior minus actual
     posterior error   posterior minus actual
+    prior vs post     prior minus posterior
 
-Both error columns are symmetric grey on ONE SHARED scale: mid-grey is an exact
-prediction, white is over-predicted, black is under-predicted. Sharing the scale is
-the point -- auto-scaling each column to its own maximum would make a posterior with
-tiny errors look every bit as dramatic as a prior with large ones, which is exactly
-the comparison this view exists to make. Pass error_limit = 1.0 to pin the scale
-across steps as well, for observations already bounded to [0, 1].
+All three difference columns are symmetric grey on ONE SHARED scale: mid-grey is
+agreement, white means the left term is higher, black means it is lower. Sharing the
+scale is the point -- auto-scaling each column to its own maximum would make a
+posterior with tiny errors look every bit as dramatic as a prior with large ones,
+which is exactly the comparison this view exists to make. Pass error_limit = 1.0 to
+pin the scale across steps as well, for observations already bounded to [0, 1].
 
 Prior against actual is the honest test of the world model. Posterior against actual is
 the easier one -- the posterior has already seen the frame -- so a posterior that looks
 good while the prior looks like mush means the latent is carrying the observation but
 the dynamics have not been learned.
+
+THE DISAGREEMENT COLUMN
+
+prior minus posterior is exactly (prior error) minus (posterior error), which is why it
+belongs on the same scale as the other two. It is the observation-space picture of the
+dkl already printed in the text panel: the posterior has seen the frame and the prior
+has not, so wherever the two disagree is what the agent gained by looking. That is the
+quantity curiosity is paid for, drawn where you can see WHICH parts of the observation
+carried the information rather than only how much of it there was.
+
+When the posterior is good this column looks almost identical to the prior error column,
+and that is the identity above rather than a bug. It earns its keep in the opposite
+case: if both error columns look bad but this one is flat grey, prior and posterior are
+wrong TOGETHER, which points at the decoder or at observation scaling rather than at the
+dynamics. Divergence between them is the dynamics; shared error is everything
+downstream of the latent.
+
+A trained model should drive this column dark almost everywhere, staying bright only
+where the frame was genuinely unpredictable. Dark everywhere INCLUDING at surprising
+events means the posterior has stopped extracting anything from the observation, and
+the curiosity signal is about to flatline -- which should show up in the same text line
+as dkl collapsing.
 
 THE BASELINE LINE
 
@@ -150,6 +173,17 @@ _POSTERIOR_KEYS = ('posterior_predictions', 'list_of_posterior_predictions',
                    'list_of_predictions')
 
 
+# Diverging columns: name -> (left, right), both keys into the per-row `frames` dict.
+# Each is drawn as left minus right on the shared symmetric grey scale. Note that
+# ('prior', 'posterior') is the difference of the two rows above it, which is why one
+# shared limit across all three is the honest choice.
+_ERROR_COLUMNS = {
+    "prior error"     : ("prior", "actual"),
+    "posterior error" : ("posterior", "actual"),
+    "prior vs post"   : ("prior", "posterior"),
+}
+
+
 def _predictions_from(step_dict, keys, layer):
     for key in keys:
         if key in step_dict:
@@ -181,8 +215,9 @@ class LiveView:
             channel_names = None,   # name -> list of labels, one per channel
             layer = 0,              # which world model layer's predictions to show
             show_error = True,      # two more columns: prior and posterior minus actual
-            error_limit = None,     # symmetric half-range for the error columns.
-                                    # None = one auto limit per row, shared by both.
+            show_disagreement = True,   # one more column: prior minus posterior
+            error_limit = None,     # symmetric half-range for the difference columns.
+                                    # None = one auto limit per row, shared by all.
             show_baseline = True,   # compare both predictions to a running mean frame
             max_panels = 12,        # refuse to build something unreadable
             pause = 0.001,
@@ -193,6 +228,7 @@ class LiveView:
         self.channel_names = dict(channel_names or {})
         self.layer = layer
         self.show_error = show_error
+        self.show_disagreement = show_disagreement
         self.error_limit = error_limit
         self.show_baseline = show_baseline
         self.max_panels = max_panels
@@ -253,7 +289,11 @@ class LiveView:
         columns = ["actual", "prior", "posterior"]
         if self.show_error:
             columns += ["prior error", "posterior error"]
+        if self.show_disagreement:
+            columns += ["prior vs post"]
         self._columns = columns
+        self._error_columns = {name : _ERROR_COLUMNS[name]
+                               for name in columns if name in _ERROR_COLUMNS}
         rows = len(self._panels)
 
         plt.ion()
@@ -302,8 +342,9 @@ class LiveView:
             if is_rgb:
                 self._images[key] = axes.imshow(data, interpolation = "nearest")
             elif diverging:
-                # Symmetric grey, so zero error lands on mid-grey rather than on an
-                # end of the colour map. Over-prediction goes white, under goes black.
+                # Symmetric grey, so agreement lands on mid-grey rather than on an
+                # end of the colour map. The left term being higher goes white,
+                # lower goes black.
                 self._images[key] = axes.imshow(
                     data, interpolation = "nearest", cmap = "gray",
                     vmin = -limit, vmax = limit)
@@ -328,7 +369,7 @@ class LiveView:
             for bar, height in zip(self._bars[key], data):
                 bar.set_height(height)
         if diverging:
-            # Same shared scale the image error panels use, for the same reason.
+            # Same shared scale the image difference panels use, for the same reason.
             if limit is None:
                 limit = max(float(np.abs(data).max()), 1e-6)
             axes.set_ylim(-1.1 * limit, 1.1 * limit)
@@ -373,44 +414,49 @@ class LiveView:
             frames['prior'] = strip_batch(prior[name]) if name in prior else None
             frames['posterior'] = strip_batch(posterior[name]) if name in posterior else None
 
-            # One limit for both error columns, so they can be read against each other.
-            errors = {which : (None if frames[which] is None else frames[which] - actual)
-                      for which in ('prior', 'posterior')}
+            # Image rows take every difference in channels-last space, because that is
+            # what `extractor` slices. as_image returns None on a shape mismatch, which
+            # the None checks below then skip instead of crashing.
+            source_frames = ({key : (None if value is None else as_image(value))
+                              for key, value in frames.items()}
+                             if kind == 'image' else frames)
+
+            differences = {}
+            for column_name, (left, right) in self._error_columns.items():
+                if source_frames[left] is None or source_frames[right] is None:
+                    differences[column_name] = None
+                else:
+                    differences[column_name] = source_frames[left] - source_frames[right]
+
+            # One limit across every diverging column. prior error minus posterior error
+            # IS prior vs post, so the three genuinely live on one scale.
             limit = self.error_limit
             if limit is None:
-                limit = max([float(np.abs(e).max())
-                             for e in errors.values() if e is not None] + [1e-6])
+                limit = max([float(np.abs(d).max())
+                             for d in differences.values() if d is not None] + [1e-6])
 
-            if kind == 'image':
-                actual_image = as_image(actual)
-                for column, column_name in enumerate(self._columns):
-                    which = column_name[:-6] if column_name.endswith(" error") else None
-                    if which is not None:
-                        if errors[which] is None:
-                            continue
-                        difference = as_image(frames[which]) - actual_image
+            for column, column_name in enumerate(self._columns):
+                if column_name in self._error_columns:
+                    difference = differences[column_name]
+                    if difference is None:
+                        continue
+                    if kind == 'image':
                         self._draw_image(row, column, extractor(difference), False,
                                          diverging = True, limit = limit)
                     else:
-                        source = frames[column_name]
-                        if source is None:
-                            continue
-                        self._draw_image(row, column, extractor(as_image(source)), is_rgb)
-            else:
-                for column, column_name in enumerate(self._columns):
-                    which = column_name[:-6] if column_name.endswith(" error") else None
-                    if which is not None:
-                        if errors[which] is None:
-                            continue
-                        self._draw_vector(row, column, errors[which],
+                        self._draw_vector(row, column, difference,
                                           diverging = True, limit = limit)
+                else:
+                    source = source_frames[column_name]
+                    if source is None:
+                        continue
+                    if kind == 'image':
+                        self._draw_image(row, column, extractor(source), is_rgb)
                     else:
-                        source = frames[column_name]
-                        if source is None:
-                            continue
                         self._draw_vector(row, column, source)
 
-        # One line per modality: how each prediction does against the trivial baseline.
+        # One line per modality: how each prediction does against the trivial baseline,
+        # then how far the two predictions are from each other.
         for name in sorted(observation):
             actual = strip_batch(observation[name])
             pieces = [f"{name}"]
@@ -426,6 +472,10 @@ class LiveView:
                 if baseline:
                     piece += f" ({error / baseline:.2f}x baseline)"
                 pieces.append(piece)
+            if prior.get(name) is not None and posterior.get(name) is not None:
+                disagreement = float(np.mean(
+                    (strip_batch(prior[name]) - strip_batch(posterior[name])) ** 2))
+                pieces.append(f"p-vs-p {disagreement:.5f}")
             dkl = _dkl_from(step_dict, layer, name) if step_dict is not None else None
             if dkl is not None:
                 pieces.append(f"dkl {dkl:.4f}")
@@ -434,9 +484,9 @@ class LiveView:
         message = text or ""
         if report:
             message = (message + "\n" + "\n".join(report)) if message else "\n".join(report)
-        if self.show_error:
-            message += "\n(error columns: mid-grey is exact, white over-predicts, black "
-            message += "under-predicts; both share one scale)"
+        if self.show_error or self.show_disagreement:
+            message += "\n(difference columns: mid-grey is agreement, white means the "
+            message += "left term is higher, black lower; all share one scale)"
         if self.show_baseline and self._baseline_count:
             message += "\n(baseline = running mean frame; over 1.00x means the model is "
             message += "not beating a constant)"
@@ -487,6 +537,18 @@ if __name__ == "__main__":
         observation = {'see_image' : frame}
         step_dict = {'prior_predictions' : [{'see_image' : np.random.rand(1, 1, 8, 8, 4)}],
                      'posterior_predictions' : [{'see_image' : frame * 0.9}]}
+        view.update(observation, step_dict, text = f"self-test step {step}")
+        time.sleep(0.02)
+
+    print("C) Disagreement column with a deliberately blind posterior: both error "
+          "columns look bad, 'prior vs post' stays flat.")
+    view = LiveView(layout = {'see_image' : 'gray'}, title = "self-test: shared error")
+    for step in range(20):
+        frame = np.random.rand(1, 1, 6, 6, 1).astype("float32")
+        wrong_together = np.full((1, 1, 6, 6, 1), 0.5, dtype = "float32")
+        observation = {'see_image' : frame}
+        step_dict = {'prior_predictions' : [{'see_image' : wrong_together}],
+                     'posterior_predictions' : [{'see_image' : wrong_together}]}
         view.update(observation, step_dict, text = f"self-test step {step}")
         time.sleep(0.02)
 
