@@ -304,7 +304,7 @@ class Agent_Methods:
             curiosity_saturations[layer_key] = {}
             for name, scalars in self.list_of_dict_of_inner_state_scalar_dicts[i].items():
                 before_clamp = dkls[layer_key][name] * scalars['eta_before_clamp']
-                this_curiosity = scalars['eta'] * torch.clamp(before_clamp, min = 0, max = 1)
+                this_curiosity = scalars['eta'] * torch.clamp(before_clamp, min = 0, max = 1)   # Clamping at one stops explosing DKL.
                 this_curiosity = this_curiosity * mask
                 curiosity = curiosity + this_curiosity
                 curiosities[layer_key][name] = self.masked_mean(this_curiosity, mask).item()
