@@ -57,7 +57,7 @@ class World_Model_Layer(nn.Module):
         
     def forward(self):
         # I leave this empty, as it is never used.
-        NotImplementedError("Unused forward pass of world_model_layer.")
+        raise NotImplementedError("Unused forward pass of world_model_layer.")
     
     
     
@@ -529,9 +529,9 @@ if __name__ == '__main__':
         print(f"prior prediction '{name}': \t{list(prediction.shape)}")
 
     # Predictions with the posterior sample.
-    predictions = world_model_layer.make_predictions(inner_state_sample_prior)
-    for name, prediction in predictions.items():
-        print(f"posterior prediction '{name}': \t{list(prediction.shape)}")
+    reconstructions = world_model_layer.make_predictions(inner_state_sample_posterior)
+    for name, reconstruction in reconstructions.items():
+        print(f"posterior reconstruction '{name}': \t{list(reconstruction.shape)}")
 
     # Hidden state for time t.
     new_hidden_state = world_model_layer.make_hidden_state(

@@ -218,7 +218,7 @@ class Agent_Methods:
         #
         # Accuracy: The prior predicts the observations of the current state
         # (which is effectively the same as the posterior of the previous step predicting it).
-        # We also find the posterior's "predictions" (reconstructions), which is not included in accuracy at the moment.
+        # We also find the posterior's "predictions" (reconstructions), which can also be employed.
         
         # Complexity: Kullback-Leibler Divergence (DKL) comparing posterior and prior inner states.
         #------------------
