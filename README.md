@@ -21,13 +21,11 @@ The hidden states are used as inputs for a Soft Actor Critic (SAC). The critic p
 
 ```math
 \begin{aligned}
-G_t
-&= r_t
-+ \eta D_{KL}[q(z_t|o_t,h_{t-1})||p(z_t|h_{t-1})]
-+ \alpha \mathcal{H}(\pi_{\phi}(a_{t+1}|h_t)) \\
-&\quad + \gamma (1 - done_t)
-\mathbb{E}_{o_{t+1} \sim D,\; a_{t+1} \sim \pi_\phi}
-[Q_{\bar{\theta}}(o_{t+1}, a_{t+1})].
+-G_t
+&= \underbrace{r_t}{\text{Extrinsic Reward}} \\
+&\quad + \eta \underbrace{D_{KL}[q(z_t|o_t,h_{t-1})||p(z_t|h_{t-1})]}{\text{Curiosity}} \\
+&\quad + \alpha \underbrace{\mathcal{H}(\pi_{\phi}(a_{t+1}|h_t))}{\text{Entropy} \\
+&\quad + \delta \underbrace{E_{pi(a_t | o_t)}[log p(a_t* | o_t)]}{\text{Imitation}} \\
 \end{aligned}
 ```
 
