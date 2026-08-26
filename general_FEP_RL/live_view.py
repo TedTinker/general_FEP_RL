@@ -5,14 +5,15 @@ Call it once per step with the observation you handed the agent and the step_dic
 gave back:
 
     view = LiveView(layout = {'see_image' : 'channels'},
-                    channel_names = {'see_image' : ['paddle', 'ball', 'trail', 'brick']})
+                    channel_names = {'see_image' : ['paddle', 'ball', 'trail', 'brick']},
+                    discrete_actions = ['action'])
     ...
     step_dict = agent.step_in_episode(observation)
     view.update(observation, step_dict, text = f"epoch {e}, step {s}")
 
 It works out what to draw from the tensors themselves, so it handles any number of
-modalities, any mix of images and vectors, and any channel count. Nothing is declared
-up front; the figure is built on the first update.
+modalities, any mix of images and vectors, any channel count, and any number of action
+heads. Nothing is declared up front; the figure is built on the first update.
 
 WHAT THE COLUMNS MEAN
 
@@ -58,6 +59,39 @@ events means the posterior has stopped extracting anything from the observation,
 the curiosity signal is about to flatline -- which should show up in the same text line
 as dkl collapsing.
 
+THE ACTION ROW
+
+Actions get their own row rather than a column, because there is nothing to compare
+them against: an action is a prior INPUT, never a prediction, so it has no actual /
+prior / posterior triple. One small bar chart per action head.
+
+Two actions are in play at any step, one step apart, and the row shows both:
+
+    filled bars     the action just chosen, which will drive the NEXT frame
+    orange ticks    the action that drove the prior currently on screen
+
+That offset is the whole reason both are drawn. The prior above came from the previous
+hidden state and the PREVIOUS action, so if you want to ask "was that prediction a
+reasonable thing to expect given what the agent did", the ticks are the action you
+want, not the bars. LiveView remembers the previous action itself; you do not pass it.
+Call view.begin() alongside agent.begin() to clear it between episodes -- forgetting
+costs you one stale tick on step 0 and nothing else.
+
+The y-axis is pinned to +/- action_limit (1.0 by default, the range of a tanh-squashed
+action) rather than auto-scaled, for the same reason the error columns share a scale:
+an action vector that has collapsed toward the origin should LOOK collapsed. Auto-
+scaling would redraw a policy outputting +/-0.05 as though it were saturating. If your
+actions are not tanh-bounded, set action_limit to their range, or None to auto-scale.
+
+DISCRETE ACTIONS
+
+Name any head in discrete_actions if you turn its vector into a choice with argmax.
+That head then highlights its winning component and draws a dashed line at the runner-
+up, so the top-two margin is visible as a gap, and the text panel prints that margin.
+This is worth watching: a policy squeezed toward the origin can have a margin of a few
+hundredths, which means the discrete choice reaching the environment is being decided
+by noise even though the continuous vector looks like it carries an opinion.
+
 THE BASELINE LINE
 
 The text panel compares both predictions against the running average of every frame
@@ -65,6 +99,11 @@ seen so far. A world model that has learned nothing except which cells are usual
 will still score well on MSE when frames are sparse, and that trivial solution is easy
 to mistake for progress. If 'vs baseline' is not comfortably below 1.00, the model is
 not predicting, it is describing the average.
+
+Note that the baseline is an MSE yardstick. If a modality is trained under a different
+loss -- weighted BCE on sparse binary frames, say -- the optimal prediction under that
+loss is deliberately not the MSE-optimal one, and a ratio slightly over 1.00 need not
+mean the model has learned nothing. Read it alongside the training curve.
 
 Quick self-test, no agent needed:
     python live_view.py
@@ -129,6 +168,11 @@ def strip_batch(x):
     return a
 
 
+def strip_batch_vector(x):
+    """Same, but never collapses past 1-D. A one-element action stays shape (1,)."""
+    return np.atleast_1d(strip_batch(x)).ravel()
+
+
 def as_image(a):
     """(H, W, C) channels-last, or None if this is not an image."""
     if a.ndim == 3:
@@ -166,11 +210,12 @@ def describe(obj, _depth = 0, _max_depth = 4):
 
 
 # ----------------------------------------------------------------------------
-# Pulling predictions out of a step_dict without the caller naming keys.
+# Pulling predictions and actions out of a step_dict without the caller naming keys.
 # ----------------------------------------------------------------------------
 _PRIOR_KEYS = ('prior_predictions', 'list_of_prior_predictions', 'list_of_predictions')
 _POSTERIOR_KEYS = ('posterior_predictions', 'list_of_posterior_predictions',
                    'list_of_predictions')
+_ACTION_KEYS = ('action', 'actions', 'action_dict')
 
 
 # Diverging columns: name -> (left, right), both keys into the per-row `frames` dict.
@@ -190,6 +235,15 @@ def _predictions_from(step_dict, keys, layer):
             value = step_dict[key]
             if isinstance(value, (list, tuple)):
                 return value[layer] if layer < len(value) else {}
+            return value
+    return {}
+
+
+def _actions_from(step_dict):
+    """step_dict['action'] is {head_name : (batch, episode, size)}."""
+    for key in _ACTION_KEYS:
+        value = step_dict.get(key)
+        if isinstance(value, dict) and value:
             return value
     return {}
 
@@ -219,6 +273,14 @@ class LiveView:
             error_limit = None,     # symmetric half-range for the difference columns.
                                     # None = one auto limit per row, shared by all.
             show_baseline = True,   # compare both predictions to a running mean frame
+            show_action = True,     # a row of bar charts, one per action head
+            discrete_actions = None,    # names of heads you turn into a choice with
+                                        # argmax; they get a highlighted winner and a
+                                        # printed top-two margin
+            action_limit = 1.0,     # symmetric y-range for the action bars. 1.0 suits a
+                                    # tanh-squashed action. None = auto-scale, which
+                                    # hides collapse toward the origin.
+            action_labels = None,   # name -> list of labels, one per action component
             max_panels = 12,        # refuse to build something unreadable
             pause = 0.001,
             title = "Agent - live view"):
@@ -231,16 +293,35 @@ class LiveView:
         self.show_disagreement = show_disagreement
         self.error_limit = error_limit
         self.show_baseline = show_baseline
+        self.show_action = show_action
+        self.discrete_actions = set(discrete_actions or ())
+        self.action_limit = action_limit
+        self.action_labels = dict(action_labels or {})
         self.max_panels = max_panels
         self.pause = pause
         self.title = title
 
         self.fig = None                 # built lazily, on the first update
-        self._panels = []               # (row_label, modality, extractor, is_rgb)
+        self._panels = []               # (row_label, modality, extractor, is_rgb, kind)
         self._images = {}
         self._bars = {}
         self._baseline_sum = {}
         self._baseline_count = 0
+
+        self._action_names = []
+        self._action_axes = {}
+        self._action_bars = {}
+        self._action_previous_marks = {}
+        self._action_runner_up = {}
+        self._previous_actions = {}     # the action that drove the prior on screen
+
+    # ---- episode boundaries ----------------------------------------------
+
+    def begin(self):
+        """Call alongside agent.begin(). Only clears the remembered previous action,
+        so that the first step of an episode does not show a tick left over from the
+        last step of the one before."""
+        self._previous_actions = {}
 
     # ---- deciding what to draw -------------------------------------------
 
@@ -268,7 +349,7 @@ class LiveView:
                            False))
         return panels
 
-    def _build(self, observation, prior, posterior):
+    def _build(self, observation, prior, posterior, actions):
         # One row per panel; images get their own rows, vectors get one row each.
         self._panels = []
         for name in sorted(observation):
@@ -296,17 +377,25 @@ class LiveView:
                                for name in columns if name in _ERROR_COLUMNS}
         rows = len(self._panels)
 
+        self._action_names = sorted(actions) if self.show_action else []
+        has_actions = bool(self._action_names)
+
+        height_ratios = [1] * rows
+        if has_actions:
+            height_ratios.append(0.62)
+        height_ratios.append(0.5 + 0.12 * rows)
+
         plt.ion()
-        self.fig = plt.figure(figsize = (2.1 * len(columns) + 0.6, 2.0 * rows + 1.4))
+        self.fig = plt.figure(figsize = (2.1 * len(columns) + 0.6,
+                                         2.0 * rows + 1.4 + (1.3 if has_actions else 0)))
         try:
             self.fig.canvas.manager.set_window_title(self.title)
         except Exception:
             pass
 
         grid = self.fig.add_gridspec(
-            rows + 1, len(columns),
-            height_ratios = [1] * rows + [0.5 + 0.12 * rows],
-            hspace = 0.42, wspace = 0.18)
+            len(height_ratios), len(columns),
+            height_ratios = height_ratios, hspace = 0.42, wspace = 0.18)
 
         self._axes = {}
         for row, (label, _, _, _, kind) in enumerate(self._panels):
@@ -323,7 +412,18 @@ class LiveView:
                     axes.tick_params(labelsize = 7)
                 self._axes[(row, column)] = axes
 
-        self.text_axes = self.fig.add_subplot(grid[rows, :])
+        # The action row: one small bar chart per head, side by side.
+        self._action_axes = {}
+        if has_actions:
+            action_grid = grid[rows, :].subgridspec(
+                1, len(self._action_names), wspace = 0.32)
+            for index, name in enumerate(self._action_names):
+                axes = self.fig.add_subplot(action_grid[0, index])
+                axes.set_title(f"action: {name}", fontsize = 9, fontweight = "bold")
+                axes.tick_params(labelsize = 7)
+                self._action_axes[name] = axes
+
+        self.text_axes = self.fig.add_subplot(grid[len(height_ratios) - 1, :])
         self.text_axes.axis("off")
         self._text = self.text_axes.text(
             0.0, 0.95, "", va = "top", ha = "left", fontsize = 10,
@@ -378,27 +478,104 @@ class LiveView:
             pad = max(0.1, 0.2 * (high - low))
             axes.set_ylim(min(low, 0) - pad, max(high, 0) + pad)
 
+    def _draw_action(self, name, current, previous):
+        """Filled bars: the action just chosen. Orange ticks: the action that drove
+        the prior on screen, one step earlier."""
+        axes = self._action_axes[name]
+        size = len(current)
+        positions = np.arange(size)
+        discrete = name in self.discrete_actions
+
+        if name not in self._action_bars:
+            self._action_bars[name] = axes.bar(
+                positions, current, color = "0.55", zorder = 2)
+            self._action_previous_marks[name] = axes.plot(
+                positions, np.full(size, np.nan), linestyle = "none", marker = "_",
+                markersize = 13, markeredgewidth = 2.0, color = "tab:orange",
+                zorder = 4)[0]
+            # Dashed line at the runner-up, so an argmax margin is a visible gap.
+            self._action_runner_up[name] = axes.axhline(
+                np.nan, color = "tab:red", lw = 1.0, linestyle = "--", zorder = 3)
+            axes.axhline(0, color = "black", lw = 0.6, zorder = 1)
+            labels = self.action_labels.get(name)
+            axes.set_xticks(positions)
+            axes.set_xticklabels(
+                [str(labels[i]) if labels is not None and i < len(labels) else str(i)
+                 for i in range(size)], fontsize = 7)
+        else:
+            for bar, height in zip(self._action_bars[name], current):
+                bar.set_height(height)
+
+        # Highlight the component that actually reaches the environment.
+        if discrete and size >= 1:
+            winner = int(np.argmax(current))
+            for index, bar in enumerate(self._action_bars[name]):
+                bar.set_color("tab:blue" if index == winner else "0.72")
+            if size >= 2:
+                runner_up = float(np.sort(current)[-2])
+                self._action_runner_up[name].set_ydata([runner_up, runner_up])
+            else:
+                self._action_runner_up[name].set_ydata([np.nan, np.nan])
+        else:
+            for bar in self._action_bars[name]:
+                bar.set_color("0.55")
+            self._action_runner_up[name].set_ydata([np.nan, np.nan])
+
+        if previous is not None and len(previous) == size:
+            self._action_previous_marks[name].set_ydata(previous)
+        else:
+            self._action_previous_marks[name].set_ydata(np.full(size, np.nan))
+
+        # Pinned, not auto-scaled: a collapsed action should look collapsed.
+        limit = self.action_limit
+        observed = float(np.abs(current).max()) if size else 0.0
+        if previous is not None and len(previous):
+            observed = max(observed, float(np.abs(previous).max()))
+        limit = max(observed, 1e-6) if limit is None else max(limit, observed)
+        axes.set_ylim(-1.08 * limit, 1.08 * limit)
+
+    def _action_report(self, name, current, previous):
+        pieces = [name]
+        pieces.append(f"|a| {float(np.linalg.norm(current)):.3f}")
+        if len(current) <= 4:
+            pieces.append("[" + ", ".join(f"{value:+.2f}" for value in current) + "]")
+        if name in self.discrete_actions and len(current) >= 2:
+            ordered = np.sort(current)
+            pieces.append(f"argmax {int(np.argmax(current))}")
+            pieces.append(f"margin {float(ordered[-1] - ordered[-2]):.3f}")
+        if previous is not None and len(previous):
+            if name in self.discrete_actions and len(previous) >= 2:
+                pieces.append(f"(prior above: argmax {int(np.argmax(previous))})")
+            else:
+                pieces.append(f"(prior above: |a| {float(np.linalg.norm(previous)):.3f})")
+        return "  ".join(pieces)
+
     # ---- the call you make each step -------------------------------------
 
     def update(self, observation, step_dict = None, prior = None, posterior = None,
-               text = "", layer = None):
+               actions = None, text = "", layer = None, new_episode = False):
         """
         observation   {name : tensor} exactly as handed to agent.step_in_episode
-        step_dict     what step_in_episode returned; prior and posterior are read
-                      out of it. Pass prior=/posterior= directly instead if you like.
+        step_dict     what step_in_episode returned; prior, posterior and actions are
+                      read out of it. Pass them directly instead if you like.
+        new_episode   same effect as calling begin() first
         text          anything you want under the panels
         """
         layer = self.layer if layer is None else layer
+        if new_episode:
+            self.begin()
 
         if step_dict is not None:
             prior = _predictions_from(step_dict, _PRIOR_KEYS, layer) if prior is None else prior
             posterior = (_predictions_from(step_dict, _POSTERIOR_KEYS, layer)
                          if posterior is None else posterior)
+            actions = _actions_from(step_dict) if actions is None else actions
         prior = prior or {}
         posterior = posterior or {}
+        actions = actions or {}
 
         if self.fig is None:
-            self._build(observation, prior, posterior)
+            self._build(observation, prior, posterior, actions)
 
         # Running mean of every frame seen: the trivial predictor to beat.
         if self.show_baseline:
@@ -407,7 +584,6 @@ class LiveView:
                 self._baseline_sum[name] = self._baseline_sum.get(name, 0.0) + actual
             self._baseline_count += 1
 
-        report = []
         for row, (label, name, extractor, is_rgb, kind) in enumerate(self._panels):
             actual = strip_batch(observation[name])
             frames = {'actual' : actual}
@@ -455,8 +631,22 @@ class LiveView:
                     else:
                         self._draw_vector(row, column, source)
 
+        # The action row, and the action lines of the report.
+        action_report = []
+        for name in self._action_names:
+            if name not in actions:
+                continue
+            current = strip_batch_vector(actions[name])
+            previous = self._previous_actions.get(name)
+            self._draw_action(name, current, previous)
+            action_report.append(self._action_report(name, current, previous))
+        for name in self._action_names:
+            if name in actions:
+                self._previous_actions[name] = strip_batch_vector(actions[name])
+
         # One line per modality: how each prediction does against the trivial baseline,
         # then how far the two predictions are from each other.
+        report = []
         for name in sorted(observation):
             actual = strip_batch(observation[name])
             pieces = [f"{name}"]
@@ -481,6 +671,8 @@ class LiveView:
                 pieces.append(f"dkl {dkl:.4f}")
             report.append("  ".join(pieces))
 
+        report += action_report
+
         message = text or ""
         if report:
             message = (message + "\n" + "\n".join(report)) if message else "\n".join(report)
@@ -490,6 +682,9 @@ class LiveView:
         if self.show_baseline and self._baseline_count:
             message += "\n(baseline = running mean frame; over 1.00x means the model is "
             message += "not beating a constant)"
+        if self._action_names:
+            message += "\n(action bars = just chosen, drives the NEXT frame; orange "
+            message += "ticks = the action that drove the prior above)"
         self._text.set_text(message)
 
         self.fig.canvas.draw_idle()
@@ -510,12 +705,15 @@ class LiveView:
 if __name__ == "__main__":
     import time
 
-    print("A) MinAtar-style: 4 semantic channels, one row each, plus a vector modality.")
+    print("A) MinAtar-style: 4 semantic channels, a vector modality, and a 6-way "
+          "discrete action taken by argmax.")
     view = LiveView(
         layout = {'see_image' : 'channels'},
         channel_names = {'see_image' : ['paddle', 'ball', 'trail', 'brick']},
+        discrete_actions = ['action'],
         title = "self-test: MinAtar")
 
+    view.begin()
     for step in range(40):
         frame = (np.random.rand(1, 1, 10, 10, 4) < 0.08).astype("float32")
         observation = {'see_image' : frame, 'speed' : np.random.rand(1, 1, 3)}
@@ -524,31 +722,39 @@ if __name__ == "__main__":
                                     'speed' : np.random.rand(1, 1, 3)}],
             'posterior_predictions' : [{'see_image' : frame * 0.8 + 0.05,
                                         'speed' : np.random.rand(1, 1, 3)}],
+            'action' : {'action' : np.tanh(np.random.randn(1, 1, 6) * 0.8)},
             'list_of_inner_states' : [{'see_image' : {'dkl' : np.array([0.03])},
                                        'speed' : {'dkl' : np.array([0.01])}}]}
         view.update(observation, step_dict, text = f"self-test step {step}")
         time.sleep(0.02)
     view.close()
 
-    print("B) Maze-style: RGB plus a depth channel.")
-    view = LiveView(layout = {'see_image' : 'rgbd'}, title = "self-test: maze")
+    print("B) Maze-style: RGB plus depth, and a 2-d continuous action.")
+    view = LiveView(layout = {'see_image' : 'rgbd'},
+                    action_labels = {'make_velocity' : ['yaw', 'speed']},
+                    title = "self-test: maze")
+    view.begin()
     for step in range(20):
         frame = np.random.rand(1, 1, 8, 8, 4).astype("float32")
         observation = {'see_image' : frame}
         step_dict = {'prior_predictions' : [{'see_image' : np.random.rand(1, 1, 8, 8, 4)}],
-                     'posterior_predictions' : [{'see_image' : frame * 0.9}]}
+                     'posterior_predictions' : [{'see_image' : frame * 0.9}],
+                     'action' : {'make_velocity' : np.tanh(np.random.randn(1, 1, 2))}}
         view.update(observation, step_dict, text = f"self-test step {step}")
         time.sleep(0.02)
+    view.close()
 
-    print("C) Disagreement column with a deliberately blind posterior: both error "
-          "columns look bad, 'prior vs post' stays flat.")
-    view = LiveView(layout = {'see_image' : 'gray'}, title = "self-test: shared error")
+    print("C) A collapsed policy: the same 6-way action, but squeezed toward the "
+          "origin. The bars nearly vanish and the argmax margin goes to noise.")
+    view = LiveView(layout = {'see_image' : 'gray'}, discrete_actions = ['action'],
+                    title = "self-test: collapsed action")
+    view.begin()
     for step in range(20):
         frame = np.random.rand(1, 1, 6, 6, 1).astype("float32")
-        wrong_together = np.full((1, 1, 6, 6, 1), 0.5, dtype = "float32")
         observation = {'see_image' : frame}
-        step_dict = {'prior_predictions' : [{'see_image' : wrong_together}],
-                     'posterior_predictions' : [{'see_image' : wrong_together}]}
+        step_dict = {'prior_predictions' : [{'see_image' : frame * 0.9}],
+                     'posterior_predictions' : [{'see_image' : frame * 0.95}],
+                     'action' : {'action' : np.tanh(np.random.randn(1, 1, 6) * 0.09)}}
         view.update(observation, step_dict, text = f"self-test step {step}")
         time.sleep(0.02)
 
