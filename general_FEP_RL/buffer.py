@@ -3,7 +3,7 @@
 # buffer.py provides a recurrent replay buffer.
 #
 # Episodes are stored whole, in slots. When the buffer is full, which slot is evicted depends on the eviction policy:
-# oldest-first by default, or the caller's decidion. We hope to eventually eject episodes based on how little curiosity they carry.
+# oldest-first by default, or the caller's decision. We hope to eventually eject episodes based on how little curiosity they carry.
 #------------------
 
 import random
@@ -252,7 +252,7 @@ class Recurrent_Replay_Buffer:
 
 # Find the shapes of a world_model.
 # The prior inputs (EXCEPT the hidden state) are labeled actions.
-# The posterior inptus (EXCEPT those shared with the prior) are labeled observations.
+# The posterior inputs (EXCEPT those shared with the prior) are labeled observations.
 def shapes_from_world_model(world_model):
 
     generated = {'previous_hidden_state', 'lower_layer_posterior_sample'}

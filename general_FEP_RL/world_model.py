@@ -232,7 +232,7 @@ if __name__ == '__main__':
     from torch import nn
     import torch.nn.functional as F
 
-    from shape_to_shape_models import Shape_to_Shape_Model
+    from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model
 
     print("\n\n\n\n\n\n\n\n\n\n")
 
