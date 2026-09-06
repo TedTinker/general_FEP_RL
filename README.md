@@ -1,5 +1,5 @@
 # general_FEP_RL
-This package provides a configurable, customizable Reinforcement Learning (RL) architecture implementing the Free Energy Principle (FEP).
+This package provides a configurable, customizable Reinforcement Learning (RL) architecture implementing the Free Energy Principle (FEP). 
 
 ![architecture](images_for_readme/architecture.png)
 
