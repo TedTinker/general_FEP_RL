@@ -52,7 +52,6 @@ class Agent_Methods:
     def begin(self, batch_size = 1):
         self.step_num = 0
         example_parameter = next(self.parameters())
-        self.hallucinated_observation = None    # What a dream feeds itself next step.
 
         self.action = {
             name : torch.zeros(
@@ -79,41 +78,31 @@ class Agent_Methods:
             deterministic = False):     # tanh(mu) rather than a sample, for evaluation.
 
         self.step_num += 1
+        
+        if use_posterior and observation is None:
+            raise ValueError(
+                "A posterior step is a real episode and needs an observation. "
+                "Pass use_posterior = False to dream instead.")
+        self.step_num += 1
 
         with torch.no_grad():
-
-            # Check if real step/dream step is handled correctly.
-            if observation is None:
-                if use_posterior:
-                    raise ValueError(
-                        "A posterior step is a real episode and needs an observation. "
-                        "Pass use_posterior = False to dream instead.")
-                if self.hallucinated_observation is None:
-                    raise ValueError(
-                        "The first step after begin has nothing to hallucinate from. "
-                        "Take one step with an observation before dreaming on.")
-                observation = self.hallucinated_observation
-
-            # Use the world model.
-            value_dict = {**observation, **self.action}
+            value_dict = {**(observation if use_posterior else {}), **self.action}
             step_dict = self.world_model.forward_one_step(
                 self.hidden_states,
                 self.route(value_dict, self.list_of_prior_input_names, 'prior'),
-                self.route(value_dict, self.list_of_posterior_input_names, 'posterior'),
+                self.route(value_dict, self.list_of_posterior_input_names, 'posterior') if use_posterior else None,
                 use_posterior = use_posterior)
 
             # Get hidden states, actions, and Q-value predictions. 
             self.hidden_states = step_dict['list_of_hidden_states']
             self.action, log_prob = self.actor(self.hidden_states[0], deterministic = deterministic) 
             values = [critic(self.hidden_states[0], self.action) for critic in self.critics]
-
-            # Sort out predictions.
-            predictions = step_dict[
-                'list_of_posterior_predictions' if use_posterior else 'list_of_prior_predictions']
-            self.hallucinated_observation = {
-                name : predictions[i][name]
-                for i, names in enumerate(self.list_of_observation_prediction_names)
-                for name in names}
+            
+            if not use_posterior:
+                observation = {
+                    name : step_dict['list_of_prior_predictions'][i][name]
+                    for i, names in enumerate(self.list_of_observation_prediction_names)
+                    for name in names}
 
         return {
             'observation' : observation,

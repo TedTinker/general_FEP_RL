@@ -40,7 +40,7 @@ def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     
-set_seed(777)
+#set_seed(777)
 
 
 

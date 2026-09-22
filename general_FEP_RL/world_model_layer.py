@@ -11,10 +11,9 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+from general_FEP_RL.utils import calculate_dkl
 from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model, Combiner, Divider
 from general_FEP_RL.encoder_decoder import Misc_Encoder, Misc_Decoder, Inner_State_Decoder, Sliced_Inner_State_Decoder
-
-from general_FEP_RL.utils import calculate_dkl
 
 
 
@@ -61,28 +60,32 @@ class World_Model_Layer(nn.Module):
     
     
     
-    def make_inner_states(self, prior_value_dict, posterior_value_dict):
+   # Prior only. A "dream" step needs nothing more, and has no observations to give a posterior.
+    def make_prior_inner_states(self, prior_value_dict):
         encoding = self.prior_input_encoder(prior_value_dict)                   # Encodes values.   
         prior_inner_states = self.prior_inner_state_decoder(encoding)           # Decodes (mu, std, sample) for prior_value.
-        
+        return {
+            name : {
+                'prior_mu' : states['mu'],
+                'prior_std' : states['std'],
+                'prior_sample' : states['sample']}
+            for name, states in prior_inner_states.items()}
+
+    def make_inner_states(self, prior_value_dict, posterior_value_dict):
+        inner_states = self.make_prior_inner_states(prior_value_dict)
+
         encoding = self.posterior_input_encoder(posterior_value_dict)           # Encodes values.   
         posterior_inner_states = self.posterior_inner_state_decoder(encoding)   # Decodes (mu, std, sample) for posterior_value.
-        
-        inner_states = {                                                        # Dictionary of everything found.
-            name : {
-            'prior_mu' : prior_inner_states[name]['mu'],
-            'prior_std' : prior_inner_states[name]['std'],
-            'prior_sample' : prior_inner_states[name]['sample'],
-            'posterior_mu' : posterior_inner_states[name]['mu'],
-            'posterior_std' : posterior_inner_states[name]['std'],
-            'posterior_sample' : posterior_inner_states[name]['sample'],
-            'dkl' : calculate_dkl(
-                posterior_inner_states[name]['mu'],
-                posterior_inner_states[name]['std'],
-                prior_inner_states[name]['mu'],
-                prior_inner_states[name]['std'])}
-            for name in prior_inner_states.keys()}
-        
+
+        for name, states in inner_states.items():
+            posterior = posterior_inner_states[name]
+            states['posterior_mu'] = posterior['mu']
+            states['posterior_std'] = posterior['std']
+            states['posterior_sample'] = posterior['sample']
+            states['dkl'] = calculate_dkl(
+                posterior['mu'], posterior['std'],
+                states['prior_mu'], states['prior_std'])
+
         return inner_states
     
     
