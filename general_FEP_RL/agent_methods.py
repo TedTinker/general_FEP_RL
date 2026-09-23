@@ -71,6 +71,7 @@ class Agent_Methods:
     # use_posterior = False is a "dream" step: the prior sample advances it instead, and observations are not observed.
     #------------------
 
+    # "dreaming" doesn't seem to work perfectly.
     def step_in_episode(
             self,
             observation = None,         # name : (batch, 1, ...). Required unless dreaming.
@@ -83,7 +84,6 @@ class Agent_Methods:
             raise ValueError(
                 "A posterior step is a real episode and needs an observation. "
                 "Pass use_posterior = False to dream instead.")
-        self.step_num += 1
 
         with torch.no_grad():
             value_dict = {**(observation if use_posterior else {}), **self.action}
@@ -91,7 +91,8 @@ class Agent_Methods:
                 self.hidden_states,
                 self.route(value_dict, self.list_of_prior_input_names, 'prior'),
                 self.route(value_dict, self.list_of_posterior_input_names, 'posterior') if use_posterior else None,
-                use_posterior = use_posterior)
+                use_posterior = use_posterior,
+                deterministic = deterministic)
 
             # Get hidden states, actions, and Q-value predictions. 
             self.hidden_states = step_dict['list_of_hidden_states']

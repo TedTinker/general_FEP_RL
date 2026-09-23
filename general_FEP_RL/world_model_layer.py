@@ -61,9 +61,9 @@ class World_Model_Layer(nn.Module):
     
     
    # Prior only. A "dream" step needs nothing more, and has no observations to give a posterior.
-    def make_prior_inner_states(self, prior_value_dict):
-        encoding = self.prior_input_encoder(prior_value_dict)                   # Encodes values.   
-        prior_inner_states = self.prior_inner_state_decoder(encoding)           # Decodes (mu, std, sample) for prior_value.
+    def make_prior_inner_states(self, prior_value_dict, deterministic = False):
+        encoding = self.prior_input_encoder(prior_value_dict)                                           # Encodes values.   
+        prior_inner_states = self.prior_inner_state_decoder(encoding, deterministic = deterministic)    # Decodes (mu, std, sample) for prior_value.
         return {
             name : {
                 'prior_mu' : states['mu'],
@@ -71,11 +71,10 @@ class World_Model_Layer(nn.Module):
                 'prior_sample' : states['sample']}
             for name, states in prior_inner_states.items()}
 
-    def make_inner_states(self, prior_value_dict, posterior_value_dict):
-        inner_states = self.make_prior_inner_states(prior_value_dict)
-
-        encoding = self.posterior_input_encoder(posterior_value_dict)           # Encodes values.   
-        posterior_inner_states = self.posterior_inner_state_decoder(encoding)   # Decodes (mu, std, sample) for posterior_value.
+    def make_inner_states(self, prior_value_dict, posterior_value_dict, deterministic = False):
+        inner_states = self.make_prior_inner_states(prior_value_dict, deterministic = deterministic)
+        encoding = self.posterior_input_encoder(posterior_value_dict)                                           # Encodes values.   
+        posterior_inner_states = self.posterior_inner_state_decoder(encoding, deterministic = deterministic)    # Decodes (mu, std, sample) for posterior_value.
 
         for name, states in inner_states.items():
             posterior = posterior_inner_states[name]

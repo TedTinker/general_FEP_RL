@@ -29,7 +29,8 @@ class World_Model(nn.Module):
             list_of_previous_hidden_states,
             list_of_prior_values_dicts,
             list_of_posterior_values_dicts,
-            use_posterior = True):      # Not using the posterior is like "dreams:" the hierarchy runs on its own predictions.
+            use_posterior = True,
+            deterministic = False):      # Not using the posterior is like "dreams:" the hierarchy runs on its own predictions.
 
         layers = self.list_of_world_model_layers
         num_layers = len(layers)
@@ -57,11 +58,11 @@ class World_Model(nn.Module):
                     lower_layer_sample = list_of_posterior_samples[i - 1].detach()
                     posterior_values['lower_layer_posterior_sample'] = lower_layer_sample
 
-                inner_states = world_model_layer.make_inner_states(prior_values, posterior_values)
+                inner_states = world_model_layer.make_inner_states(prior_values, posterior_values, deterministic = deterministic)
                 posterior_sample = world_model_layer.combine_inner_state_samples(inner_states, 'posterior')
                 posterior_predictions = world_model_layer.make_predictions(posterior_sample)
             else:
-                inner_states = world_model_layer.make_prior_inner_states(prior_values)
+                inner_states = world_model_layer.make_prior_inner_states(prior_values, deterministic = deterministic)
                 posterior_sample = None
                 posterior_predictions = {}
 

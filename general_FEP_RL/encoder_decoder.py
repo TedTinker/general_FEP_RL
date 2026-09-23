@@ -117,10 +117,10 @@ class Inner_State_Decoder(Shape_to_Shape_Model):
             nn.LeakyReLU(),
             nn.Linear(in_features = self.output_shape[0], out_features = self.output_shape[0]))
     
-    def forward(self, value):
+    def forward(self, value, deterministic = False):
         mu = self.mu(value)
         std = 1e-2 + F.softplus(self.std(value))
-        inner_state_sample = sample(mu, std)
+        inner_state_sample = mu if deterministic else sample(mu, std)
         return {'mu' : mu, 'std' : std, 'sample' : inner_state_sample}
 
 
@@ -152,8 +152,7 @@ class Sliced_Inner_State_Decoder(Shape_to_Shape_Model):
             input_size = len(columns),
             output_size = self.output_shape[0])
 
-    def forward(self, value):
-        return self.inner_state_decoder(value.index_select(-1, self.columns))
-
+    def forward(self, value, deterministic = False):
+        return self.inner_state_decoder(value.index_select(-1, self.columns), deterministic = deterministic)
 
 
