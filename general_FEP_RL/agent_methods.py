@@ -197,7 +197,7 @@ class Agent_Methods:
         entropies_target_critic = {}
         sac_entropies_target_critic = {}
         normal_entropies_target_critic = {}
-        alpha_entropies, alpha_normal_entropies = {}, {}
+        alpha_entropies, action_costs = {}, {}
         entropies, target_entropies = {}, {}
         total_entropies, imitation_losses, alpha_losses = {}, {}, {}
 
@@ -332,7 +332,7 @@ class Agent_Methods:
                 scalars = self.dict_of_action_scalar_dicts[name]
                 sac_entropy = self.alpha(name) * (-log_prob)
                 flat_action = action_tp1[name].flatten(start_dim = 2)
-                normal_prior = (0.5 * scalars['alpha_normal']
+                normal_prior = (0.5 * scalars['action_cost']
                                 * (flat_action ** 2).sum(-1, keepdim = True))
                 key_bonus = sac_entropy - normal_prior
 
@@ -389,9 +389,9 @@ class Agent_Methods:
                 scalars = self.dict_of_action_scalar_dicts[name]
                 alpha_entropy = self.alpha(name).detach() * (-new_log_prob[name])
                 flat_action = new_action[name].flatten(start_dim = 2)
-                alpha_normal_entropy = (0.5 * scalars['alpha_normal']
+                action_cost = (0.5 * scalars['action_cost']
                                         * (flat_action ** 2).sum(-1, keepdim = True))
-                total_entropy = alpha_entropy - alpha_normal_entropy
+                total_entropy = alpha_entropy - action_cost
                 entropy = entropy + total_entropy
 
                 this_imitation = (self.per_step(imitation_loss[name])
@@ -401,7 +401,7 @@ class Agent_Methods:
                 entropies[name] = self.masked_mean(-new_log_prob[name], mask).item()
                 target_entropies[name] = float(scalars['target_entropy'])
                 alpha_entropies[name] = self.masked_mean(alpha_entropy, mask).item()
-                alpha_normal_entropies[name] = self.masked_mean(alpha_normal_entropy, mask).item()
+                action_costs[name] = self.masked_mean(action_cost, mask).item()
                 total_entropies[name] = self.masked_mean(total_entropy, mask).item()
                 imitation_losses[name] = self.masked_mean(
                     this_imitation, best_action_mask * mask).item()
@@ -441,7 +441,7 @@ class Agent_Methods:
                 'entropies' : entropies,
                 'target_entropies' : target_entropies,
                 'alpha_entropies' : alpha_entropies,
-                'alpha_normal_entropies' : alpha_normal_entropies,
+                'action_costs' : action_costs,
                 'total_entropies' : total_entropies,
                 'imitation_losses' : imitation_losses,
                 'alpha_losses' : alpha_losses,

@@ -34,7 +34,7 @@ DEFAULT_INNER_STATE_SCALARS = {
 #------------------
 # Training scalars for actions:
 #   target_entropy      entropy desired for alpha's loss
-#   alpha_normal        keep actions near baseline
+#   action_cost         keep actions near baseline
 #   initial_alpha       initial value of alpha
 #   lr_alpha            learning rate of alpha
 #   delta               imitation scalar
@@ -42,7 +42,7 @@ DEFAULT_INNER_STATE_SCALARS = {
 
 DEFAULT_ACTION_SCALARS = {
     'target_entropy' : -1.0,
-    'alpha_normal' : 1.0,
+    'action_cost' : 1.0,
     'initial_alpha' : 1.0,
     'lr_alpha' : None,              # None falls back to the shared lr.
     'delta' : 0.0}                  # Imitation scalar.
