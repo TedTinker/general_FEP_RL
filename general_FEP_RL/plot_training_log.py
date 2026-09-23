@@ -166,7 +166,7 @@ def plot_training_log(agent, figsize=(19, 17)):
           color="tab:gray", alpha=0.7)
     _line(ax, x, tl.get("sac_entropy_target_critic"), label="SAC entropy (critic)",
           color="tab:red", lw=2.2)
-    _line(ax, x, tl.get("normal_entropy_target_critic"), label="normal prior (critic)",
+    _line(ax, x, tl.get("action_cost_target_critic"), label="action cost (critic)",
           color="tab:orange", ls=":", lw=2)
     if total_rew is not None and ent_net is not None:
         n = min(len(total_rew), len(ent_net))

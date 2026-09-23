@@ -196,7 +196,7 @@ class Agent_Methods:
         critic_losses, critic_predictions = [], []
         entropies_target_critic = {}
         sac_entropies_target_critic = {}
-        normal_entropies_target_critic = {}
+        action_costs_target_critic = {}
         alpha_entropies, action_costs = {}, {}
         entropies, target_entropies = {}, {}
         total_entropies, imitation_losses, alpha_losses = {}, {}, {}
@@ -341,7 +341,7 @@ class Agent_Methods:
                 normal_prior_tp1 = normal_prior_tp1 + normal_prior
 
                 sac_entropies_target_critic[name] = self.masked_mean(sac_entropy, mask).item()
-                normal_entropies_target_critic[name] = self.masked_mean(normal_prior, mask).item()
+                action_costs_target_critic[name] = self.masked_mean(normal_prior, mask).item()
                 entropies_target_critic[name] = self.masked_mean(key_bonus, mask).item()
 
             not_done = (1.0 - done) * mask
@@ -479,9 +479,9 @@ class Agent_Methods:
             'entropy_target_critic' : self.masked_mean(entropy_bonus_tp1, mask).item(),
             'entropies_target_critic' : entropies_target_critic,
             'sac_entropies_target_critic' : sac_entropies_target_critic,
-            'normal_entropies_target_critic' : normal_entropies_target_critic,
+            'action_costs_target_critic' : action_costs_target_critic,
             'sac_entropy_target_critic' : self.masked_mean(sac_entropy_tp1, mask).item(),
-            'normal_entropy_target_critic' : self.masked_mean(normal_prior_tp1, mask).item(),
+            'action_cost_target_critic' : self.masked_mean(normal_prior_tp1, mask).item(),
             'future_Q_value' : self.masked_mean(future_Q_value, mask).item(),
             'Q_target' : self.masked_mean(Q_target, mask).item(),
             'critic_predictions' : critic_predictions,
