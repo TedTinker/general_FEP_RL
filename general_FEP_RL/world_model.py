@@ -171,7 +171,7 @@ def make_world_model(
                                                                             # decoding class. (These must have OPEN input_shape but fixed output_shape.
                                                                             # (They must also have loss-functions.)
                                                                 
-    lower_layer_posterior_sample_decoding_output_sizes,             # Width of each layer's inner state for the layer below it.
+    lower_layer_posterior_sample_decoding_output_sizes,             # Size of each layer's inner state, for inputs from the layer below.
                                                                     # Entry 0 is ignored: layer 0 has no lower layer.
     time_constants,
     verbose = False):
