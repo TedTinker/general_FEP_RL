@@ -216,6 +216,11 @@ def describe(obj, _depth = 0, _max_depth = 4):
 _PRIOR_KEYS = ('prior_predictions', 'list_of_prior_predictions', 'list_of_predictions')
 DREAM_COLOUR = "#6a3d9a"         # banner and title while dreaming
 DREAM_BACKGROUND = "#efe7fa"     # figure tint while dreaming
+# While dreaming the prior IS the dream, and there is no posterior. The columns that
+# compare the dream to the real frame stay; the posterior's columns are hidden.
+_DREAM_TITLES = {"actual" : "actual (unseen)",
+                 "prior" : "dreamed",
+                 "prior error" : "dream error"}
 
 _POSTERIOR_KEYS = ('posterior_predictions', 'list_of_posterior_predictions',
                    'list_of_predictions')
@@ -465,19 +470,22 @@ class LiveView:
             self.fig.canvas.draw_idle()
 
     def _show_dream_state(self, dreamed):
-        """While dreaming, the observation IS the prior prediction, so every column
-        that compares against reality is meaningless. Show only the dream."""
+        """While dreaming, pass the REAL observation as usual: the agent never sees it,
+        but showing it beside the dream compares the agent's plan to what actually
+        happened. Posterior columns are hidden, since a dream has no posterior."""
         if dreamed == self._shown_dreamed:
             return
         self._shown_dreamed = dreamed
         self._banner.set_text("DREAMING" if dreamed else "")
         self.fig.set_facecolor(DREAM_BACKGROUND if dreamed else "white")
         for (row, column), axes in self._axes.items():
-            axes.set_visible(column == 0 or not dreamed)
-            if row == 0 and column == 0:
-                axes.set_title("dreamed" if dreamed else "actual",
-                               fontsize = 10, fontweight = "bold",
-                               color = DREAM_COLOUR if dreamed else "black")
+            column_name = self._columns[column]
+            axes.set_visible(not dreamed or column_name in _DREAM_TITLES)
+            if row == 0:
+                dream_title = _DREAM_TITLES.get(column_name)
+                title = dream_title if (dreamed and dream_title) else column_name
+                axes.set_title(title, fontsize = 10, fontweight = "bold",
+                               color = DREAM_COLOUR if dreamed and dream_title else "black")
 
     # ---- drawing ---------------------------------------------------------
 
@@ -628,9 +636,8 @@ class LiveView:
         dreamed = bool(step_dict.get('dreamed')) if step_dict is not None else False
         self._show_dream_state(dreamed)
 
-        # Running mean of every frame seen: the trivial predictor to beat. Dreamed
-        # frames are the model's own output, so they stay out of it.
-        if self.show_baseline and not dreamed:
+        # Running mean of every frame seen: the trivial predictor to beat.
+        if self.show_baseline:
             for name, value in observation.items():
                 actual = strip_batch(value)
                 self._baseline_sum[name] = self._baseline_sum.get(name, 0.0) + actual
@@ -664,7 +671,7 @@ class LiveView:
                              for d in differences.values() if d is not None] + [1e-6])
 
             for column, column_name in enumerate(self._columns):
-                if dreamed and column != 0:
+                if dreamed and column_name not in _DREAM_TITLES:
                     continue
                 if column_name in self._error_columns:
                     difference = differences[column_name]
@@ -701,14 +708,15 @@ class LiveView:
         # One line per modality: how each prediction does against the trivial baseline,
         # then how far the two predictions are from each other.
         report = []
-        for name in ([] if dreamed else sorted(observation)):
+        for name in sorted(observation):
             actual = strip_batch(observation[name])
             pieces = [f"{name}"]
             baseline = None
             if self.show_baseline and self._baseline_count:
                 mean_frame = self._baseline_sum[name] / self._baseline_count
                 baseline = float(np.mean((mean_frame - actual) ** 2))
-            for which, source in (("prior", prior.get(name)), ("post", posterior.get(name))):
+            for which, source in (("dream" if dreamed else "prior", prior.get(name)),
+                                  ("post", posterior.get(name))):
                 if source is None:
                     continue
                 error = float(np.mean((strip_batch(source) - actual) ** 2))
@@ -729,14 +737,15 @@ class LiveView:
 
         message = text or ""
         if dreamed:
-            message = ("DREAMING: acting on its own predictions; it cannot see the world.\n"
+            message = ("DREAMING: acting on its own predictions. It cannot see 'actual';\n"
+                       "that column is shown only to compare its plan to reality.\n"
                        + message)
         if report:
             message = (message + "\n" + "\n".join(report)) if message else "\n".join(report)
-        if (self.show_error or self.show_disagreement) and not dreamed:
+        if self.show_error or self.show_disagreement:
             message += "\n(difference columns: mid-grey is agreement, white means the "
             message += "left term is higher, black lower; all share one scale)"
-        if self.show_baseline and self._baseline_count and not dreamed:
+        if self.show_baseline and self._baseline_count:
             message += "\n(baseline = running mean frame; over 1.00x means the model is "
             message += "not beating a constant)"
         if self._action_names:
