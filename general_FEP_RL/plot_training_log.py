@@ -210,8 +210,10 @@ def plot_training_log(agent, figsize=(19, 17)):
     # 10. Actor objective terms.
     ax = axs[9]
     _line(ax, xa, tla.get("Q_for_actor"), label="Q for actor")
-    _line(ax, xa, tla.get("entropy_for_actor"), label="entropy for actor")
+    _line(ax, xa, tla.get("entropy_for_actor"), label="entropy - action cost (actor)")
     _line(ax, xa, tla.get("total_imitation_loss"), label="imitation")
+    action_costs = tla.get("action_costs")
+    _lines_from_dict(ax, xa, action_costs, prefix="action cost ", ls=":", lw=1.6)
     _line(ax, xa, tla.get("actor_loss"), label="actor loss", color="tab:red")
     _finish(ax, "Actor objective terms")
 
