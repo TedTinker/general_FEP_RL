@@ -509,30 +509,26 @@ if __name__ == '__main__':
 
     print(f"steps returned: {len(list_of_step_dicts)} (expected {episode_length})")
 
-    # The MTRNN leak is h(t) = (1/time_constant) * decoded + (1 - 1/time_constant) * h(t-1).
-    # Calling make_hidden_state twice with the same inner_state_sample but different
-    # previous hidden states isolates the leak weight exactly, which is a sharper test
-    # than watching how much the hidden state happens to move.
-    print("\nMTRNN leak check:")
+    # The MTRNN leak is update gate of each layer's Hidden_State_Cell,
+    # capped at 1 / time_constant. Check the gate directly: the largest fraction of
+    # new state any unit takes in should never exceed that cap.
+    print("\nMTRNN update gate check:")
     for i, (world_model_layer, time_constant) in enumerate(
             zip(world_model.list_of_world_model_layers, time_constants)):
         inner_state_sample = list_of_step_dicts[0]['list_of_posterior_samples'][i]
-        previous_hidden_state = torch.ones(batch_size, 1, hidden_state_sizes[i])
-        higher_layer_hidden_state = (
-            None if i == len(time_constants) - 1
-            else list_of_step_dicts[0]['list_of_hidden_states'][i + 1])
+        previous_hidden_state = list_of_step_dicts[0]['list_of_hidden_states'][i]
+        value_dict = {'inner_state_sample' : inner_state_sample}
+        if i != len(time_constants) - 1:
+            value_dict['higher_layer_hidden_state'] = list_of_step_dicts[0]['list_of_hidden_states'][i + 1]
         with torch.no_grad():
-            from_zero = world_model_layer.make_hidden_state(
-                torch.zeros_like(previous_hidden_state), inner_state_sample, higher_layer_hidden_state)
-            from_previous = world_model_layer.make_hidden_state(
-                previous_hidden_state, inner_state_sample, higher_layer_hidden_state)
-        measured = (from_previous - from_zero).mean().item()
-        expected = 1 - 1 / time_constant
+            encoding = world_model_layer.hidden_state_input_encoder(value_dict)
+            update, _ = world_model_layer.hidden_state_decoder.gates(encoding, previous_hidden_state)
         print(f"\tlayer {i} (time_constant {time_constant:>2}): "
-              f"measured old-weight {measured:.4f}, expected {expected:.4f}")
+              f"update gate mean {update.mean().item():.4f}, max {update.max().item():.4f}, "
+              f"cap {1 / time_constant:.4f}")
 
     
-    
+
     # Accuracy and complexity.
     print("\n###\nFree energy\n###\n")
 

@@ -13,8 +13,7 @@ import torch.nn.functional as F
 
 from general_FEP_RL.utils import calculate_dkl
 from general_FEP_RL.shape_to_shape_models import Shape_to_Shape_Model, Combiner, Divider
-from general_FEP_RL.encoder_decoder import Misc_Encoder, Misc_Decoder, Inner_State_Decoder, Sliced_Inner_State_Decoder
-
+from general_FEP_RL.encoder_decoder import Misc_Encoder, Misc_Decoder, Inner_State_Decoder, Sliced_Inner_State_Decoder, Hidden_State_Cell
 
 
 # The model itself.
@@ -31,8 +30,8 @@ class World_Model_Layer(nn.Module):
             prediction_decoder,             # Divider (prediction of posterior input values).
             
             hidden_state_input_encoder,     # Combiner (encodes posterior_sample, and perhaps higher_layer_hidden_state)
-            hidden_state_decoder,           # Shape_to_Shape_Model (makes hidden_state).
-            
+            hidden_state_decoder,           # Hidden_State_Cell (makes hidden_state from posterior sample and previous_hidden_state).
+                        
             time_constant = 1,
             verbose = False):
         
@@ -49,8 +48,7 @@ class World_Model_Layer(nn.Module):
         self.hidden_state_input_encoder = hidden_state_input_encoder
         self.hidden_state_decoder = hidden_state_decoder
         
-        self.new = 1.0 / time_constant
-        self.old = 1.0 - self.new
+        # self.time_constant = time_constant     # Applied inside hidden_state_decoder, not here.
         
         
         
@@ -104,21 +102,19 @@ class World_Model_Layer(nn.Module):
         predictions = self.prediction_decoder(inner_state_sample)
         return predictions
     
-    
-    
+
+
     # Hidden state based on inner_state_sample, and higher_layer_hidden_state if there's a higher layer.
-    # For MTRNN, previous_hidden_state may be preserved.
+    # For MTRNN, hidden_state_decoder's update gate is capped by time_constant.
     def make_hidden_state(self, previous_hidden_state, inner_state_sample, higher_layer_hidden_state = None):
         value_dict = {'inner_state_sample' : inner_state_sample}
         if higher_layer_hidden_state is not None:
             value_dict['higher_layer_hidden_state'] = higher_layer_hidden_state
         encoding = self.hidden_state_input_encoder(value_dict)
-        new_hidden_state = self.hidden_state_decoder(encoding)
-        new_hidden_state = self.new * new_hidden_state + self.old * previous_hidden_state
-        return new_hidden_state
+        return self.hidden_state_decoder(encoding, previous_hidden_state)
         
-    
-    
+        
+        
 ######################
 
 
@@ -263,8 +259,10 @@ def make_world_model_layer(
     
     # Make hidden_state decoder.
     hidden_state_input_encoding_size = hidden_state_input_encoder.total_output_shape[-1]
-    hidden_state_decoder = Misc_Decoder('hidden_state_decoder', hidden_state_input_encoding_size, hidden_state_size, verbose = verbose)
-
+    hidden_state_decoder = Hidden_State_Cell(
+        'hidden_state_decoder', hidden_state_input_encoding_size, hidden_state_size,
+        time_constant = time_constant, verbose = verbose)
+    
     # Put all of those things together in a world_model_layer.
     world_model_layer = World_Model_Layer(
         prior_input_encoder,            
@@ -280,7 +278,7 @@ def make_world_model_layer(
         
         time_constant = time_constant,
         verbose = verbose)
-
+    
     world_model_layer.inner_state_size = inner_state_size
     world_model_layer.hidden_state_size = hidden_state_size
     world_model_layer.dict_of_encoding_columns = dict_of_encoding_columns

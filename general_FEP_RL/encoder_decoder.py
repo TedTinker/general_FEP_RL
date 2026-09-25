@@ -154,5 +154,45 @@ class Sliced_Inner_State_Decoder(Shape_to_Shape_Model):
 
     def forward(self, value, deterministic = False):
         return self.inner_state_decoder(value.index_select(-1, self.columns), deterministic = deterministic)
+    
+    
+    
+# Recurrent cell making hidden_state from posterior sample and previous_hidden_state.
+# As a GRU, updates are capped at 1 / time_constant. 
+class Hidden_State_Cell(Shape_to_Shape_Model):
+
+    def __init__(
+            self,
+            name,               # String. Should be unique.
+            input_size,         # Size of encoded inner_state_sample (and higher hidden state, if available).
+            output_size,        # Size of hidden_state.
+            time_constant = 1,  # MTRNN time constant. The update gate never exceeds 1 / time_constant.
+            verbose = False):
+
+        super().__init__(
+            name = name,
+            input_shape = (input_size,),
+            output_shape = (output_size,),
+            arg_dict = {'time_constant' : time_constant},
+            verbose = verbose)
+
+    def build_model(self, arg_dict):
+        self.max_update = 1.0 / arg_dict['time_constant']
+        self.input_to_hidden = nn.Linear(self.input_shape[0], 3 * self.output_shape[0])
+        self.hidden_to_hidden = nn.Linear(self.output_shape[0], 3 * self.output_shape[0])
+        with torch.no_grad():
+            self.input_to_hidden.bias[:self.output_shape[0]].fill_(2.0)
+
+    def gates(self, value, previous_hidden_state):
+        input_update, input_reset, input_candidate = self.input_to_hidden(value).chunk(3, dim = -1)
+        hidden_update, hidden_reset, hidden_candidate = self.hidden_to_hidden(previous_hidden_state).chunk(3, dim = -1)
+        update = self.max_update * torch.sigmoid(input_update + hidden_update)
+        reset = torch.sigmoid(input_reset + hidden_reset)
+        candidate = torch.tanh(input_candidate + reset * hidden_candidate)
+        return update, candidate
+
+    def forward(self, value, previous_hidden_state):
+        update, candidate = self.gates(value, previous_hidden_state)
+        return update * candidate + (1 - update) * previous_hidden_state
 
 
