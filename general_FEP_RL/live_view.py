@@ -111,6 +111,7 @@ Quick self-test, no agent needed:
 
 from __future__ import annotations
 import numbers
+import time
 
 import numpy as np
 import matplotlib
@@ -292,6 +293,8 @@ class LiveView:
             action_labels = None,   # name -> list of labels, one per action component
             max_panels = 12,        # refuse to build something unreadable
             pause = 0.001,
+            hidden = False,         # start hidden; the "Show live view" button reveals it
+            event_interval = 0.1,   # while hidden, seconds between checks for clicks
             title = "Agent - live view"):
 
         _ensure_interactive_backend()
@@ -308,6 +311,9 @@ class LiveView:
         self.action_labels = dict(action_labels or {})
         self.max_panels = max_panels
         self.pause = pause
+        self.hidden = hidden
+        self.event_interval = event_interval
+        self._last_events = 0.0
         self.title = title
 
         self.fig = None                 # built lazily, on the first update
@@ -450,6 +456,14 @@ class LiveView:
         self._button = Button(self._button_axes, self._button_label(),
                               color = "0.9", hovercolor = "0.8")
         self._button.on_clicked(self._toggle_dreaming)
+        self._hide_button_axes = self.fig.add_axes([0.50, 0.945, 0.2, 0.04])
+        self._hide_button = Button(self._hide_button_axes, self._hide_label(),
+                                   color = "0.9", hovercolor = "0.8")
+        self._hide_button.on_clicked(self._toggle_hidden)
+        self._hidden_text = self.fig.text(
+            0.5, 0.5, "", ha = "center", va = "center", fontsize = 12, color = "0.4")
+        if self.hidden:
+            self._apply_hidden()
 
         self.fig.show()
 
@@ -461,6 +475,43 @@ class LiveView:
 
     def _toggle_dreaming(self, event = None):
         self.set_dreaming(not self.dreaming)
+
+    # ---- hiding ----------------------------------------------------------
+
+    def _hide_label(self):
+        return "Show live view" if self.hidden else "Hide live view"
+
+    def _toggle_hidden(self, event = None):
+        self.set_hidden(not self.hidden)
+
+    def set_hidden(self, value):
+        """Hidden, update() skips all drawing and only checks for clicks now and
+        then, so training runs at nearly full speed. The buttons keep working."""
+        self.hidden = bool(value)
+        if self.fig is not None:
+            self._apply_hidden()
+
+    def _apply_hidden(self):
+        hidden = self.hidden
+        panels = (list(self._axes.values()) + list(self._action_axes.values())
+                  + [self.text_axes])
+        for axes in panels:
+            axes.set_visible(not hidden)
+        self._banner.set_visible(not hidden)
+        self._hidden_text.set_text(
+            "Live view hidden: training runs at full speed.\n"
+            "Click 'Show live view' to bring it back." if hidden else "")
+        if hidden:
+            self.fig.set_facecolor("white")
+        self._shown_dreamed = None      # redo the awake/dream layout on the next update
+        self._hide_button.label.set_text(self._hide_label())
+        self.fig.canvas.draw_idle()
+
+    def _check_for_clicks(self):
+        now = time.monotonic()
+        if now - self._last_events >= self.event_interval:
+            self._last_events = now
+            self.fig.canvas.flush_events()
 
     def set_dreaming(self, value):
         """Request dreaming from code, and keep the button in step."""
@@ -632,6 +683,14 @@ class LiveView:
 
         if self.fig is None:
             self._build(observation, prior, posterior, actions)
+
+        if self.hidden:
+            # Remember the last action so the orange ticks are right when shown again.
+            for name in self._action_names:
+                if name in actions:
+                    self._previous_actions[name] = strip_batch_vector(actions[name])
+            self._check_for_clicks()
+            return
 
         dreamed = bool(step_dict.get('dreamed')) if step_dict is not None else False
         self._show_dream_state(dreamed)
