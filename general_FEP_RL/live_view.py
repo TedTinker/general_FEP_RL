@@ -729,7 +729,7 @@ class LiveView:
 
         message = text or ""
         if dreamed:
-            message = ("DREAMING: running on its own predictions; the world is paused.\n"
+            message = ("DREAMING: acting on its own predictions; it cannot see the world.\n"
                        + message)
         if report:
             message = (message + "\n" + "\n".join(report)) if message else "\n".join(report)
