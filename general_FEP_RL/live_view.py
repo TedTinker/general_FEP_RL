@@ -115,6 +115,7 @@ import numbers
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Button
 
 
 # ----------------------------------------------------------------------------
@@ -213,6 +214,9 @@ def describe(obj, _depth = 0, _max_depth = 4):
 # Pulling predictions and actions out of a step_dict without the caller naming keys.
 # ----------------------------------------------------------------------------
 _PRIOR_KEYS = ('prior_predictions', 'list_of_prior_predictions', 'list_of_predictions')
+DREAM_COLOUR = "#6a3d9a"         # banner and title while dreaming
+DREAM_BACKGROUND = "#efe7fa"     # figure tint while dreaming
+
 _POSTERIOR_KEYS = ('posterior_predictions', 'list_of_posterior_predictions',
                    'list_of_predictions')
 _ACTION_KEYS = ('action', 'actions', 'action_dict')
@@ -314,6 +318,11 @@ class LiveView:
         self._action_previous_marks = {}
         self._action_runner_up = {}
         self._previous_actions = {}     # the action that drove the prior on screen
+
+        # Dreaming. `dreaming` is what the button asks for; the runner reads it.
+        # What is actually on screen follows step_dict['dreamed'], not this.
+        self.dreaming = False
+        self._shown_dreamed = None
 
     # ---- episode boundaries ----------------------------------------------
 
@@ -429,7 +438,46 @@ class LiveView:
             0.0, 0.95, "", va = "top", ha = "left", fontsize = 10,
             family = "monospace", transform = self.text_axes.transAxes)
 
+        self._banner = self.fig.text(
+            0.02, 0.965, "", va = "center", ha = "left", fontsize = 18,
+            fontweight = "bold", color = DREAM_COLOUR)
+        self._button_axes = self.fig.add_axes([0.72, 0.945, 0.26, 0.04])
+        self._button = Button(self._button_axes, self._button_label(),
+                              color = "0.9", hovercolor = "0.8")
+        self._button.on_clicked(self._toggle_dreaming)
+
         self.fig.show()
+
+    # ---- dreaming --------------------------------------------------------
+
+    def _button_label(self):
+        return ("Dreaming: ON  (click to wake)" if self.dreaming
+                else "Dreaming: OFF  (click to sleep)")
+
+    def _toggle_dreaming(self, event = None):
+        self.set_dreaming(not self.dreaming)
+
+    def set_dreaming(self, value):
+        """Request dreaming from code, and keep the button in step."""
+        self.dreaming = bool(value)
+        if self.fig is not None:
+            self._button.label.set_text(self._button_label())
+            self.fig.canvas.draw_idle()
+
+    def _show_dream_state(self, dreamed):
+        """While dreaming, the observation IS the prior prediction, so every column
+        that compares against reality is meaningless. Show only the dream."""
+        if dreamed == self._shown_dreamed:
+            return
+        self._shown_dreamed = dreamed
+        self._banner.set_text("DREAMING" if dreamed else "")
+        self.fig.set_facecolor(DREAM_BACKGROUND if dreamed else "white")
+        for (row, column), axes in self._axes.items():
+            axes.set_visible(column == 0 or not dreamed)
+            if row == 0 and column == 0:
+                axes.set_title("dreamed" if dreamed else "actual",
+                               fontsize = 10, fontweight = "bold",
+                               color = DREAM_COLOUR if dreamed else "black")
 
     # ---- drawing ---------------------------------------------------------
 
@@ -577,8 +625,12 @@ class LiveView:
         if self.fig is None:
             self._build(observation, prior, posterior, actions)
 
-        # Running mean of every frame seen: the trivial predictor to beat.
-        if self.show_baseline:
+        dreamed = bool(step_dict.get('dreamed')) if step_dict is not None else False
+        self._show_dream_state(dreamed)
+
+        # Running mean of every frame seen: the trivial predictor to beat. Dreamed
+        # frames are the model's own output, so they stay out of it.
+        if self.show_baseline and not dreamed:
             for name, value in observation.items():
                 actual = strip_batch(value)
                 self._baseline_sum[name] = self._baseline_sum.get(name, 0.0) + actual
@@ -612,6 +664,8 @@ class LiveView:
                              for d in differences.values() if d is not None] + [1e-6])
 
             for column, column_name in enumerate(self._columns):
+                if dreamed and column != 0:
+                    continue
                 if column_name in self._error_columns:
                     difference = differences[column_name]
                     if difference is None:
@@ -647,7 +701,7 @@ class LiveView:
         # One line per modality: how each prediction does against the trivial baseline,
         # then how far the two predictions are from each other.
         report = []
-        for name in sorted(observation):
+        for name in ([] if dreamed else sorted(observation)):
             actual = strip_batch(observation[name])
             pieces = [f"{name}"]
             baseline = None
@@ -674,12 +728,15 @@ class LiveView:
         report += action_report
 
         message = text or ""
+        if dreamed:
+            message = ("DREAMING: running on its own predictions; the world is paused.\n"
+                       + message)
         if report:
             message = (message + "\n" + "\n".join(report)) if message else "\n".join(report)
-        if self.show_error or self.show_disagreement:
+        if (self.show_error or self.show_disagreement) and not dreamed:
             message += "\n(difference columns: mid-grey is agreement, white means the "
             message += "left term is higher, black lower; all share one scale)"
-        if self.show_baseline and self._baseline_count:
+        if self.show_baseline and self._baseline_count and not dreamed:
             message += "\n(baseline = running mean frame; over 1.00x means the model is "
             message += "not beating a constant)"
         if self._action_names:
