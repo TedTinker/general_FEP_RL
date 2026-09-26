@@ -90,5 +90,4 @@ def calculate_dkl(q_mu, q_std, p_mu, p_std):
     term_2 = (q_std ** 2) / (p_std ** 2)
     term_3 = torch.log(term_2)
     out = 0.5 * (term_1 + term_2 - term_3 - 1)
-    out = torch.nan_to_num(out)
     return out

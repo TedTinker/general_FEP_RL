@@ -8,7 +8,6 @@
 #------------------
 
 from math import log
-from functools import partial
 
 import torch
 from torch import nn
@@ -142,97 +141,3 @@ class Critic(nn.Module):
         encoded_action = self.action_encoder(action_dict)
         hidden_state_and_action = torch.cat([hidden_state, encoded_action], dim = -1)
         return self.value_decoder(hidden_state_and_action)
-
-
-
-# Examples.
-######################
-if __name__ == '__main__':
-
-    
-
-    print("\n\n\n\n\n\n\n\n\n\n")
-    
-    
-
-    # Two models for example actions.
-    class Vector_Encoder(Shape_to_Shape_Model):
-        def __init__(self, name, input_size, output_size, verbose = False):
-            super().__init__(name = name, input_shape = (input_size,),
-                             output_shape = (output_size,), verbose = verbose)
-        def build_model(self, arg_dict):
-            self.model = nn.Sequential(
-                nn.Linear(self.input_shape[0], 32), nn.LeakyReLU(),
-                nn.Linear(32, self.output_shape[0]), nn.LeakyReLU())
-        def forward(self, value):
-            return self.model(value)
-
-    class Vector_Decoder(Shape_to_Shape_Model):
-        def __init__(self, name, input_size, output_size, verbose = False):
-            super().__init__(name = name, input_shape = (input_size,),
-                             output_shape = (output_size,), verbose = verbose)
-        def build_model(self, arg_dict):
-            self.model = nn.Sequential(
-                nn.Linear(self.input_shape[0], 32), nn.LeakyReLU(),
-                nn.Linear(32, self.output_shape[0]))
-        def forward(self, value):
-            return self.model(value)
-        @staticmethod
-        def loss_func(predicted_values, target_values):
-            return F.mse_loss(predicted_values, target_values, reduction = 'none')
-
-
-
-    # An actor and critic, with actions having two parts. 
-    move_size, voice_size = 2, 5
-    hidden_state_size = 24
-
-    dict_of_action_decoder_class_dicts = {
-        'move' : {'class' : partial(Action_Decoder, name = 'move', output_size = move_size)},
-        'make_voice' : {'class' : partial(Action_Decoder, name = 'make_voice', output_size = voice_size)}}
-
-    dict_of_action_encoder_class_dicts = {
-        'move' : {'class' : partial(Vector_Encoder, name = 'move', input_size = move_size, output_size = 16)},
-        'make_voice' : {'class' : partial(Vector_Encoder, name = 'make_voice', input_size = voice_size, output_size = 16)}}
-
-    actor = Actor(hidden_state_size, dict_of_action_decoder_class_dicts)
-    critic_1 = Critic(hidden_state_size, dict_of_action_encoder_class_dicts)
-    critic_2 = Critic(hidden_state_size, dict_of_action_encoder_class_dicts)
-
-    print(f"actor parameters:  {sum(p.numel() for p in actor.parameters()):,}")
-    print(f"critic parameters: {sum(p.numel() for p in critic_1.parameters()):,}\n")
-
-    
-
-    # One step.
-    batch_size, episode_length = 4, 1
-    hidden_state = torch.randn(batch_size, episode_length, hidden_state_size)
-
-    action_dict, log_prob_dict = actor(hidden_state)
-    for name in action_dict:
-        print(f"action '{name}': \t{list(action_dict[name].shape)}\t"
-              f"log_prob {list(log_prob_dict[name].shape)}")
-
-    print(f"\nactions are bounded to (-1, 1): "
-          f"{all(v.abs().max().item() < 1 for v in action_dict.values())}")
-
-    total_log_prob = actor.total_log_prob(log_prob_dict)
-    print(f"total log_prob: \t{list(total_log_prob.shape)}  "
-          f"(motor entropy is its negative mean: {-total_log_prob.mean().item():.4f})")
-
-    value_1 = critic_1(hidden_state, action_dict)
-    value_2 = critic_2(hidden_state, action_dict)
-    print(f"\nQ from each critic: \t{list(value_1.shape)}")
-    print(f"SAC takes the smaller: \t{torch.min(value_1, value_2).mean().item():.4f}")
-
-
-
-    # Imitation, when the buffer has a "best action" to copy.
-    best_action_dict = {name : torch.tanh(torch.randn_like(value))
-                        for name, value in action_dict.items()}
-    action_dict, log_prob_dict, imitation_loss_dict = actor(hidden_state, best_action_dict)
-    print("\nimitation loss per action part:")
-    for name, loss in imitation_loss_dict.items():
-        print(f"\t{name}: \t{list(loss.shape)}\tmean {loss.mean().item():.4f}")
-
-# %%

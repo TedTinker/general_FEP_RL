@@ -1,0 +1,7 @@
+# PyPI's default torch wheel bundles several GB of CUDA libraries. The package is CPU-only
+# for now, so the CPU wheel is much smaller:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.0          # 2.0+ for torch.set_default_device, used in utils.py
+numpy>=1.21
+matplotlib>=3.5     # plot_training_log.py, live_view.py
+torchinfo>=1.7      # imported at the top of shape_to_shape_models.py

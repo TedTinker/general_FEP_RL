@@ -71,7 +71,6 @@ class Agent_Methods:
     # use_posterior = False is a "dream" step: the prior sample advances it instead, and observations are not observed.
     #------------------
 
-    # "dreaming" doesn't seem to work perfectly.
     def step_in_episode(
             self,
             observation = None,         # name : (batch, 1, ...). Required unless dreaming.
