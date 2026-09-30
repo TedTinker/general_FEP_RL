@@ -173,7 +173,7 @@ class Agent_Methods:
 
 
     # Train the world model, actor, critics, and alpha parameters.
-    def epoch(self, batch_size):
+    def epoch(self, batch_size, add_to_log = True):
         self.train()
 
         # Sample a batch. If unable, return nothing.
@@ -446,8 +446,8 @@ class Agent_Methods:
                 'alpha_losses' : alpha_losses,
                 'alphas' : {name : self.alpha(name).item() for name in self.log_alphas},
                 'log_alphas' : {name : p.item() for name, p in self.log_alphas.items()}}
-
-            self.add_to_training_log(epoch_dict_actor, actor = True)
+            if add_to_log:
+                self.add_to_training_log(epoch_dict_actor, actor = True)
 
 
 
@@ -487,7 +487,8 @@ class Agent_Methods:
             'trained_actor' : trained_actor}
 
         self.epoch_num += 1
-        self.add_to_training_log(epoch_dict)
+        if add_to_log:
+            self.add_to_training_log(epoch_dict)
         return epoch_dict, epoch_dict_actor
 
 
