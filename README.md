@@ -25,8 +25,8 @@ The hidden states are used as inputs for a Soft Actor Critic (SAC). The critic p
 &= \underbrace{r_t}_{\text{Extrinsic Reward}} \\
 &\quad + \eta \underbrace{D_{KL}[q(z_t|o_t,h_{t-1})||p(z_t|h_{t-1})]}_{\text{Curiosity}} \\
 &\quad + \alpha \underbrace{\mathcal{H}(\pi_{\phi}(a_{t+1}|h_t))}_{\text{Entropy}} \\
-&\quad + \delta \underbrace{E_{\pi(a_t | o_t)}[log p(a_t* | o_t)]}_{\text{Imitation}} \\
+&\quad + \delta \underbrace{E_{\pi(a_t | o_t)}[\log p(a_t* | o_t)]}_{\text{Imitation}} \\
 \end{aligned}
 ```
 
-Combined, the World Model and SAC can be described as adversarial to each other. The World Model tries to avoid surprise by understanding the relationship between observations, actions, and the environment. The SAC seeks states and actions that yield both expected reward and information gain, forcing the world model to adapt to novel and surprising experiences.
+Combined, the World Model and SAC can be described as adversarial to each other. It's like a race, or tug-of-war. The World Model tries to avoid surprise by understanding the relationship between observations, actions, and the environment. The SAC seeks states and actions that yield both expected reward and information gain, forcing the world model to adapt to novel and surprising experiences.

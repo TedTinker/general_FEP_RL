@@ -454,13 +454,13 @@ class Agent_Methods:
         epoch_dict = {
             'epoch_num' : self.epoch_num,
 
-            'obs' : {name : v.detach().cpu() for name, v in batch['obs'].items()},
-            'action' : {name : v.detach().cpu() for name, v in batch['action'].items()},
-            'best_action' : {name : v.detach().cpu() for name, v in best_action.items()},
+            #'obs' : {name : v.detach().cpu() for name, v in batch['obs'].items()},
+            #'action' : {name : v.detach().cpu() for name, v in batch['action'].items()},
+            #'best_action' : {name : v.detach().cpu() for name, v in best_action.items()},
             'reward' : reward.detach().cpu(),
             'done' : done.detach().cpu(),
             'mask' : mask.detach().cpu(),
-            'best_action_mask' : best_action_mask.detach().cpu(),
+            #'best_action_mask' : best_action_mask.detach().cpu(),
 
             'accuracy_losses_prior' : accuracy_losses_prior,
             'accuracy_losses_posterior' : accuracy_losses_posterior,
