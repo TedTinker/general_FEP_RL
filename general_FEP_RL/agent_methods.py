@@ -407,7 +407,7 @@ class Agent_Methods:
 
             Q = self.masked_mean(Q, mask)
             entropy = self.masked_mean(entropy, mask)
-            total_imitation_loss = self.masked_mean(total_imitation_loss, mask)
+            total_imitation_loss = self.masked_mean(total_imitation_loss, best_action_mask)
 
             actor_loss = -Q - entropy + total_imitation_loss
 
