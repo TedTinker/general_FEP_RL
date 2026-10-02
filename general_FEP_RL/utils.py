@@ -17,16 +17,6 @@ torch.set_default_device("cpu")
 
 
 #------------------
-# Set pytorch device. (Right now, only cpu is supported.)
-#------------------
-
-#device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-device = torch.device('cpu')
-print('\n\nDevice: {}.\n\n'.format(device))
-
-
-
-#------------------
 # Set random seed. (I think this covers everything.)
 #------------------
 
