@@ -370,100 +370,94 @@ class Agent_Methods:
 
 
         # The actor trains to minimise expected free energy.
+        new_action, new_log_prob, imitation_loss = self.actor(h_t, best_action)
+
+        Q = torch.min(torch.stack(
+            [critic(h_t, new_action) for critic in self.critics], dim = 0), dim = 0)[0]
+
+        entropy = torch.zeros_like(Q)
+        total_imitation_loss = torch.zeros_like(Q)
+
+        for name in new_action.keys():
+            scalars = self.dict_of_action_scalar_dicts[name]
+            alpha_entropy = self.alpha(name).detach() * (-new_log_prob[name])
+            flat_action = new_action[name].flatten(start_dim = 2)
+            alpha_normal_entropy = (0.5 * scalars['alpha_normal']
+                                    * (flat_action ** 2).sum(-1, keepdim = True))
+            total_entropy = alpha_entropy - alpha_normal_entropy
+            entropy = entropy + total_entropy
+
+            this_imitation = (self.per_step(imitation_loss[name])
+                                * scalars['delta'] * best_action_mask)
+            total_imitation_loss = total_imitation_loss + this_imitation
+
+            entropies[name] = self.masked_mean(-new_log_prob[name], mask).item()
+            target_entropies[name] = float(scalars['target_entropy'])
+            alpha_entropies[name] = self.masked_mean(alpha_entropy, mask).item()
+            alpha_normal_entropies[name] = self.masked_mean(alpha_normal_entropy, mask).item()
+            total_entropies[name] = self.masked_mean(total_entropy, mask).item()
+            imitation_losses[name] = self.masked_mean(
+                this_imitation, best_action_mask * mask).item()
+
+        Q = self.masked_mean(Q, mask)
+        entropy = self.masked_mean(entropy, mask)
+        total_imitation_loss = self.masked_mean(total_imitation_loss, mask)
+
+        actor_loss = -Q - entropy + total_imitation_loss
+
         if self.epoch_num % self.d != 0:
-            trained_actor = False
-            epoch_dict_actor = None
+            trained_actor = False 
         else:
             trained_actor = True
-
-            new_action, new_log_prob, imitation_loss = self.actor(h_t, best_action)
-
-            Q = torch.min(torch.stack(
-                [critic(h_t, new_action) for critic in self.critics], dim = 0), dim = 0)[0]
-
-            entropy = torch.zeros_like(Q)
-            total_imitation_loss = torch.zeros_like(Q)
-
-            for name in new_action.keys():
-                scalars = self.dict_of_action_scalar_dicts[name]
-                alpha_entropy = self.alpha(name).detach() * (-new_log_prob[name])
-                flat_action = new_action[name].flatten(start_dim = 2)
-                action_cost = (0.5 * scalars['action_cost']
-                                        * (flat_action ** 2).sum(-1, keepdim = True))
-                total_entropy = alpha_entropy - action_cost
-                entropy = entropy + total_entropy
-
-                this_imitation = (self.per_step(imitation_loss[name])
-                                  * scalars['delta'] * best_action_mask)
-                total_imitation_loss = total_imitation_loss + this_imitation
-
-                entropies[name] = self.masked_mean(-new_log_prob[name], mask).item()
-                target_entropies[name] = float(scalars['target_entropy'])
-                alpha_entropies[name] = self.masked_mean(alpha_entropy, mask).item()
-                action_costs[name] = self.masked_mean(action_cost, mask).item()
-                total_entropies[name] = self.masked_mean(total_entropy, mask).item()
-                imitation_losses[name] = self.masked_mean(
-                    this_imitation, best_action_mask * mask).item()
-
-            Q = self.masked_mean(Q, mask)
-            entropy = self.masked_mean(entropy, mask)
-            total_imitation_loss = self.masked_mean(total_imitation_loss, best_action_mask)
-
-            actor_loss = -Q - entropy + total_imitation_loss
-
             self.actor_opt.zero_grad()
             actor_loss.backward()
             self.actor_opt.step()
-            
-            
+        
+        
 
-            # Alpha values train to match target entropy. Train alpha values
-            for name, log_prob in new_log_prob.items():
-                target_entropy = self.dict_of_action_scalar_dicts[name]['target_entropy']
-                alpha_loss = self.log_alphas[name] * (-log_prob - target_entropy).detach()
-                alpha_loss = self.masked_mean(alpha_loss, mask)
+        # Alpha values train to match target entropy. Train alpha values
+        for name, log_prob in new_log_prob.items():
+            target_entropy = self.dict_of_action_scalar_dicts[name]['target_entropy']
+            alpha_loss = self.log_alphas[name] * (-log_prob - target_entropy).detach()
+            alpha_loss = self.masked_mean(alpha_loss, mask)
 
-                self.alpha_opts[name].zero_grad()
-                alpha_loss.backward()
-                self.alpha_opts[name].step()
+            self.alpha_opts[name].zero_grad()
+            alpha_loss.backward()
+            self.alpha_opts[name].step()
 
-                alpha_losses[name] = alpha_loss.item()
+            alpha_losses[name] = alpha_loss.item()
 
 
-            # Record training data.
-            epoch_dict_actor = {
-                'epoch_num' : self.epoch_num,
-                'actor_loss' : actor_loss.item(),
-                'Q_for_actor' : -Q.item(),
-                'entropy_for_actor' : -entropy.item(),
-                'total_imitation_loss' : total_imitation_loss.item(),
-                'entropies' : entropies,
-                'target_entropies' : target_entropies,
-                'alpha_entropies' : alpha_entropies,
-                'action_costs' : action_costs,
-                'total_entropies' : total_entropies,
-                'imitation_losses' : imitation_losses,
-                'alpha_losses' : alpha_losses,
-                'alphas' : {name : self.alpha(name).item() for name in self.log_alphas},
-                'log_alphas' : {name : p.item() for name, p in self.log_alphas.items()}}
-            if add_to_log:
-                self.add_to_training_log(epoch_dict_actor, actor = True)
+        # Record training data.
+        epoch_dict_actor = {
+            'epoch_num' : self.epoch_num,
+            'actor_loss' : actor_loss.item(),
+            'Q_for_actor' : -Q.item(),
+            'entropy_for_actor' : -entropy.item(),
+            'total_imitation_loss' : total_imitation_loss.item(),
+            'entropies' : entropies,
+            'target_entropies' : target_entropies,
+            'alpha_entropies' : alpha_entropies,
+            'alpha_normal_entropies' : alpha_normal_entropies,
+            'total_entropies' : total_entropies,
+            'imitation_losses' : imitation_losses}
+
+        self.add_to_training_log(epoch_dict_actor, actor = True)
 
 
 
         epoch_dict = {
             'epoch_num' : self.epoch_num,
 
-            #'obs' : {name : v.detach().cpu() for name, v in batch['obs'].items()},
-            #'action' : {name : v.detach().cpu() for name, v in batch['action'].items()},
-            #'best_action' : {name : v.detach().cpu() for name, v in best_action.items()},
+            'obs' : {name : v.detach().cpu() for name, v in batch['obs'].items()},
+            'action' : {name : v.detach().cpu() for name, v in batch['action'].items()},
+            'best_action' : {name : v.detach().cpu() for name, v in best_action.items()},
             'reward' : reward.detach().cpu(),
             'done' : done.detach().cpu(),
             'mask' : mask.detach().cpu(),
-            #'best_action_mask' : best_action_mask.detach().cpu(),
+            'best_action_mask' : best_action_mask.detach().cpu(),
 
-            'accuracy_losses_prior' : accuracy_losses_prior,
-            'accuracy_losses_posterior' : accuracy_losses_posterior,
+            'accuracy_losses' : accuracy_losses,
             'complexity_losses' : complexity_losses,
             'prior_stds' : prior_stds,
             'posterior_stds' : posterior_stds,
@@ -478,17 +472,19 @@ class Agent_Methods:
             'entropy_target_critic' : self.masked_mean(entropy_bonus_tp1, mask).item(),
             'entropies_target_critic' : entropies_target_critic,
             'sac_entropies_target_critic' : sac_entropies_target_critic,
-            'action_costs_target_critic' : action_costs_target_critic,
+            'normal_entropies_target_critic' : normal_entropies_target_critic,
             'sac_entropy_target_critic' : self.masked_mean(sac_entropy_tp1, mask).item(),
-            'action_cost_target_critic' : self.masked_mean(normal_prior_tp1, mask).item(),
+            'normal_entropy_target_critic' : self.masked_mean(normal_prior_tp1, mask).item(),
             'future_Q_value' : self.masked_mean(future_Q_value, mask).item(),
             'Q_target' : self.masked_mean(Q_target, mask).item(),
             'critic_predictions' : critic_predictions,
-            'trained_actor' : trained_actor}
+            'trained_actor' : trained_actor,
+            'alpha_losses' : alpha_losses,
+            'alphas' : {name : self.alpha(name).item() for name in self.log_alphas},
+            'log_alphas' : {name : p.item() for name, p in self.log_alphas.items()}}
 
         self.epoch_num += 1
-        if add_to_log:
-            self.add_to_training_log(epoch_dict)
+        self.add_to_training_log(epoch_dict)
         return epoch_dict, epoch_dict_actor
 
 
