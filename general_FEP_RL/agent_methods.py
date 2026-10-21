@@ -457,7 +457,8 @@ class Agent_Methods:
             'mask' : mask.detach().cpu(),
             'best_action_mask' : best_action_mask.detach().cpu(),
 
-            'accuracy_losses' : accuracy_losses,
+            'accuracy_losses_prior' : accuracy_losses_prior,
+            'accuracy_losses_posterior' : accuracy_losses_posterior,
             'complexity_losses' : complexity_losses,
             'prior_stds' : prior_stds,
             'posterior_stds' : posterior_stds,
