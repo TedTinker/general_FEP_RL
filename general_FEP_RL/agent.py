@@ -220,7 +220,7 @@ class Agent(Agent_Methods, nn.Module):
         self.lr_critic = lr if lr_critic is None else lr_critic
         self.lr_actor = lr if lr_actor is None else lr_actor
         self.weight_decay = weight_decay
-        self.reset_opts()
+        self.reset_optimizers()
 
         # Recurrent replay buffer, with shapes read off the world model.
         dict_of_observation_shapes, dict_of_action_shapes = shapes_from_world_model(self.world_model)
