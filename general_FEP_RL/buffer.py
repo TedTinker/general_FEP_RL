@@ -277,3 +277,42 @@ def shapes_from_world_model(world_model):
                 add(dict_of_observation_shapes, name, tuple(model.input_shape), 'observation')
 
     return dict_of_observation_shapes, dict_of_action_shapes
+
+
+
+    def state_dict(self):
+        return {
+            'observations' : {name : b.data.clone() for name, b in self.observation_buffers.items()},
+            'actions' : {name : b.data.clone() for name, b in self.action_buffers.items()},
+            'best_actions' : {name : b.data.clone() for name, b in self.best_action_buffers.items()},
+            'reward' : self.reward.data.clone(),
+            'done' : self.done.data.clone(),
+            'mask' : self.mask.data.clone(),
+            'best_action_mask' : self.best_action_mask.data.clone(),
+            'set_of_free_slots' : set(self.set_of_free_slots),
+            'list_of_episode_ids_by_age' : list(self.list_of_episode_ids_by_age),
+            'dict_of_slots_by_episode_id' : dict(self.dict_of_slots_by_episode_id),
+            'next_episode_id' : self.next_episode_id,
+            'current_episode_id' : self.current_episode_id,
+            'current_slot' : self.current_slot,
+            'time_ptr' : self.time_ptr}
+
+    def load_state_dict(self, state):
+        def copy_into(variable_buffer, data):
+            if variable_buffer.data.shape != data.shape:
+                raise ValueError(
+                    f"Saved buffer has shape {tuple(data.shape)}, this one has "
+                    f"{tuple(variable_buffer.data.shape)}. Build the agent with the same capacity, max_steps and shapes.")
+            variable_buffer.data.copy_(data)
+        for key, buffers in [('observations', self.observation_buffers),
+                             ('actions', self.action_buffers),
+                             ('best_actions', self.best_action_buffers)]:
+            if set(state[key]) != set(buffers):
+                raise ValueError(f"Saved {key} are {sorted(state[key])}, this buffer has {sorted(buffers)}.")
+            for name, data in state[key].items():
+                copy_into(buffers[name], data.cpu())
+        for name in ['reward', 'done', 'mask', 'best_action_mask']:
+            copy_into(getattr(self, name), state[name].cpu())
+        for name in ['set_of_free_slots', 'list_of_episode_ids_by_age', 'dict_of_slots_by_episode_id',
+                     'next_episode_id', 'current_episode_id', 'current_slot', 'time_ptr']:
+            setattr(self, name, state[name])

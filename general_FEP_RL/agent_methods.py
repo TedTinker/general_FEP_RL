@@ -3,6 +3,8 @@
 # agent_methods.py provides methods for the actor, including epoch.
 #------------------
 
+import random 
+import numpy as np
 import torch
 from copy import deepcopy
 
@@ -149,11 +151,11 @@ class Agent_Methods:
 
 
 
-    # Averaging (batch, steps, ...) to make (batch, steps, 1).
+    # Summing (batch, steps, ...) to make (batch, steps, 1).
     # This is to match the shape of the mask.
     @staticmethod
     def per_step(value):
-        return value.reshape(*value.shape[:2], -1).mean(dim = -1, keepdim = True)
+        return value.reshape(*value.shape[:2], -1).sum(dim = -1, keepdim = True)
 
     # Steps after the end of an episode contributes nothing.
     def masked_mean(self, value, mask):
@@ -257,7 +259,7 @@ class Agent_Methods:
                 dkl = torch.cat(
                     [step_dict['list_of_inner_states'][i][name]['dkl']
                      for step_dict in list_of_step_dicts[1:]], dim = 1)
-                dkl = dkl.mean(dim = -1, keepdim = True)
+                dkl = dkl.sum(dim = -1, keepdim = True)
                 dkls[layer_key][name] = dkl.detach()
 
                 layer_complexity = self.masked_mean(dkl, mask)
@@ -269,7 +271,7 @@ class Agent_Methods:
                     std = torch.cat(
                         [step_dict['list_of_inner_states'][i][name][which]
                          for step_dict in list_of_step_dicts[1:]], dim = 1).detach()
-                    store[layer_key][name] = self.masked_mean(std, mask).item()
+                    store[layer_key][name] = self.masked_mean(std.mean(-1, keepdim = True), mask).item()
 
         # Prepare hidden states for use by other models. 
         h_all = torch.cat(
@@ -372,8 +374,12 @@ class Agent_Methods:
         # The actor trains to minimise expected free energy.
         new_action, new_log_prob, imitation_loss = self.actor(h_t, best_action)
 
+        for critic in self.critics:
+            critic.requires_grad_(False)
         Q = torch.min(torch.stack(
             [critic(h_t, new_action) for critic in self.critics], dim = 0), dim = 0)[0]
+        for critic in self.critics:
+            critic.requires_grad_(True)     
 
         entropy = torch.zeros_like(Q)
         total_imitation_loss = torch.zeros_like(Q)
@@ -401,7 +407,7 @@ class Agent_Methods:
 
         Q = self.masked_mean(Q, mask)
         entropy = self.masked_mean(entropy, mask)
-        total_imitation_loss = self.masked_mean(total_imitation_loss, mask)
+        total_imitation_loss = self.masked_mean(total_imitation_loss, best_action_mask * mask)
 
         actor_loss = -Q - entropy + total_imitation_loss
 
@@ -426,6 +432,7 @@ class Agent_Methods:
             self.alpha_opts[name].step()
 
             alpha_losses[name] = alpha_loss.item()
+
 
 
         # Record training data.
@@ -563,3 +570,58 @@ class Agent_Methods:
         for name, buffer in sorted(self.buffer.action_buffers.items()):
             print(f"  action      {name:26s} {tuple(buffer.shape)}")
         print()
+
+    #------------------
+    # Saving and loading everything needed to resume training:
+    # networks, alphas, optimizers, epoch number, training logs, random states, and (optionally) the buffer.
+    #
+    # To load, build an Agent with the same arguments, then call agent.load(path).
+    #------------------
+
+    def save(self, path, include_buffer = True):
+        checkpoint = {
+            'model' : self.state_dict(),
+            'world_model_opt' : self.world_model_opt.state_dict(),
+            'actor_opt' : self.actor_opt.state_dict(),
+            'critic_opts' : [opt.state_dict() for opt in self.critic_opts],
+            'alpha_opts' : {name : opt.state_dict() for name, opt in self.alpha_opts.items()},
+            'epoch_num' : self.epoch_num,
+            'training_log' : self.training_log,
+            'training_log_actor' : self.training_log_actor,
+            'rng' : {
+                'torch' : torch.get_rng_state(),
+                'cuda' : torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
+                'numpy' : np.random.get_state(),
+                'python' : random.getstate()}}
+        if include_buffer:
+            checkpoint['buffer'] = self.buffer.state_dict()
+        torch.save(checkpoint, path)
+
+    # weights_only = False because logs and random states are ordinary Python objects.
+    # Only load checkpoints you trust: unpickling can run code.
+    def load(self, path, load_buffer = True, restore_rng = True):
+        device = next(self.parameters()).device
+        checkpoint = torch.load(path, map_location = device, weights_only = False)
+
+        self.load_state_dict(checkpoint['model'])
+        self.world_model_opt.load_state_dict(checkpoint['world_model_opt'])
+        self.actor_opt.load_state_dict(checkpoint['actor_opt'])
+        for opt, state in zip(self.critic_opts, checkpoint['critic_opts'], strict = True):
+            opt.load_state_dict(state)
+        for name, opt in self.alpha_opts.items():
+            opt.load_state_dict(checkpoint['alpha_opts'][name])
+
+        self.epoch_num = checkpoint['epoch_num']
+        self.training_log = checkpoint['training_log']
+        self.training_log_actor = checkpoint['training_log_actor']
+
+        if load_buffer and 'buffer' in checkpoint:
+            self.buffer.load_state_dict(checkpoint['buffer'])
+
+        if restore_rng:
+            rng = checkpoint['rng']
+            torch.set_rng_state(rng['torch'].cpu())
+            if rng['cuda'] is not None and torch.cuda.is_available():
+                torch.cuda.set_rng_state_all(rng['cuda'])
+            np.random.set_state(rng['numpy'])
+            random.setstate(rng['python'])

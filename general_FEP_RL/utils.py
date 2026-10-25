@@ -62,11 +62,12 @@ def estimate_total_duration(
             
 def init_weights(m):
     """Initialize weights of a neural network layer using Xavier normal and zero bias."""
-    try:
-        torch.nn.init.xavier_normal_(m.weight)
-        m.bias.data.fill_(0.0)
-    except:
-        pass
+    weight = getattr(m, 'weight', None)
+    if isinstance(weight, torch.Tensor) and weight.dim() >= 2:    
+        torch.nn.init.xavier_normal_(weight)
+    bias = getattr(m, 'bias', None)
+    if isinstance(bias, torch.Tensor):
+        torch.nn.init.zeros_(bias)
     
     
     

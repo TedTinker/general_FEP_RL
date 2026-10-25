@@ -150,8 +150,7 @@ class Agent(Agent_Methods, nn.Module):
         self.hidden_state_sizes = hidden_state_sizes
         self.time_constants = time_constants
 
-        self.world_model_opt = optim.Adam(
-            self.world_model.parameters(), lr = lr_world_model, weight_decay = weight_decay)
+
 
         # Training scalars, checked against what the world model actually built.
         if list_of_dict_of_inner_state_scalar_dicts is None:
@@ -186,8 +185,7 @@ class Agent(Agent_Methods, nn.Module):
         # Actor, reading the lowest layer's hidden state.
         self.actor = Actor(
             hidden_state_sizes[0], dict_of_action_decoder_class_dicts, verbose = verbose)
-        self.actor_opt = optim.Adam(
-            self.actor.parameters(), lr = lr_actor, weight_decay = weight_decay)
+
 
         # Alpha, the entropy weight, learned in log space.
         self.log_alphas = nn.ParameterDict({
@@ -195,17 +193,11 @@ class Agent(Agent_Methods, nn.Module):
                 float(scalars['initial_alpha']))))
             for name, scalars in self.dict_of_action_scalar_dicts.items()})
 
-        self.alpha_opts = {
-            name : optim.Adam(
-                params = [self.log_alphas[name]],
-                lr = lr if scalars['lr_alpha'] is None else scalars['lr_alpha'],
-                weight_decay = 0)
-            for name, scalars in self.dict_of_action_scalar_dicts.items()}
+
 
         # Critics and target critics.
         self.critics = nn.ModuleList()
         self.critic_targets = nn.ModuleList()
-        self.critic_opts = []
         for _ in range(number_of_critics):
             critic = Critic(
                 hidden_state_sizes[0], dict_of_action_encoder_class_dicts,
@@ -221,8 +213,14 @@ class Agent(Agent_Methods, nn.Module):
 
             self.critics.append(critic)
             self.critic_targets.append(critic_target)
-            self.critic_opts.append(optim.Adam(
-                critic.parameters(), lr = lr_critic, weight_decay = weight_decay))
+
+        # Make optimizers.
+        self.lr = lr
+        self.lr_world_model = lr if lr_world_model is None else lr_world_model
+        self.lr_critic = lr if lr_critic is None else lr_critic
+        self.lr_actor = lr if lr_actor is None else lr_actor
+        self.weight_decay = weight_decay
+        self.reset_opts()
 
         # Recurrent replay buffer, with shapes read off the world model.
         dict_of_observation_shapes, dict_of_action_shapes = shapes_from_world_model(self.world_model)
@@ -237,3 +235,19 @@ class Agent(Agent_Methods, nn.Module):
 
         if verbose:
             self.print_scalars()
+
+
+
+    def reset_optimizers(self):
+        self.world_model_opt = optim.Adam(
+            self.world_model.parameters(), lr = self.lr_world_model, weight_decay = self.weight_decay)
+        self.actor_opt = optim.Adam(
+            self.actor.parameters(), lr = self.lr_actor, weight_decay = self.weight_decay)
+        self.critic_opts = [
+            optim.Adam(critic.parameters(), lr = self.lr_critic, weight_decay = self.weight_decay) for critic in self.critics]
+        self.alpha_opts = {
+            name : optim.Adam(
+                params = [self.log_alphas[name]],
+                lr = self.lr if scalars['lr_alpha'] is None else scalars['lr_alpha'],
+                weight_decay = 0)
+            for name, scalars in self.dict_of_action_scalar_dicts.items()}
