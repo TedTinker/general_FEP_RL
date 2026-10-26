@@ -545,6 +545,11 @@ class LiveView:
         key = (row, column)
         if diverging and limit is None:
             limit = max(float(np.abs(data).max()), 1e-6)
+        if diverging and is_rgb:
+            # Signed colour difference on the same scale: mid-grey is agreement, and
+            # each channel goes brighter where the left term is higher, darker where
+            # lower. (Dreaming red where there is white shows as cyan-dark, not black.)
+            data = np.clip(0.5 + data / (2 * limit), 0, 1)
         if key not in self._images:
             if is_rgb:
                 self._images[key] = axes.imshow(data, interpolation = "nearest")
@@ -737,7 +742,10 @@ class LiveView:
                     if difference is None:
                         continue
                     if kind == 'image':
-                        self._draw_image(row, column, extractor(difference), False,
+                        # Not extractor(difference): the RGB extractor clips to [0, 1],
+                        # which would throw away every negative difference.
+                        data = difference[..., :3] if is_rgb else extractor(difference)
+                        self._draw_image(row, column, data, is_rgb,
                                          diverging = True, limit = limit)
                     else:
                         self._draw_vector(row, column, difference,
