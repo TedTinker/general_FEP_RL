@@ -30,7 +30,9 @@ class World_Model(nn.Module):
             list_of_prior_values_dicts,
             list_of_posterior_values_dicts,
             use_posterior = True,
-            deterministic = False):      # Not using the posterior is like "dreams:" the hierarchy runs on its own predictions.
+            deterministic = False,       # Not using the posterior is like "dreams:" the hierarchy runs on its own predictions.
+            predict = False):            # Decode predictions? Only needed to look at them (live view, dreams, plots).
+                                         # When False, the prediction dicts are empty; forward() decodes all steps at once.
 
         layers = self.list_of_world_model_layers
         num_layers = len(layers)
@@ -60,7 +62,7 @@ class World_Model(nn.Module):
 
                 inner_states = world_model_layer.make_inner_states(prior_values, posterior_values, deterministic = deterministic)
                 posterior_sample = world_model_layer.combine_inner_state_samples(inner_states, 'posterior')
-                posterior_predictions = world_model_layer.make_predictions(posterior_sample)
+                posterior_predictions = world_model_layer.make_predictions(posterior_sample) if predict else {}
             else:
                 inner_states = world_model_layer.make_prior_inner_states(prior_values, deterministic = deterministic)
                 posterior_sample = None
@@ -71,7 +73,7 @@ class World_Model(nn.Module):
             list_of_inner_states.append(inner_states)
             list_of_prior_samples.append(prior_sample)
             list_of_posterior_samples.append(posterior_sample)
-            list_of_prior_prediction_dicts.append(world_model_layer.make_predictions(prior_sample))
+            list_of_prior_prediction_dicts.append(world_model_layer.make_predictions(prior_sample) if predict else {})
             list_of_posterior_prediction_dicts.append(posterior_predictions)
 
         list_of_driving_samples = (list_of_posterior_samples if use_posterior else list_of_prior_samples)
@@ -113,7 +115,8 @@ class World_Model(nn.Module):
             list_of_lists_of_prior_values_dicts,
             list_of_lists_of_posterior_values_dicts,
             list_of_previous_hidden_states = None,      # Pass this in to continue an episode.
-            use_posterior = True):
+            use_posterior = True,
+            predict_posterior = True):                  # False: posterior predictions are zeros (dummies), not decoded.
 
         episode_length = len(list_of_lists_of_prior_values_dicts)
         example_value = next(iter(list_of_lists_of_posterior_values_dicts[0][0].values()))
@@ -130,8 +133,27 @@ class World_Model(nn.Module):
                 list_of_previous_hidden_states,
                 list_of_lists_of_prior_values_dicts[t],
                 list_of_lists_of_posterior_values_dicts[t],
-                use_posterior = use_posterior))
+                use_posterior = use_posterior,
+                predict = False))
             list_of_previous_hidden_states = list_of_step_dicts[-1]['list_of_hidden_states']
+
+        # Decode every step at once, rather than one step at a time inside the loop.
+        # (Decoders with batch norm therefore normalise over all steps together.)
+        for i, world_model_layer in enumerate(self.list_of_world_model_layers):
+            prior_predictions = world_model_layer.make_predictions(torch.cat(
+                [step_dict['list_of_prior_samples'][i] for step_dict in list_of_step_dicts], dim = 1))
+            if not use_posterior:
+                posterior_predictions = {}
+            elif predict_posterior:
+                posterior_predictions = world_model_layer.make_predictions(torch.cat(
+                    [step_dict['list_of_posterior_samples'][i] for step_dict in list_of_step_dicts], dim = 1))
+            else:
+                posterior_predictions = {name : torch.zeros_like(value) for name, value in prior_predictions.items()}
+            for t, step_dict in enumerate(list_of_step_dicts):
+                step_dict['list_of_prior_predictions'][i] = {
+                    name : value[:, t : t + 1] for name, value in prior_predictions.items()}
+                step_dict['list_of_posterior_predictions'][i] = {
+                    name : value[:, t : t + 1] for name, value in posterior_predictions.items()}
 
         return list_of_step_dicts
 

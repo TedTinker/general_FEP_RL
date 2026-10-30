@@ -8,7 +8,7 @@ gave back:
                     channel_names = {'see_image' : ['paddle', 'ball', 'trail', 'brick']},
                     discrete_actions = ['action'])
     ...
-    step_dict = agent.step_in_episode(observation)
+    step_dict = agent.step_in_episode(observation, predict = True)
     view.update(observation, step_dict, text = f"epoch {e}, step {s}")
 
 It works out what to draw from the tensors themselves, so it handles any number of
