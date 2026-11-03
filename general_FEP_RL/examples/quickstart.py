@@ -333,12 +333,12 @@ def plot_predictions_and_dream(agent, env, path, real_steps = 6, dream_steps = 6
     agent.begin()
     actual, predicted, dreamed = [], [], []
     for _ in range(real_steps):
-        step_dict = agent.step_in_episode(observation, deterministic = True)
+        step_dict = agent.step_in_episode(observation, deterministic = True, predict = True)
         actual.append(observation['vision'][0, 0])
         predicted.append(step_dict['prior_predictions'][0]['vision'][0, 0])
         observation, _, _ = env.step(step_dict['action']['move'])
     for _ in range(dream_steps):
-        step_dict = agent.step_in_episode(use_posterior = False, deterministic = True)
+        step_dict = agent.step_in_episode(use_posterior = False, deterministic = True, predict = True)
         dreamed.append(step_dict['observation']['vision'][0, 0])
 
     rows = [('actual', actual), ('prior prediction', predicted), ('dream', dreamed)]
