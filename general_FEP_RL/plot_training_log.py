@@ -258,7 +258,7 @@ def plot_training_log(agent, figsize=(19, 17)):
         if value > 0.5:
             warnings.append(
                 f"{worst} is pinned at the clip ceiling {value:.0%} of the time; "
-                "lower its eta_before_clamp or that source has no usable signal.")
+                "raise its clamp_max, or that source has no usable signal.")
 
     ent_last, rew_last = _last(ent_net), _last(total_rew)
     if ent_last is not None and rew_last is not None:

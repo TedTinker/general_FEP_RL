@@ -1,0 +1,264 @@
+diff --git a/general_FEP_RL/agent.py b/general_FEP_RL/agent.py
+index 8fb4ce4..9ebca5e 100644
+--- a/general_FEP_RL/agent.py
++++ b/general_FEP_RL/agent.py
+@@ -17,20 +17,26 @@ from general_FEP_RL.world_model import make_world_model
+ 
+ #------------------
+ # Training scalars for inner states:
+-#   upsilon_prior       accuracy scalar for prediction
+-#   upsilon_posterior   accuracy scalar for reconstruction
++#   upsilon_prior       accuracy scalar for prediction (0: prior predictions aren't decoded in training)
++#   upsilon_posterior   accuracy scalar for reconstruction (0: posterior predictions aren't decoded in training)
+ #   beta                complexity scalar
+-#   eta_before_clamp    curiosity scalar, applied BEFORE clamping to [0, 1]
+-#   eta                 curiosity scalar, applied after
++#   clamp_max           curiosity's cap on the DKL, averaged over the inner state's dimensions
++#   eta                 curiosity scalar, applied after the cap:
++#                           curiosity = eta * clamp(DKL averaged over dimensions, 0, clamp_max)
+ #------------------
+ 
+ DEFAULT_INNER_STATE_SCALARS = {
+     'upsilon_prior' : 1.0,
+     'upsilon_posterior' : 1.0,
+     'beta' : 0.03,
+-    'eta_before_clamp' : 1.0,
++    'clamp_max' : 1.0,
+     'eta' : 1.0}
+ 
++# Scalars which no longer exist, and what replaced them.
++REMOVED_SCALARS = {
++    'eta_before_clamp' : "removed: curiosity is now eta * clamp(DKL averaged over the inner state's "
++                         "dimensions, 0, clamp_max). Set the cap with clamp_max and the strength with eta."}
++
+ #------------------
+ # Training scalars for actions:
+ #   target_entropy      entropy desired for alpha's loss
+@@ -59,7 +65,7 @@ def fill_scalar_dicts(provided, required_names, defaults, description):
+     missing_is_fine = set(required_names) - set(provided)
+     if unknown_names:
+         raise ValueError(
+-            f"{description} has scalars for names which do not exist: {sorted(unknown_names)}"
++            f"{description} has scalars for names which do not exist: {sorted(unknown_names)}\n"
+             f"Names which do exist: {sorted(required_names)}")
+ 
+     filled = {}
+@@ -67,9 +73,10 @@ def fill_scalar_dicts(provided, required_names, defaults, description):
+         given = provided.get(name, {})
+         unknown_keys = set(given) - set(defaults)
+         if unknown_keys:
++            removed = ''.join(f"\n  {key}: {REMOVED_SCALARS[key]}" for key in sorted(unknown_keys) if key in REMOVED_SCALARS)
+             raise ValueError(
+-                f"{description}, '{name}' has unknown scalars: {sorted(unknown_keys)}"
+-                f"Scalars which exist: {sorted(defaults)}")
++                f"{description}, '{name}' has unknown scalars: {sorted(unknown_keys)}\n"
++                f"Scalars which exist: {sorted(defaults)}{removed}")
+         filled[name] = {**defaults, **given}
+ 
+     return filled, sorted(missing_is_fine)
+diff --git a/general_FEP_RL/agent_methods.py b/general_FEP_RL/agent_methods.py
+index bec8b45..ab913be 100644
+--- a/general_FEP_RL/agent_methods.py
++++ b/general_FEP_RL/agent_methods.py
+@@ -182,21 +182,31 @@ class Agent_Methods:
+             self,
+             batch_size,
+             add_to_log = True,
++            predict_prior = None,           # Decode prior predictions?
++                                            # None: in each layer, only if some upsilon_prior there is nonzero.
++                                            # False: dummy (zero) predictions, no prediction loss.
+             predict_posterior = None):      # Decode posterior predictions (reconstructions)?
+-                                            # None: only if some upsilon_posterior is nonzero.
++                                            # None: in each layer, only if some upsilon_posterior there is nonzero.
+                                             # False: dummy (zero) predictions, no reconstruction loss.
+         self.train()
+ 
+-        uses_posterior_accuracy = any(
+-            scalars['upsilon_posterior'] != 0
+-            for dict_of_scalars in self.list_of_dict_of_inner_state_scalar_dicts
+-            for scalars in dict_of_scalars.values())
+-        if predict_posterior is None:
+-            predict_posterior = uses_posterior_accuracy
+-        elif not predict_posterior and uses_posterior_accuracy:
+-            raise ValueError(
+-                "predict_posterior = False, but some upsilon_posterior is nonzero: "
+-                "the reconstruction loss would train on dummy predictions.")
++        # One bool per layer: does any inner state in that layer train on this path?
++        def layers_using(which):
++            return [any(scalars[f'upsilon_{which}'] != 0 for scalars in dict_of_scalars.values())
++                    for dict_of_scalars in self.list_of_dict_of_inner_state_scalar_dicts]
++
++        def which_layers_decode(which, requested):
++            used = layers_using(which)
++            if requested is None:
++                return used
++            if not requested and any(used):
++                raise ValueError(
++                    f"predict_{which} = False, but some upsilon_{which} is nonzero: "
++                    f"its accuracy loss would train on dummy predictions.")
++            return [bool(requested)] * len(used)
++
++        predict_prior = which_layers_decode('prior', predict_prior)
++        predict_posterior = which_layers_decode('posterior', predict_posterior)
+ 
+         # Sample a batch. If unable, return nothing.
+         batch = self.buffer.sample(batch_size)
+@@ -235,7 +245,8 @@ class Agent_Methods:
+         #------------------
+ 
+         prior_values, posterior_values = self.episode_values_from_batch(batch)
+-        list_of_step_dicts = self.world_model(prior_values, posterior_values, predict_posterior = predict_posterior)
++        list_of_step_dicts = self.world_model(
++            prior_values, posterior_values, predict_prior = predict_prior, predict_posterior = predict_posterior)
+ 
+         accuracy_loss = 0.
+         complexity_loss = 0.
+@@ -252,15 +263,6 @@ class Agent_Methods:
+ 
+             for name, scalars in scalars_for_layer.items():
+ 
+-                # Ignore predictions of step 0.
+-                predicted = torch.cat(
+-                    [step_dict['list_of_prior_predictions'][i][name]
+-                     for step_dict in list_of_step_dicts[1:]], dim = 1)
+-                if predict_posterior:
+-                    reconstructed = torch.cat(
+-                        [step_dict['list_of_posterior_predictions'][i][name]
+-                         for step_dict in list_of_step_dicts[1:]], dim = 1)
+-
+                 # Detach targets if they are generated by the model itself.
+                 # Otherwise, the model learns to be predictable instead of storing information.
+                 if name == 'lower_layer_posterior_sample':
+@@ -271,21 +273,27 @@ class Agent_Methods:
+                     target = batch['obs'][name][:, 1:]
+ 
+                 loss_func = world_model_layer.prediction_decoder.models_dict[name].loss_func
+-                layer_accuracy_prior = self.masked_mean(loss_func(predicted, target), mask)
+-                accuracy_losses_prior[layer_key][name] = layer_accuracy_prior.item()
+-                accuracy_loss = accuracy_loss + scalars['upsilon_prior'] * layer_accuracy_prior
+-                if predict_posterior:
+-                    layer_accuracy_posterior = self.masked_mean(loss_func(reconstructed, target), mask)
+-                    accuracy_losses_posterior[layer_key][name] = layer_accuracy_posterior.item()
+-                    accuracy_loss = accuracy_loss + scalars['upsilon_posterior'] * layer_accuracy_posterior
+-                else:
+-                    accuracy_losses_posterior[layer_key][name] = float('nan')     # Not computed; NaN plots as a gap.
++
++                # Prediction (prior) and reconstruction (posterior), each only if decoded.
++                # Ignore predictions of step 0. Not computed: NaN, which plots as a gap.
++                for which, decoded, losses in [
++                        ('prior', predict_prior[i], accuracy_losses_prior),
++                        ('posterior', predict_posterior[i], accuracy_losses_posterior)]:
++                    if not decoded:
++                        losses[layer_key][name] = float('nan')
++                        continue
++                    predicted = torch.cat(
++                        [step_dict[f'list_of_{which}_predictions'][i][name]
++                         for step_dict in list_of_step_dicts[1:]], dim = 1)
++                    layer_accuracy = self.masked_mean(loss_func(predicted, target), mask)
++                    losses[layer_key][name] = layer_accuracy.item()
++                    accuracy_loss = accuracy_loss + scalars[f'upsilon_{which}'] * layer_accuracy
+ 
+                 dkl = torch.cat(
+                     [step_dict['list_of_inner_states'][i][name]['dkl']
+-                     for step_dict in list_of_step_dicts[1:]], dim = 1)
+-                dkl = dkl.sum(dim = -1, keepdim = True)
+-                dkls[layer_key][name] = dkl.detach()
++                     for step_dict in list_of_step_dicts[1:]], dim = 1)        # (batch, steps, inner state size)
++                dkls[layer_key][name] = dkl.mean(dim = -1, keepdim = True).detach()  # Per dimension, for curiosity.
++                dkl = dkl.sum(dim = -1, keepdim = True)                         # Summed, for complexity.
+ 
+                 layer_complexity = self.masked_mean(dkl, mask)
+                 complexity_loss = complexity_loss + scalars['beta'] * layer_complexity
+@@ -311,21 +319,22 @@ class Agent_Methods:
+ 
+ 
+ 
+-        # Calculating curiosity, which is the complexity value of the next step.
+-        # This is clamped to avoid massive DKLs.
++        # Calculating curiosity, which is the complexity value of the next step:
++        # eta * clamp(DKL averaged over the inner state's dimensions, 0, clamp_max).
++        # The cap stops exploding DKLs; eta scales the result without moving the cap.
+         curiosity = torch.zeros_like(reward)
+         for i in range(len(self.world_model.list_of_world_model_layers)):
+             layer_key = f'layer_{i}'
+             curiosities[layer_key] = {}
+             curiosity_saturations[layer_key] = {}
+             for name, scalars in self.list_of_dict_of_inner_state_scalar_dicts[i].items():
+-                before_clamp = dkls[layer_key][name] * scalars['eta_before_clamp']
+-                this_curiosity = scalars['eta'] * torch.clamp(before_clamp, min = 0, max = 1)   # Clamping at one stops exploding DKL.
++                dkl_per_dimension = dkls[layer_key][name]
++                this_curiosity = scalars['eta'] * torch.clamp(dkl_per_dimension, min = 0, max = scalars['clamp_max'])
+                 this_curiosity = this_curiosity * mask
+                 curiosity = curiosity + this_curiosity
+                 curiosities[layer_key][name] = self.masked_mean(this_curiosity, mask).item()
+                 curiosity_saturations[layer_key][name] = self.masked_mean(
+-                    (before_clamp >= 1.0).float(), mask).item()
++                    (dkl_per_dimension >= scalars['clamp_max']).float(), mask).item()
+ 
+         total_reward = (reward + curiosity).detach() * mask
+ 
+diff --git a/general_FEP_RL/plot_training_log.py b/general_FEP_RL/plot_training_log.py
+index 779b1b1..a9a729e 100644
+--- a/general_FEP_RL/plot_training_log.py
++++ b/general_FEP_RL/plot_training_log.py
+@@ -258,7 +258,7 @@ def plot_training_log(agent, figsize=(19, 17)):
+         if value > 0.5:
+             warnings.append(
+                 f"{worst} is pinned at the clip ceiling {value:.0%} of the time; "
+-                "lower its eta_before_clamp or that source has no usable signal.")
++                "raise its clamp_max, or that source has no usable signal.")
+ 
+     ent_last, rew_last = _last(ent_net), _last(total_rew)
+     if ent_last is not None and rew_last is not None:
+diff --git a/general_FEP_RL/world_model.py b/general_FEP_RL/world_model.py
+index 1eab8f9..715a7eb 100644
+--- a/general_FEP_RL/world_model.py
++++ b/general_FEP_RL/world_model.py
+@@ -116,7 +116,15 @@ class World_Model(nn.Module):
+             list_of_lists_of_posterior_values_dicts,
+             list_of_previous_hidden_states = None,      # Pass this in to continue an episode.
+             use_posterior = True,
++            predict_prior = True,                       # False: prior predictions are zeros (dummies), not decoded.
+             predict_posterior = True):                  # False: posterior predictions are zeros (dummies), not decoded.
++                                                        # Either can also be a list, one bool per layer.
++
++        num_layers = len(self.list_of_world_model_layers)
++        if not isinstance(predict_prior, (list, tuple)):
++            predict_prior = [bool(predict_prior)] * num_layers
++        if not isinstance(predict_posterior, (list, tuple)):
++            predict_posterior = [bool(predict_posterior)] * num_layers
+ 
+         episode_length = len(list_of_lists_of_prior_values_dicts)
+         example_value = next(iter(list_of_lists_of_posterior_values_dicts[0][0].values()))
+@@ -139,16 +147,26 @@ class World_Model(nn.Module):
+ 
+         # Decode every step at once, rather than one step at a time inside the loop.
+         # (Decoders with batch norm therefore normalise over all steps together.)
++        # A path that isn't decoded gets zeros shaped like the other path's predictions,
++        # or nothing if neither path is decoded.
+         for i, world_model_layer in enumerate(self.list_of_world_model_layers):
+-            prior_predictions = world_model_layer.make_predictions(torch.cat(
+-                [step_dict['list_of_prior_samples'][i] for step_dict in list_of_step_dicts], dim = 1))
++            def decode(which):
++                return world_model_layer.make_predictions(torch.cat(
++                    [step_dict[f'list_of_{which}_samples'][i] for step_dict in list_of_step_dicts], dim = 1))
++
++            prior_predictions = decode('prior') if predict_prior[i] else None
+             if not use_posterior:
+                 posterior_predictions = {}
+-            elif predict_posterior:
+-                posterior_predictions = world_model_layer.make_predictions(torch.cat(
+-                    [step_dict['list_of_posterior_samples'][i] for step_dict in list_of_step_dicts], dim = 1))
++            elif predict_posterior[i]:
++                posterior_predictions = decode('posterior')
+             else:
++                posterior_predictions = None
++
++            if prior_predictions is None:
++                prior_predictions = {name : torch.zeros_like(value) for name, value in (posterior_predictions or {}).items()}
++            if posterior_predictions is None:
+                 posterior_predictions = {name : torch.zeros_like(value) for name, value in prior_predictions.items()}
++
+             for t, step_dict in enumerate(list_of_step_dicts):
+                 step_dict['list_of_prior_predictions'][i] = {
+                     name : value[:, t : t + 1] for name, value in prior_predictions.items()}

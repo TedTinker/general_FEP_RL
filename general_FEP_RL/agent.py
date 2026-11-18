@@ -17,19 +17,25 @@ from general_FEP_RL.world_model import make_world_model
 
 #------------------
 # Training scalars for inner states:
-#   upsilon_prior       accuracy scalar for prediction
-#   upsilon_posterior   accuracy scalar for reconstruction
+#   upsilon_prior       accuracy scalar for prediction (0: prior predictions aren't decoded in training)
+#   upsilon_posterior   accuracy scalar for reconstruction (0: posterior predictions aren't decoded in training)
 #   beta                complexity scalar
-#   eta_before_clamp    curiosity scalar, applied BEFORE clamping to [0, 1]
-#   eta                 curiosity scalar, applied after
+#   clamp_max           curiosity's cap on the DKL, averaged over the inner state's dimensions
+#   eta                 curiosity scalar, applied after the cap:
+#                           curiosity = eta * clamp(DKL averaged over dimensions, 0, clamp_max)
 #------------------
 
 DEFAULT_INNER_STATE_SCALARS = {
     'upsilon_prior' : 1.0,
     'upsilon_posterior' : 1.0,
     'beta' : 0.03,
-    'eta_before_clamp' : 1.0,
+    'clamp_max' : 1.0,
     'eta' : 1.0}
+
+# Scalars which no longer exist, and what replaced them.
+REMOVED_SCALARS = {
+    'eta_before_clamp' : "removed: curiosity is now eta * clamp(DKL averaged over the inner state's "
+                         "dimensions, 0, clamp_max). Set the cap with clamp_max and the strength with eta."}
 
 #------------------
 # Training scalars for actions:
@@ -59,7 +65,7 @@ def fill_scalar_dicts(provided, required_names, defaults, description):
     missing_is_fine = set(required_names) - set(provided)
     if unknown_names:
         raise ValueError(
-            f"{description} has scalars for names which do not exist: {sorted(unknown_names)}"
+            f"{description} has scalars for names which do not exist: {sorted(unknown_names)}\n"
             f"Names which do exist: {sorted(required_names)}")
 
     filled = {}
@@ -67,9 +73,10 @@ def fill_scalar_dicts(provided, required_names, defaults, description):
         given = provided.get(name, {})
         unknown_keys = set(given) - set(defaults)
         if unknown_keys:
+            removed = ''.join(f"\n  {key}: {REMOVED_SCALARS[key]}" for key in sorted(unknown_keys) if key in REMOVED_SCALARS)
             raise ValueError(
-                f"{description}, '{name}' has unknown scalars: {sorted(unknown_keys)}"
-                f"Scalars which exist: {sorted(defaults)}")
+                f"{description}, '{name}' has unknown scalars: {sorted(unknown_keys)}\n"
+                f"Scalars which exist: {sorted(defaults)}{removed}")
         filled[name] = {**defaults, **given}
 
     return filled, sorted(missing_is_fine)

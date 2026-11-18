@@ -116,7 +116,15 @@ class World_Model(nn.Module):
             list_of_lists_of_posterior_values_dicts,
             list_of_previous_hidden_states = None,      # Pass this in to continue an episode.
             use_posterior = True,
+            predict_prior = True,                       # False: prior predictions are zeros (dummies), not decoded.
             predict_posterior = True):                  # False: posterior predictions are zeros (dummies), not decoded.
+                                                        # Either can also be a list, one bool per layer.
+
+        num_layers = len(self.list_of_world_model_layers)
+        if not isinstance(predict_prior, (list, tuple)):
+            predict_prior = [bool(predict_prior)] * num_layers
+        if not isinstance(predict_posterior, (list, tuple)):
+            predict_posterior = [bool(predict_posterior)] * num_layers
 
         episode_length = len(list_of_lists_of_prior_values_dicts)
         example_value = next(iter(list_of_lists_of_posterior_values_dicts[0][0].values()))
@@ -139,16 +147,26 @@ class World_Model(nn.Module):
 
         # Decode every step at once, rather than one step at a time inside the loop.
         # (Decoders with batch norm therefore normalise over all steps together.)
+        # A path that isn't decoded gets zeros shaped like the other path's predictions,
+        # or nothing if neither path is decoded.
         for i, world_model_layer in enumerate(self.list_of_world_model_layers):
-            prior_predictions = world_model_layer.make_predictions(torch.cat(
-                [step_dict['list_of_prior_samples'][i] for step_dict in list_of_step_dicts], dim = 1))
+            def decode(which):
+                return world_model_layer.make_predictions(torch.cat(
+                    [step_dict[f'list_of_{which}_samples'][i] for step_dict in list_of_step_dicts], dim = 1))
+
+            prior_predictions = decode('prior') if predict_prior[i] else None
             if not use_posterior:
                 posterior_predictions = {}
-            elif predict_posterior:
-                posterior_predictions = world_model_layer.make_predictions(torch.cat(
-                    [step_dict['list_of_posterior_samples'][i] for step_dict in list_of_step_dicts], dim = 1))
+            elif predict_posterior[i]:
+                posterior_predictions = decode('posterior')
             else:
+                posterior_predictions = None
+
+            if prior_predictions is None:
+                prior_predictions = {name : torch.zeros_like(value) for name, value in (posterior_predictions or {}).items()}
+            if posterior_predictions is None:
                 posterior_predictions = {name : torch.zeros_like(value) for name, value in prior_predictions.items()}
+
             for t, step_dict in enumerate(list_of_step_dicts):
                 step_dict['list_of_prior_predictions'][i] = {
                     name : value[:, t : t + 1] for name, value in prior_predictions.items()}
